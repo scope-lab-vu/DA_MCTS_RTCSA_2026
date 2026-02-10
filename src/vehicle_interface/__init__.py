@@ -8,7 +8,7 @@ Factory: create_vehicle_interface(type_str, vehicle_params, simulation_config)
 from abc import ABC, abstractmethod
 from typing import Dict, Type
 
-from src.idl_messages import ControlCmdMsg, VehicleStateMsg
+from src.idl_messages import ControlCmdMsg, VehicleStateMsg, WaypointsMsg
 from src.params import MapConfig, SimulationConfig, VehicleParams
 
 # Imported here so they register; concrete files also usable standalone.
@@ -32,6 +32,10 @@ class VehicleInterface(ABC):
     def apply_action(self, cmd: ControlCmdMsg) -> None:
         """Send a control command to the vehicle / simulator."""
         ...
+
+    def setup_rendering(self, waypoints: WaypointsMsg) -> None:
+        """Register render callback for drawing raceline, etc. No-op by default."""
+        pass
 
     def render(self, mode: str = "human") -> None:
         """Render the environment. No-op by default."""

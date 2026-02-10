@@ -40,10 +40,10 @@ def parse_args() -> argparse.Namespace:
         default=Path("maps/config_YasMarina_map.yaml"),
     )
     parser.add_argument(
-        "--mu-id",
-        type=str,
-        default=None,
-        help="Override friction variant ID (e.g. 04947, 08642, 10489)",
+        "--mu",
+        type=float,
+        default=1.0489,
+        help="Override friction coefficient (e.g. 0.4947, 0.8642, 1.0489)",
     )
     parser.add_argument(
         "--render",
@@ -57,9 +57,12 @@ def main() -> None:
     args = parse_args()
 
     # --- Build pipeline via API ---
-    api = F1TenthAPI(args.vehicle_params, args.algo_config, args.map_config, mu_id_override=args.mu_id)
+    api = F1TenthAPI(args.vehicle_params, args.algo_config, args.map_config, mu_override=args.mu)
     waypoints = api.load_waypoints()
     render = args.render
+
+    if render:
+        api.setup_rendering(waypoints)
 
     dt_s = api.algo_config.simulation.dt_s
     log_every = api.algo_config.simulation.log_every_n_steps

@@ -7,12 +7,13 @@ and the gym's action format ([steering_angle, speed]).
 """
 
 import logging
+from typing import List
 
 import gym
 import numpy as np
 from f110_gym.envs.base_classes import Integrator
 
-from src.idl_messages import ControlCmdMsg, VehicleStateMsg
+from src.idl_messages import ControlCmdMsg, VehicleStateMsg, WaypointsMsg
 from src.params import MapConfig, SimulationConfig, VehicleParams
 
 log = logging.getLogger(__name__)
@@ -98,6 +99,46 @@ class GymVehicleInterface:
             self._state = self._obs_to_state(obs)
             self._cmd_speed = 0.0
             self._cmd_steer = 0.0
+
+    def setup_rendering(self, waypoints: WaypointsMsg) -> None:
+        """Register render callback that draws the raceline and follows the car."""
+        from pyglet.gl import GL_POINTS
+
+        # Pre-compute scaled waypoint vertices for drawing.
+        points = np.column_stack([waypoints.x, waypoints.y])
+        scaled_points = 50.0 * points
+        self._drawn_waypoints: List = []
+
+        def render_callback(env_renderer):
+            e = env_renderer
+
+            # Update camera to follow car.
+            x = e.cars[0].vertices[::2]
+            y = e.cars[0].vertices[1::2]
+            top, bottom, left, right = max(y), min(y), min(x), max(x)
+            e.score_label.x = left
+            e.score_label.y = top - 700
+            e.left = left - 800
+            e.right = right + 800
+            e.top = top + 800
+            e.bottom = bottom - 800
+
+            # Draw waypoints as points.
+            for i in range(scaled_points.shape[0]):
+                if len(self._drawn_waypoints) < scaled_points.shape[0]:
+                    b = e.batch.add(
+                        1, GL_POINTS, None,
+                        ('v3f/stream', [scaled_points[i, 0], scaled_points[i, 1], 0.]),
+                        ('c3B/stream', [183, 193, 222]),
+                    )
+                    self._drawn_waypoints.append(b)
+                else:
+                    self._drawn_waypoints[i].vertices = [
+                        scaled_points[i, 0], scaled_points[i, 1], 0.
+                    ]
+
+        self._env.add_render_callback(render_callback)
+        log.info("Render callback registered with %d waypoints.", len(waypoints.x))
 
     def render(self, mode: str = "human") -> None:
         self._env.render(mode=mode)

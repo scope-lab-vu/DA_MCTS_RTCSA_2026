@@ -6,6 +6,7 @@ interactions are hidden behind simple method calls.
 """
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
@@ -36,11 +37,19 @@ class F1TenthAPI:
         vehicle_params_path: Path,
         algo_config_path: Path,
         map_config_path: Path,
-        mu_id_override: Optional[str] = None,
+        mu_override: Optional[float] = None,
     ) -> None:
         # Load configuration.
         self.vehicle_params: VehicleParams = load_vehicle_params(vehicle_params_path)
         self.algo_config: AlgoConfig = load_algo_config(algo_config_path)
+
+        # Derive mu_id from mu value and override vehicle params if provided.
+        mu_id_override: Optional[str] = None
+        if mu_override is not None:
+            mu_id_override = str(mu_override).replace('.', '')
+            self.vehicle_params = replace(self.vehicle_params, mu=mu_override)
+            log.info("mu override: mu=%.4f  mu_id=%s", mu_override, mu_id_override)
+
         self.map_config: MapConfig = load_map_config(map_config_path, mu_id_override=mu_id_override)
 
         log.info(
@@ -95,6 +104,10 @@ class F1TenthAPI:
 
     def apply_action(self, cmd: ControlCmdMsg) -> None:
         self._vehicle.apply_action(cmd)
+
+    def setup_rendering(self, waypoints: WaypointsMsg) -> None:
+        """Register render callback to draw raceline and follow car."""
+        self._vehicle.setup_rendering(waypoints)
 
     def render(self, mode: str = "human") -> None:
         self._vehicle.render(mode=mode)
