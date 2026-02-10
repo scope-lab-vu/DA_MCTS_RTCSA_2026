@@ -7,6 +7,7 @@ interactions are hidden behind simple method calls.
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -35,11 +36,12 @@ class F1TenthAPI:
         vehicle_params_path: Path,
         algo_config_path: Path,
         map_config_path: Path,
+        mu_id_override: Optional[str] = None,
     ) -> None:
         # Load configuration.
         self.vehicle_params: VehicleParams = load_vehicle_params(vehicle_params_path)
         self.algo_config: AlgoConfig = load_algo_config(algo_config_path)
-        self.map_config: MapConfig = load_map_config(map_config_path)
+        self.map_config: MapConfig = load_map_config(map_config_path, mu_id_override=mu_id_override)
 
         log.info(
             "Building pipeline: interface=%s  dynamics=%s  controller=%s  safety=%s",

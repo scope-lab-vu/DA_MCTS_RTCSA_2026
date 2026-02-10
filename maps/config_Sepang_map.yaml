@@ -1,0 +1,24 @@
+# metadata
+run_name: 'map_wide'
+perf_num: 6
+
+# track and friction variant (override mu_id via --mu-id CLI arg)
+track_name: Sepang
+mu_id: '10489'
+
+# map paths ({track_name} and {mu_id} are expanded by the loader)
+map_path: ./{track_name}_{mu_id}/{track_name}_map
+map_ext: '.png'
+
+# starting pose for map - raceline (from 10489 variant)
+sx: 0.0002779
+sy: 0.0404132
+stheta: -3.0572307923526707
+
+wpt_path: ./{track_name}_{mu_id}/traj_race_cl_{track_name}_{mu_id}_map.csv
+wpt_delim: ';'
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
+wpt_thind: 3
+wpt_vind: 5

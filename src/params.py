@@ -103,6 +103,8 @@ class MapConfig:
     wpt_vind: Optional[int] = None
     run_name: Optional[str] = None
     perf_num: Optional[int] = None
+    track_name: Optional[str] = None
+    mu_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -133,10 +135,19 @@ def load_algo_config(path: Path) -> AlgoConfig:
     )
 
 
-def load_map_config(path: Path) -> MapConfig:
+def load_map_config(path: Path, mu_id_override: Optional[str] = None) -> MapConfig:
     """Load map config. Resolves relative paths against the config file's directory."""
     data = _load_yaml(path)
     config_dir = path.parent
+
+    # Apply CLI override for mu_id before template expansion.
+    if mu_id_override is not None:
+        data["mu_id"] = mu_id_override
+
+    # Expand {track_name} and {mu_id} placeholders in path fields.
+    for key in ("map_path", "wpt_path"):
+        if key in data:
+            data[key] = data[key].format_map(data)
 
     # Resolve relative paths to absolute.
     if "map_path" in data:
