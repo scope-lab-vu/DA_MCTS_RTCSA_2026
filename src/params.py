@@ -35,7 +35,6 @@ class VehicleParams:
 @dataclass(frozen=True)
 class ControllerConfig:
     type: str = "simple"
-    rate_hz: int = 25
     target_speed_mps: float = 2.0
 
 

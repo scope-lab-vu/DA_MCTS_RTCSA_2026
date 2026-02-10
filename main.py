@@ -51,12 +51,11 @@ def main() -> None:
     api = F1TenthAPI(args.vehicle_params, args.algo_config)
     waypoints = make_demo_waypoints()
 
-    rate_hz = api.algo_config.controller.rate_hz
-    dt_target = 1.0 / rate_hz
+    dt_s = api.algo_config.simulation.dt_s
     log_every = api.algo_config.simulation.log_every_n_steps
     step = 0
 
-    log.info("Starting control loop at %d Hz", rate_hz)
+    log.info("Starting control loop at dt=%.4fs (%.0f Hz)", dt_s, 1.0 / dt_s)
 
     try:
         while True:
@@ -80,7 +79,7 @@ def main() -> None:
 
             # --- Rate control with drift correction ---
             elapsed = time.monotonic() - t_start
-            sleep_time = dt_target - elapsed
+            sleep_time = dt_s - elapsed
             if sleep_time > 0:
                 time.sleep(sleep_time)
 
