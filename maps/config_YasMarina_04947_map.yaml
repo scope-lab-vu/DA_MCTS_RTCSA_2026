@@ -1,0 +1,22 @@
+# metadata
+run_name: 'map_wide'
+# characteristic number for map
+perf_num: 6
+
+# map paths
+# map_path: './example_map'
+map_path: './YasMarina_04947/YasMarina_map'
+map_ext: '.png'
+
+# starting pose for map - raceline
+sx: -0.0277172
+sy:  0.3472765
+stheta:  0.12750229589843512
+
+wpt_path: './YasMarina_04947/traj_race_cl_YasMarina_04947_map.csv'
+wpt_delim: ';'
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
+wpt_thind: 3
+wpt_vind: 5

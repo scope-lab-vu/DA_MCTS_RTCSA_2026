@@ -17,12 +17,12 @@ class KinematicBicycleModel:
     """Single-track kinematic bicycle (no lateral slip)."""
 
     def __init__(self, vehicle_params: VehicleParams) -> None:
-        self._lf = vehicle_params.lf_m
-        self._lr = vehicle_params.lr_m
-        self._wheelbase = vehicle_params.wheelbase_m
-        self._max_steer = vehicle_params.max_steer_rad
-        self._max_speed = vehicle_params.max_speed_mps
-        self._max_accel = vehicle_params.max_accel_mps2
+        self._lf = vehicle_params.lf
+        self._lr = vehicle_params.lr
+        self._wheelbase = vehicle_params.lf + vehicle_params.lr
+        self._max_steer = vehicle_params.s_max
+        self._max_speed = vehicle_params.v_max
+        self._max_accel = vehicle_params.a_max
 
         # Internal steering angle state (integrated from steering_vel).
         self._steer_angle: float = 0.0

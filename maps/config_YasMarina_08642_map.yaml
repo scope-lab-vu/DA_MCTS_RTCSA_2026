@@ -1,0 +1,44 @@
+# metadata
+run_name: 'map_wide'
+# characteristic number for map
+perf_num: 6
+
+# map paths
+# map_path: './example_map'
+map_path: './YasMarina_08642/YasMarina_map'
+map_ext: '.png'
+
+# starting pose for map - raceline
+sx: 0.0027395
+sy:  0.1291856
+stheta:  0.09757018779757252
+
+# starting pose for map - centerline
+# sx: 0.0
+# sy: 0.0
+# stheta: 0.1295886500694625
+
+# sx: -0.039473
+# sy: 0.431456
+# stheta: 0.09546740225325254
+
+# (0.2257032990455627, -0.5664528608322144, 0.10521816049822671)
+
+
+# raceline path and indices
+# wpt_path: './example_waypoints.csv'
+# wpt_path: '/home/samir/WORK_F1_sim/f1tenth_gym/f1tenth_racetracks/YasMarina/YasMarina_raceline.csv'
+# wpt_delim: ';'
+# wpt_rowskip: 3
+# wpt_xind: 1
+# wpt_yind: 2
+# wpt_thind: 3
+# wpt_vind: 5
+
+wpt_path: './YasMarina_08642/traj_race_cl_YasMarina_08642_map.csv'
+wpt_delim: ';'
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
+wpt_thind: 3
+wpt_vind: 5

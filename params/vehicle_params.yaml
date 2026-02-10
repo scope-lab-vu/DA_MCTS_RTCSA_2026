@@ -1,11 +1,23 @@
 # F1TENTH Vehicle Physical Parameters
 # These are constants for the F110 platform - shared across all algorithms.
+# Field names match the f1tenth_gym expected param dict.
 
 vehicle:
-  wheelbase_m: 0.33
-  mass_kg: 3.74
-  lf_m: 0.165          # distance from CG to front axle
-  lr_m: 0.165          # distance from CG to rear axle
-  max_steer_rad: 0.41  # ~23.5 degrees
-  max_speed_mps: 7.0
-  max_accel_mps2: 9.51
+  mu: 1.0489              # surface friction coefficient
+  C_Sf: 4.718             # cornering stiffness front
+  C_Sr: 5.4562            # cornering stiffness rear
+  lf: 0.15875             # distance CG to front axle [m]
+  lr: 0.17145             # distance CG to rear axle [m]
+  h: 0.074                # height of CG [m]
+  m: 3.74                 # mass [kg]
+  I: 0.04712              # moment of inertia [kg*m^2]
+  s_min: -0.4189          # min steering angle [rad]
+  s_max: 0.4189           # max steering angle [rad]
+  sv_min: -3.2            # min steering velocity [rad/s]
+  sv_max: 3.2             # max steering velocity [rad/s]
+  v_switch: 7.319         # velocity at which accel model switches [m/s]
+  a_max: 9.51             # max acceleration [m/s^2]
+  v_min: -5.0             # min velocity [m/s]
+  v_max: 20.0             # max velocity [m/s]
+  width: 0.31             # vehicle width [m]
+  length: 0.58            # vehicle length [m]

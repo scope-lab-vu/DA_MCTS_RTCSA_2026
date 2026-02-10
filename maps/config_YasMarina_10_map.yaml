@@ -1,0 +1,28 @@
+# metadata
+run_name: 'map_wide'
+# characteristic number for map
+perf_num: 6
+
+# map paths
+# map_path: './example_map'
+map_path: './YasMarina_10/YasMarina_map'
+map_ext: '.png'
+
+# starting pose for map - raceline
+sx: -2.07e-05
+sy:  0.1489505
+stheta:  0.0925943241614839
+
+wpt_path: './YasMarina_10/traj_race_cl_YasMarina_10_map.csv'
+wpt_delim: ';'
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
+wpt_thind: 3
+wpt_vind: 5
+
+# wpt_path: '/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/19_NonStationaryRL/PINNs_Learning/mppi_playground/f1tenth_gym/mppi_src/maps/YasMarina/YasMarina_centerline.csv'
+# wpt_delim: ','
+# wpt_rowskip: 1
+# wpt_xind: 0
+# wpt_yind: 1

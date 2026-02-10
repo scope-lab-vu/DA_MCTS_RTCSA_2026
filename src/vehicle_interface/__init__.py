@@ -2,14 +2,14 @@
 Vehicle Interface — abstracts the data source (sim, hardware, replay).
 
 ABC:  VehicleInterface
-Factory: create_vehicle_interface(type_str, vehicle_params, dynamics_model, dt)
+Factory: create_vehicle_interface(type_str, vehicle_params, simulation_config)
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Type
+from typing import Dict, Type
 
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg
-from src.params import VehicleParams
+from src.params import MapConfig, SimulationConfig, VehicleParams
 
 # Imported here so they register; concrete files also usable standalone.
 from src.vehicle_interface.gym_interface import GymVehicleInterface
@@ -33,6 +33,10 @@ class VehicleInterface(ABC):
         """Send a control command to the vehicle / simulator."""
         ...
 
+    def render(self, mode: str = "human") -> None:
+        """Render the environment. No-op by default."""
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Registry
@@ -48,8 +52,8 @@ VEHICLE_INTERFACE_REGISTRY: Dict[str, Type[VehicleInterface]] = {
 def create_vehicle_interface(
     type_str: str,
     vehicle_params: VehicleParams,
-    dynamics_model: "DynamicsModel",  # forward ref to avoid circular import
-    dt: float,
+    simulation_config: SimulationConfig,
+    map_config: MapConfig,
 ) -> VehicleInterface:
     cls = VEHICLE_INTERFACE_REGISTRY.get(type_str)
     if cls is None:
@@ -57,4 +61,8 @@ def create_vehicle_interface(
             f"Unknown vehicle interface '{type_str}'. "
             f"Available: {list(VEHICLE_INTERFACE_REGISTRY.keys())}"
         )
-    return cls(vehicle_params=vehicle_params, dynamics_model=dynamics_model, dt=dt)
+    return cls(
+        vehicle_params=vehicle_params,
+        simulation_config=simulation_config,
+        map_config=map_config,
+    )

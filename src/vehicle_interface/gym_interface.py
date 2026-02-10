@@ -1,28 +1,70 @@
 """
-Gym-based vehicle interface.
+F1TENTH Gym vehicle interface.
 
-Uses an internal dynamics model to simulate the vehicle.
-In the future, replace with a real f1tenth_gym environment call.
+Wraps the f1tenth_gym OpenAI Gym environment.
+Translates between our IDL messages (ControlCmdMsg with acceleration/steering_vel)
+and the gym's action format ([steering_angle, speed]).
 """
 
+import logging
+
+import gym
+import numpy as np
+from f110_gym.envs.base_classes import Integrator
+
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg
-from src.params import VehicleParams
+from src.params import MapConfig, SimulationConfig, VehicleParams
+
+log = logging.getLogger(__name__)
 
 
 class GymVehicleInterface:
-    """Simulated vehicle interface using a dynamics model for state rollout."""
+    """Vehicle interface backed by the f1tenth_gym simulator."""
 
     def __init__(
         self,
         vehicle_params: VehicleParams,
-        dynamics_model: "DynamicsModel",
-        dt: float,
+        simulation_config: SimulationConfig,
+        map_config: MapConfig,
     ) -> None:
         self._vehicle_params = vehicle_params
-        self._dynamics_model = dynamics_model
-        self._dt = dt
-        self._state = VehicleStateMsg()  # start at origin
+        self._map_config = map_config
+        self._dt = simulation_config.dt_s
+
+        # Internal commanded values (integrated from acceleration / steering_vel).
+        self._cmd_speed: float = 0.0
+        self._cmd_steer: float = 0.0
+
         self._last_action = ControlCmdMsg()
+        self._state = VehicleStateMsg()
+
+        # Build gym environment with vehicle params.
+        self._env = gym.make(
+            "f110_gym:f110-v0",
+            map=map_config.map_path,
+            map_ext=map_config.map_ext,
+            num_agents=1,
+            timestep=simulation_config.dt_s,
+            integrator=Integrator.Euler,
+            params=vehicle_params.to_gym_dict(),
+        )
+
+        # Reset at starting pose.
+        self._start_pose = np.array([[
+            map_config.sx,
+            map_config.sy,
+            map_config.stheta,
+        ]])
+        obs, _, _, _ = self._env.reset(self._start_pose)
+        self._state = self._obs_to_state(obs)
+
+        log.info(
+            "Gym env ready: map=%s  start=(%.2f, %.2f, %.2f)",
+            map_config.map_path,
+            map_config.sx,
+            map_config.sy,
+            map_config.stheta,
+        )
 
     # -- VehicleInterface contract ------------------------------------------
 
@@ -34,9 +76,41 @@ class GymVehicleInterface:
 
     def apply_action(self, cmd: ControlCmdMsg) -> None:
         self._last_action = cmd
-        # Roll forward the state using the injected dynamics model.
-        self._state = self._dynamics_model.predict_next_state(
-            state=self._state,
-            action=cmd,
-            dt=self._dt,
+
+        # Integrate acceleration → speed, steering_vel → steering_angle.
+        self._cmd_speed += cmd.acceleration * self._dt
+        self._cmd_speed = max(self._vehicle_params.v_min,
+                              min(self._vehicle_params.v_max, self._cmd_speed))
+
+        self._cmd_steer += cmd.steering_vel * self._dt
+        self._cmd_steer = max(self._vehicle_params.s_min,
+                              min(self._vehicle_params.s_max, self._cmd_steer))
+
+        # Gym expects [[steer_angle, speed]].
+        action = np.array([[self._cmd_steer, self._cmd_speed]])
+        obs, _, done, _ = self._env.step(action)
+
+        self._state = self._obs_to_state(obs)
+
+        if done:
+            log.warning("Gym env done (collision or out of bounds). Resetting.")
+            obs, _, _, _ = self._env.reset(self._start_pose)
+            self._state = self._obs_to_state(obs)
+            self._cmd_speed = 0.0
+            self._cmd_steer = 0.0
+
+    def render(self, mode: str = "human") -> None:
+        self._env.render(mode=mode)
+
+    # -- Internal helpers ---------------------------------------------------
+
+    @staticmethod
+    def _obs_to_state(obs: dict) -> VehicleStateMsg:
+        return VehicleStateMsg(
+            x=float(obs["poses_x"][0]),
+            y=float(obs["poses_y"][0]),
+            psi=float(obs["poses_theta"][0]),
+            v=float(obs["linear_vels_x"][0]),
+            beta=0.0,  # not directly in gym obs
+            omega=float(obs["ang_vels_z"][0]),
         )

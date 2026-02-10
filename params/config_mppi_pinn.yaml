@@ -26,5 +26,5 @@ safety:
 
 simulation:
   vehicle_interface: gym    # Options: gym, ros2, telemetry_replay
-  dt_s: 0.04               # Timestep in seconds (controls loop rate: 1/dt_s Hz)
-  log_every_n_steps: 25     # Log state every N control steps
+  dt_s: 0.01               # Timestep in seconds (controls loop rate: 1/dt_s Hz)
+  log_every_n_steps: 100    # Log state every N control steps

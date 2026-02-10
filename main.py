@@ -3,7 +3,9 @@ F1TENTH main loop.
 
 Usage:
     python main.py --vehicle-params params/vehicle_params.yaml \
-                   --algo-config   params/config_mppi_pinn.yaml
+                   --algo-config   params/config_mppi_pinn.yaml \
+                   --map-config    maps/config_example_map.yaml \
+                   --render
 """
 
 import argparse
@@ -12,7 +14,6 @@ import time
 from pathlib import Path
 
 from src.api import F1TenthAPI
-from src.idl_messages import WaypointsMsg
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,23 +34,26 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("params/config_mppi_pinn.yaml"),
     )
-    return parser.parse_args()
-
-
-def make_demo_waypoints() -> WaypointsMsg:
-    """Simple straight-line waypoints for testing the pipeline."""
-    return WaypointsMsg(
-        x=[float(i) for i in range(0, 20)],
-        y=[0.0] * 20,
+    parser.add_argument(
+        "--map-config",
+        type=Path,
+        default=Path("maps/config_example_map.yaml"),
     )
+    parser.add_argument(
+        "--render",
+        action="store_true",
+        help="Enable visualization of the gym environment",
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
 
     # --- Build pipeline via API ---
-    api = F1TenthAPI(args.vehicle_params, args.algo_config)
-    waypoints = make_demo_waypoints()
+    api = F1TenthAPI(args.vehicle_params, args.algo_config, args.map_config)
+    waypoints = api.load_waypoints()
+    render = args.render
 
     dt_s = api.algo_config.simulation.dt_s
     log_every = api.algo_config.simulation.log_every_n_steps
@@ -65,6 +69,9 @@ def main() -> None:
             state = api.get_state()
             cmd = api.compute_action(state, waypoints)
             api.apply_action(cmd)
+
+            if render:
+                api.render()
 
             step += 1
 

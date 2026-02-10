@@ -19,13 +19,29 @@ import yaml
 
 @dataclass(frozen=True)
 class VehicleParams:
-    wheelbase_m: float = 0.33
-    mass_kg: float = 3.74
-    lf_m: float = 0.165
-    lr_m: float = 0.165
-    max_steer_rad: float = 0.41
-    max_speed_mps: float = 7.0
-    max_accel_mps2: float = 9.51
+    mu: float = 1.0489
+    C_Sf: float = 4.718
+    C_Sr: float = 5.4562
+    lf: float = 0.15875
+    lr: float = 0.17145
+    h: float = 0.074
+    m: float = 3.74
+    I: float = 0.04712
+    s_min: float = -0.4189
+    s_max: float = 0.4189
+    sv_min: float = -3.2
+    sv_max: float = 3.2
+    v_switch: float = 7.319
+    a_max: float = 9.51
+    v_min: float = -5.0
+    v_max: float = 20.0
+    width: float = 0.31
+    length: float = 0.58
+
+    def to_gym_dict(self) -> dict:
+        """Convert to the dict format expected by f1tenth_gym."""
+        from dataclasses import asdict
+        return asdict(self)
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +69,8 @@ class SafetyConfig:
 @dataclass(frozen=True)
 class SimulationConfig:
     vehicle_interface: str = "gym"
-    dt_s: float = 0.04
-    log_every_n_steps: int = 25
+    dt_s: float = 0.01
+    log_every_n_steps: int = 100
 
 
 @dataclass(frozen=True)
@@ -63,6 +79,30 @@ class AlgoConfig:
     dynamics: DynamicsConfig = field(default_factory=DynamicsConfig)
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     simulation: SimulationConfig = field(default_factory=SimulationConfig)
+
+
+# ---------------------------------------------------------------------------
+# Map config (from maps/config_*_map.yaml)
+# Paths in the yaml are relative to the config file's directory.
+# The loader resolves them to absolute paths.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class MapConfig:
+    map_path: str = ""
+    map_ext: str = ".png"
+    sx: float = 0.0
+    sy: float = 0.0
+    stheta: float = 0.0
+    wpt_path: str = ""
+    wpt_delim: str = ";"
+    wpt_rowskip: int = 3
+    wpt_xind: int = 1
+    wpt_yind: int = 2
+    wpt_thind: Optional[int] = None
+    wpt_vind: Optional[int] = None
+    run_name: Optional[str] = None
+    perf_num: Optional[int] = None
 
 
 # ---------------------------------------------------------------------------
@@ -91,3 +131,17 @@ def load_algo_config(path: Path) -> AlgoConfig:
         safety=SafetyConfig(**data.get("safety", {})),
         simulation=SimulationConfig(**data.get("simulation", {})),
     )
+
+
+def load_map_config(path: Path) -> MapConfig:
+    """Load map config. Resolves relative paths against the config file's directory."""
+    data = _load_yaml(path)
+    config_dir = path.parent
+
+    # Resolve relative paths to absolute.
+    if "map_path" in data:
+        data["map_path"] = str((config_dir / data["map_path"]).resolve())
+    if "wpt_path" in data:
+        data["wpt_path"] = str((config_dir / data["wpt_path"]).resolve())
+
+    return MapConfig(**data)

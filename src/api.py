@@ -8,11 +8,15 @@ interactions are hidden behind simple method calls.
 import logging
 from pathlib import Path
 
+import numpy as np
+
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg, WaypointsMsg
 from src.params import (
     AlgoConfig,
+    MapConfig,
     VehicleParams,
     load_algo_config,
+    load_map_config,
     load_vehicle_params,
 )
 from src.dynamics import create_dynamics_model
@@ -30,10 +34,12 @@ class F1TenthAPI:
         self,
         vehicle_params_path: Path,
         algo_config_path: Path,
+        map_config_path: Path,
     ) -> None:
         # Load configuration.
         self.vehicle_params: VehicleParams = load_vehicle_params(vehicle_params_path)
         self.algo_config: AlgoConfig = load_algo_config(algo_config_path)
+        self.map_config: MapConfig = load_map_config(map_config_path)
 
         log.info(
             "Building pipeline: interface=%s  dynamics=%s  controller=%s  safety=%s",
@@ -58,11 +64,12 @@ class F1TenthAPI:
             type_str=self.algo_config.safety.type,
             vehicle_params=self.vehicle_params,
         )
+
         self._vehicle = create_vehicle_interface(
             type_str=self.algo_config.simulation.vehicle_interface,
             vehicle_params=self.vehicle_params,
-            dynamics_model=self._dynamics,
-            dt=self.algo_config.simulation.dt_s,
+            simulation_config=self.algo_config.simulation,
+            map_config=self.map_config,
         )
 
         log.info("Pipeline ready.")
@@ -86,3 +93,22 @@ class F1TenthAPI:
 
     def apply_action(self, cmd: ControlCmdMsg) -> None:
         self._vehicle.apply_action(cmd)
+
+    def render(self, mode: str = "human") -> None:
+        self._vehicle.render(mode=mode)
+
+    def load_waypoints(self) -> WaypointsMsg:
+        """Load waypoints from the CSV path specified in map config."""
+        mc = self.map_config
+        data = np.loadtxt(
+            mc.wpt_path,
+            delimiter=mc.wpt_delim,
+            skiprows=mc.wpt_rowskip,
+        )
+        waypoints = WaypointsMsg(
+            x=data[:, mc.wpt_xind].tolist(),
+            y=data[:, mc.wpt_yind].tolist(),
+        )
+        waypoints.validate()
+        log.info("Loaded %d waypoints from %s", len(waypoints.x), mc.wpt_path)
+        return waypoints

@@ -1,0 +1,22 @@
+# metadata
+run_name: 'map_wide'
+# characteristic number for map
+perf_num: 6
+
+# map paths
+# map_path: './example_map'
+map_path: './Sepang_10489/Sepang_map'
+map_ext: '.png'
+
+# starting pose for map - raceline
+sx: 0.0002779
+sy:  0.0404132
+stheta: -3.0572307923526707
+
+wpt_path: './Sepang_10489/traj_race_cl_Sepang_10489_map.csv'
+wpt_delim: ';'
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
+wpt_thind: 3
+wpt_vind: 5

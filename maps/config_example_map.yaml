@@ -1,0 +1,16 @@
+# Map Configuration: example_map
+# Paths are relative to this file's directory (maps/).
+
+map_path: ./example_map/example_map
+map_ext: .png
+
+# starting pose for map
+sx: 0.7
+sy: 0.0
+stheta: 1.37079632679
+
+wpt_path: ./example_map/example_waypoints.csv
+wpt_delim: ";"
+wpt_rowskip: 3
+wpt_xind: 1
+wpt_yind: 2
