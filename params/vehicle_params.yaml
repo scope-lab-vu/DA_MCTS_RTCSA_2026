@@ -1,0 +1,11 @@
+# F1TENTH Vehicle Physical Parameters
+# These are constants for the F110 platform - shared across all algorithms.
+
+vehicle:
+  wheelbase_m: 0.33
+  mass_kg: 3.74
+  lf_m: 0.165          # distance from CG to front axle
+  lr_m: 0.165          # distance from CG to rear axle
+  max_steer_rad: 0.41  # ~23.5 degrees
+  max_speed_mps: 7.0
+  max_accel_mps2: 9.51

@@ -1,0 +1,31 @@
+# Algorithm Configuration: MPPI controller + PINN dynamics model
+# Copy and modify this file to create new algorithm combinations.
+
+controller:
+  type: simple              # Options: simple, mpc, mppi
+  rate_hz: 25               # Control loop frequency
+  target_speed_mps: 2.0     # Target speed for simple controller
+  # --- MPPI-specific (used when type: mppi) ---
+  # num_samples: 1024
+  # horizon: 40
+  # lambda_: 1.0
+  # noise_sigma: [0.5, 0.1]
+
+dynamics:
+  type: kinematic_bicycle   # Options: kinematic_bicycle, svgp, pinn
+  # --- PINN-specific (used when type: pinn) ---
+  # model_path: models/pinn_v1.pt
+  # inference_device: cuda
+  # --- SVGP-specific (used when type: svgp) ---
+  # model_path: models/svgp_v1.pt
+  # inference_device: cuda
+
+safety:
+  type: noop                # Options: noop, cbf
+  # --- CBF-specific (used when type: cbf) ---
+  # barrier_alpha: 0.5
+
+simulation:
+  vehicle_interface: gym    # Options: gym, ros2, telemetry_replay
+  dt_s: 0.04               # Simulation timestep (1/rate_hz)
+  log_every_n_steps: 25     # Log state every N control steps
