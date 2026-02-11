@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--algo-config",
         type=Path,
-        default=Path("params/config_mppi_known_dyn.yaml"),
+        default=Path("params/config_mppi_pinn.yaml"),
     )
     parser.add_argument(
         "--map-config",
@@ -89,6 +89,10 @@ def main() -> None:
     dt_s = api.algo_config.simulation.dt_s
     log_every = api.algo_config.simulation.log_every_n_steps
     step = 0
+    reason = "unknown"
+
+    # Episode logger — records state-action pairs for CSV output.
+    episode_logger = api.create_episode_logger()
 
     log.info("Starting control loop at dt=%.4fs (%.0f Hz)", dt_s, 1.0 / dt_s)
 
@@ -99,7 +103,8 @@ def main() -> None:
             # --- Core loop ---
             state = api.get_state()
             cmd = api.compute_action(state, waypoints)
-            api.apply_action(cmd)
+            episode_logger.log_step(state, cmd)
+            done = api.apply_action(cmd)
 
             if render:
                 api.render()
@@ -115,6 +120,11 @@ def main() -> None:
                     cmd.acceleration, cmd.steering_vel,
                 )
 
+            if done:
+                reason = "done"
+                log.info("Episode finished at step %d.", step)
+                break
+
             # --- Rate control with drift correction ---
             elapsed = time.monotonic() - t_start
             sleep_time = dt_s - elapsed
@@ -122,7 +132,11 @@ def main() -> None:
                 time.sleep(sleep_time)
 
     except KeyboardInterrupt:
+        reason = "interrupted"
         log.info("Shutting down after %d steps.", step)
+
+    # --- Save trajectory ---
+    api.save_episode(episode_logger, output_dir="results/", reason=reason)
 
 
 if __name__ == "__main__":

@@ -74,7 +74,8 @@ class GymVehicleInterface:
     def get_last_applied_action(self) -> ControlCmdMsg:
         return self._last_action
 
-    def apply_action(self, cmd: ControlCmdMsg) -> None:
+    def apply_action(self, cmd: ControlCmdMsg) -> bool:
+        """Apply action and return True if the episode is done."""
         self._last_action = cmd
 
         # Gym (patched) expects [[steering_velocity, acceleration]].
@@ -84,9 +85,9 @@ class GymVehicleInterface:
         self._state = self._extract_state()
 
         if done:
-            log.warning("Gym env done (collision or out of bounds). Resetting.")
-            obs, _, _, _ = self._env.reset(self._start_pose)
-            self._state = self._extract_state()
+            log.warning("Gym env done (collision or out of bounds or lap completed).")
+
+        return bool(done)
 
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""

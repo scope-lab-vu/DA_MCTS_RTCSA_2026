@@ -15,7 +15,8 @@ sx: 0.0045403
 sy: -0.018692
 stheta: -2.9330724731014763
 
-wpt_path: ./{track_name}_{mu_id}/traj_race_cl_{track_name}_{mu_id}_map.csv
+# wpt_path: ./{track_name}_{mu_id}/traj_race_cl_{track_name}_{mu_id}_map.csv
+wpt_path: ./{track_name}_{mu_id}/traj_race_cl_centerline_mintime_mue{mu}_{track_name}_map.csv
 wpt_delim: ';'
 wpt_rowskip: 3
 wpt_xind: 1

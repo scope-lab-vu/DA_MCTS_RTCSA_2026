@@ -62,6 +62,10 @@ class ControllerConfig:
     device: str = "cpu"
     use_occupancy_map: bool = True
     lane_width: float = 1.1
+    # Cost function tuning
+    v_max_cost: float = 11.15
+    alpha_threshold: float = 3.5
+    speed_weight: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -117,6 +121,7 @@ class MapConfig:
     centerline_path: Optional[str] = None
     track_name: Optional[str] = None
     mu_id: Optional[str] = None
+    mu: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -147,14 +152,20 @@ def load_algo_config(path: Path) -> AlgoConfig:
     )
 
 
-def load_map_config(path: Path, mu_id_override: Optional[str] = None) -> MapConfig:
+def load_map_config(
+    path: Path,
+    mu_id_override: Optional[str] = None,
+    mu_override: Optional[float] = None,
+) -> MapConfig:
     """Load map config. Resolves relative paths against the config file's directory."""
     data = _load_yaml(path)
     config_dir = path.parent
 
-    # Apply CLI override for mu_id before template expansion.
+    # Apply CLI overrides before template expansion.
     if mu_id_override is not None:
         data["mu_id"] = mu_id_override
+    if mu_override is not None:
+        data["mu"] = str(mu_override)
 
     # Expand {track_name} and {mu_id} placeholders in path fields.
     for key in ("map_path", "wpt_path", "centerline_path"):

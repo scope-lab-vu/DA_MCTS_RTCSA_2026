@@ -4,7 +4,7 @@
 controller:
   type: mppi
   # --- MPPI-specific ---
-  horizon: 30
+  horizon: 15
   num_samples: 500
   lambda_: 1.0
   noise_sigma_accel: 2.0
@@ -13,6 +13,10 @@ controller:
   device: cpu
   use_occupancy_map: true
   lane_width: 1.1
+  # --- Cost function tuning ---
+  v_max_cost: 11.15
+  alpha_threshold: 3.5
+  speed_weight: 5.0
 
 dynamics:
   type: f1tenth_dynamics   # Known dynamics (same math as gym) — for testing
@@ -22,6 +26,6 @@ safety:
 
 simulation:
   vehicle_interface: gym
-  dt_s: 0.02             # Timestep in seconds (controls loop rate: 1/dt_s Hz)
-  log_every_n_steps: 100
+  dt_s: 0.04             # Timestep in seconds (controls loop rate: 1/dt_s Hz)
+  log_every_n_steps: 200
   seed: 42               # Random seed for reproducibility

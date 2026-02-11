@@ -23,6 +23,7 @@ from src.params import (
 )
 from src.dynamics import create_dynamics_model
 from src.controller import create_controller
+from src.episode_logger import EpisodeLogger
 from src.safety import create_safety_monitor
 from src.vehicle_interface import create_vehicle_interface
 
@@ -50,7 +51,9 @@ class F1TenthAPI:
             self.vehicle_params = replace(self.vehicle_params, mu=mu_override)
             log.info("mu override: mu=%.4f  mu_id=%s", mu_override, mu_id_override)
 
-        self.map_config: MapConfig = load_map_config(map_config_path, mu_id_override=mu_id_override)
+        self.map_config: MapConfig = load_map_config(
+            map_config_path, mu_id_override=mu_id_override, mu_override=mu_override,
+        )
 
         log.info(
             "Building pipeline: interface=%s  dynamics=%s  controller=%s  safety=%s",
@@ -109,8 +112,9 @@ class F1TenthAPI:
         safe_cmd = self._safety.filter_action(state, raw_cmd)
         return safe_cmd
 
-    def apply_action(self, cmd: ControlCmdMsg) -> None:
-        self._vehicle.apply_action(cmd)
+    def apply_action(self, cmd: ControlCmdMsg) -> bool:
+        """Apply action. Returns True if the episode is done."""
+        return self._vehicle.apply_action(cmd)
 
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback to draw raceline and follow car."""
@@ -134,3 +138,25 @@ class F1TenthAPI:
         waypoints.validate()
         log.info("Loaded %d waypoints from %s", len(waypoints.x), mc.wpt_path)
         return waypoints
+
+    # -- Episode logging ----------------------------------------------------
+
+    def create_episode_logger(self) -> EpisodeLogger:
+        """Create a fresh EpisodeLogger for a new episode."""
+        return EpisodeLogger()
+
+    def save_episode(
+        self,
+        logger: EpisodeLogger,
+        output_dir: str,
+        reason: str = "unknown",
+    ) -> str:
+        """Save the episode trajectory CSV and return its path."""
+        metadata = {
+            "track": self.map_config.track_name,
+            "mu": self.vehicle_params.mu,
+            "dt": self.algo_config.simulation.dt_s,
+            "controller": self.algo_config.controller.type,
+            "dynamics": self.algo_config.dynamics.type,
+        }
+        return logger.save(output_dir, reason=reason, metadata=metadata)
