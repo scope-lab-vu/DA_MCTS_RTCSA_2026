@@ -72,6 +72,8 @@ class ControllerConfig:
 class DynamicsConfig:
     type: str = "kinematic_bicycle"
     model_path: Optional[str] = None
+    model_cfg_path: Optional[str] = None
+    scaler_path: Optional[str] = None
     inference_device: str = "cpu"
 
 

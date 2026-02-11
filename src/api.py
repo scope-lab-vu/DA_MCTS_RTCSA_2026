@@ -67,6 +67,8 @@ class F1TenthAPI:
         self._dynamics = create_dynamics_model(
             type_str=self.algo_config.dynamics.type,
             vehicle_params=self.vehicle_params,
+            dynamics_config=self.algo_config.dynamics,
+            simulation_config=self.algo_config.simulation,
         )
         self._controller = create_controller(
             type_str=self.algo_config.controller.type,

@@ -170,6 +170,13 @@ class MPPIController:
             state.psi, state.omega, state.beta,
         ])
 
+        state_tensor = torch.tensor(state_np, device=self.device, dtype=self.dtype)
+
+        # Notify stateful dynamics (e.g. PINN) of real observation
+        if hasattr(self._dynamics_model, 'observe'):
+            prev_action = getattr(self, '_last_action_tensor', None)
+            self._dynamics_model.observe(state_tensor, prev_action)
+
         # Update reference velocity window from raceline
         if self.ref_traj is not None:
             position = state_np[:2]
@@ -180,8 +187,8 @@ class MPPIController:
         else:
             self.v_ref_window = None
 
-        state_tensor = torch.tensor(state_np, device=self.device, dtype=self.dtype)
         action = self.mppi.command(state_tensor)
+        self._last_action_tensor = action.clone()
         action_np = action.cpu().numpy()
 
         return ControlCmdMsg(

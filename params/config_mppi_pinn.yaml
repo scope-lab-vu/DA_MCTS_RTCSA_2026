@@ -1,30 +1,36 @@
 # Algorithm Configuration: MPPI controller + PINN dynamics model
-# Copy and modify this file to create new algorithm combinations.
+# Uses a pretrained DeepPacejka PINN for omega/beta prediction.
+# Hyperparameters tuned from reference PINN-MPPI experiments.
 
 controller:
-  type: simple              # Options: simple, mpc, mppi
-  target_speed_mps: 2.0     # Target speed for simple controller
-  # --- MPPI-specific (used when type: mppi) ---
-  # num_samples: 1024
-  # horizon: 40
-  # lambda_: 1.0
-  # noise_sigma: [0.5, 0.1]
+  type: mppi
+  # --- MPPI-specific ---
+  horizon: 15
+  num_samples: 5000
+  lambda_: 2.93
+  noise_sigma_accel: 2.29
+  noise_sigma_steer: 3.98
+  v_ref: 5.0
+  device: cpu
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- Cost function tuning ---
+  v_max_cost: 8.0
+  alpha_threshold: 0.5
+  speed_weight: 5.0
 
 dynamics:
-  type: kinematic_bicycle   # Options: kinematic_bicycle, svgp, pinn
-  # --- PINN-specific (used when type: pinn) ---
-  # model_path: models/pinn_v1.pt
-  # inference_device: cuda
-  # --- SVGP-specific (used when type: svgp) ---
-  # model_path: models/svgp_v1.pt
-  # inference_device: cuda
+  type: pinn
+  model_path: models/pinn/weights/epoch_388.pth
+  model_cfg_path: models/pinn/deep_pacejka_f1tenth_multi_fric_best_param.yaml
+  scaler_path: models/pinn/weights/scaler_safe.npz
+  inference_device: cpu
 
 safety:
-  type: noop                # Options: noop, cbf
-  # --- CBF-specific (used when type: cbf) ---
-  # barrier_alpha: 0.5
+  type: noop
 
 simulation:
-  vehicle_interface: gym    # Options: gym, ros2, telemetry_replay
-  dt_s: 0.01               # Timestep in seconds (controls loop rate: 1/dt_s Hz)
-  log_every_n_steps: 100    # Log state every N control steps
+  vehicle_interface: gym
+  dt_s: 0.04              # Must be 0.02 to match PINN training timestep
+  log_every_n_steps: 1
+  seed: 42

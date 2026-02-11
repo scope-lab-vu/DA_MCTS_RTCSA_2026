@@ -10,12 +10,12 @@ Models used with MPPI must also implement:
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Type
+from typing import Dict, Optional, Type
 
 import torch
 
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg
-from src.params import VehicleParams
+from src.params import DynamicsConfig, SimulationConfig, VehicleParams
 
 from src.dynamics.kinematic_bicycle import KinematicBicycleModel
 from src.dynamics.f1tenth_dynamics import F1TenthDynamicsModel
@@ -67,11 +67,19 @@ DYNAMICS_REGISTRY: Dict[str, Type[DynamicsModel]] = {
 def create_dynamics_model(
     type_str: str,
     vehicle_params: VehicleParams,
+    dynamics_config: Optional[DynamicsConfig] = None,
+    simulation_config: Optional[SimulationConfig] = None,
 ) -> DynamicsModel:
     cls = DYNAMICS_REGISTRY.get(type_str)
     if cls is None:
         raise ValueError(
             f"Unknown dynamics model '{type_str}'. "
             f"Available: {list(DYNAMICS_REGISTRY.keys())}"
+        )
+    if type_str == "pinn":
+        return cls(
+            vehicle_params=vehicle_params,
+            dynamics_config=dynamics_config,
+            simulation_config=simulation_config,
         )
     return cls(vehicle_params=vehicle_params)
