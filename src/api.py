@@ -70,6 +70,7 @@ class F1TenthAPI:
             dynamics_model=self._dynamics,
             vehicle_params=self.vehicle_params,
             controller_config=self.algo_config.controller,
+            map_config=self.map_config,
         )
         self._safety = create_safety_monitor(
             type_str=self.algo_config.safety.type,

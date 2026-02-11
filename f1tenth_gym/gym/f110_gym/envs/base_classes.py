@@ -268,19 +268,20 @@ class RaceCar(object):
         # state is [x, y, steer_angle, vel, yaw_angle, yaw_rate, slip_angle]
 
         # steering delay
-        steer = 0.
-        if self.steer_buffer.shape[0] < self.steer_buffer_size:
-            steer = 0.
-            self.steer_buffer = np.append(raw_steer, self.steer_buffer)
-        else:
-            steer = self.steer_buffer[-1]
-            self.steer_buffer = self.steer_buffer[:-1]
-            self.steer_buffer = np.append(raw_steer, self.steer_buffer)
+        # steer = 0.
+        # if self.steer_buffer.shape[0] < self.steer_buffer_size:
+        #     steer = 0.
+        #     self.steer_buffer = np.append(raw_steer, self.steer_buffer)
+        # else:
+        #     steer = self.steer_buffer[-1]
+        #     self.steer_buffer = self.steer_buffer[:-1]
+        #     self.steer_buffer = np.append(raw_steer, self.steer_buffer)
 
 
         # steering angle velocity input to steering velocity acceleration input
-        accl, sv = pid(vel, steer, self.state[3], self.state[2], self.params['sv_max'], self.params['a_max'], self.params['v_max'], self.params['v_min'])
-        
+        # accl, sv = pid(vel, steer, self.state[3], self.state[2], self.params['sv_max'], self.params['a_max'], self.params['v_max'], self.params['v_min'])
+        accl, sv = vel, raw_steer
+
         if self.integrator is Integrator.RK4:
             # RK4 integration
             k1 = vehicle_dynamics_st(

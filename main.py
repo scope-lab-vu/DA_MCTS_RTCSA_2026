@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--algo-config",
         type=Path,
-        default=Path("params/config_mppi_pinn.yaml"),
+        default=Path("params/config_mppi_known_dyn.yaml"),
     )
     parser.add_argument(
         "--map-config",

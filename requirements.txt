@@ -1,1 +1,3 @@
 pyyaml>=6.0
+pytorch-mppi[test]
+# pyglet==1.5.14 # for mac users

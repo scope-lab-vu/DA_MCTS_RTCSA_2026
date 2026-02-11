@@ -3,7 +3,10 @@ F1TENTH Gym vehicle interface.
 
 Wraps the f1tenth_gym OpenAI Gym environment.
 Translates between our IDL messages (ControlCmdMsg with acceleration/steering_vel)
-and the gym's action format ([steering_angle, speed]).
+and the gym's action format ([[steering_velocity, acceleration]]).
+
+The gym has been patched (base_classes.py) to accept raw acceleration and
+steering velocity directly, bypassing the internal PID.
 """
 
 import logging
@@ -32,10 +35,6 @@ class GymVehicleInterface:
         self._map_config = map_config
         self._dt = simulation_config.dt_s
 
-        # Internal commanded values (integrated from acceleration / steering_vel).
-        self._cmd_speed: float = 0.0
-        self._cmd_steer: float = 0.0
-
         self._last_action = ControlCmdMsg()
         self._state = VehicleStateMsg()
 
@@ -57,7 +56,7 @@ class GymVehicleInterface:
             map_config.stheta,
         ]])
         obs, _, _, _ = self._env.reset(self._start_pose)
-        self._state = self._obs_to_state(obs)
+        self._state = self._extract_state()
 
         log.info(
             "Gym env ready: map=%s  start=(%.2f, %.2f, %.2f)",
@@ -78,27 +77,16 @@ class GymVehicleInterface:
     def apply_action(self, cmd: ControlCmdMsg) -> None:
         self._last_action = cmd
 
-        # Integrate acceleration → speed, steering_vel → steering_angle.
-        self._cmd_speed += cmd.acceleration * self._dt
-        self._cmd_speed = max(self._vehicle_params.v_min,
-                              min(self._vehicle_params.v_max, self._cmd_speed))
-
-        self._cmd_steer += cmd.steering_vel * self._dt
-        self._cmd_steer = max(self._vehicle_params.s_min,
-                              min(self._vehicle_params.s_max, self._cmd_steer))
-
-        # Gym expects [[steer_angle, speed]].
-        action = np.array([[self._cmd_steer, self._cmd_speed]])
+        # Gym (patched) expects [[steering_velocity, acceleration]].
+        action = np.array([[cmd.steering_vel, cmd.acceleration]])
         obs, _, done, _ = self._env.step(action)
 
-        self._state = self._obs_to_state(obs)
+        self._state = self._extract_state()
 
         if done:
             log.warning("Gym env done (collision or out of bounds). Resetting.")
             obs, _, _, _ = self._env.reset(self._start_pose)
-            self._state = self._obs_to_state(obs)
-            self._cmd_speed = 0.0
-            self._cmd_steer = 0.0
+            self._state = self._extract_state()
 
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""
@@ -145,13 +133,18 @@ class GymVehicleInterface:
 
     # -- Internal helpers ---------------------------------------------------
 
-    @staticmethod
-    def _obs_to_state(obs: dict) -> VehicleStateMsg:
+    def _extract_state(self) -> VehicleStateMsg:
+        """Extract full 7-state from the gym simulator's internal agent state.
+
+        Gym internal state vector: [x, y, delta, v, psi, omega, beta]
+        """
+        agent_state = self._env.sim.agents[0].state
         return VehicleStateMsg(
-            x=float(obs["poses_x"][0]),
-            y=float(obs["poses_y"][0]),
-            psi=float(obs["poses_theta"][0]),
-            v=float(obs["linear_vels_x"][0]),
-            beta=0.0,  # not directly in gym obs
-            omega=float(obs["ang_vels_z"][0]),
+            x=float(agent_state[0]),
+            y=float(agent_state[1]),
+            delta=float(agent_state[2]),
+            v=float(agent_state[3]),
+            psi=float(agent_state[4]),
+            omega=float(agent_state[5]),
+            beta=float(agent_state[6]),
         )

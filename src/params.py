@@ -52,6 +52,16 @@ class VehicleParams:
 class ControllerConfig:
     type: str = "simple"
     target_speed_mps: float = 2.0
+    # MPPI-specific fields
+    horizon: int = 20
+    num_samples: int = 500
+    lambda_: float = 1.0
+    noise_sigma_accel: float = 2.0
+    noise_sigma_steer: float = 1.0
+    v_ref: float = 5.0
+    device: str = "cpu"
+    use_occupancy_map: bool = True
+    lane_width: float = 1.1
 
 
 @dataclass(frozen=True)
@@ -103,6 +113,7 @@ class MapConfig:
     wpt_vind: Optional[int] = None
     run_name: Optional[str] = None
     perf_num: Optional[int] = None
+    centerline_path: Optional[str] = None
     track_name: Optional[str] = None
     mu_id: Optional[str] = None
 
@@ -145,14 +156,13 @@ def load_map_config(path: Path, mu_id_override: Optional[str] = None) -> MapConf
         data["mu_id"] = mu_id_override
 
     # Expand {track_name} and {mu_id} placeholders in path fields.
-    for key in ("map_path", "wpt_path"):
-        if key in data:
+    for key in ("map_path", "wpt_path", "centerline_path"):
+        if key in data and data[key] is not None:
             data[key] = data[key].format_map(data)
 
     # Resolve relative paths to absolute.
-    if "map_path" in data:
-        data["map_path"] = str((config_dir / data["map_path"]).resolve())
-    if "wpt_path" in data:
-        data["wpt_path"] = str((config_dir / data["wpt_path"]).resolve())
+    for key in ("map_path", "wpt_path", "centerline_path"):
+        if key in data and data[key] is not None:
+            data[key] = str((config_dir / data[key]).resolve())
 
     return MapConfig(**data)

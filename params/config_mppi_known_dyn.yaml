@@ -1,0 +1,26 @@
+# Algorithm Configuration: MPPI controller + known F1TENTH dynamics
+# Uses the exact same single-track model as the gym simulator.
+
+controller:
+  type: mppi
+  # --- MPPI-specific ---
+  horizon: 30
+  num_samples: 500
+  lambda_: 1.0
+  noise_sigma_accel: 2.0
+  noise_sigma_steer: 1.0
+  v_ref: 5.0
+  device: cpu
+  use_occupancy_map: true
+  lane_width: 1.1
+
+dynamics:
+  type: f1tenth_dynamics   # Known dynamics (same math as gym) — for testing
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.02             # Timestep in seconds (controls loop rate: 1/dt_s Hz)
+  log_every_n_steps: 100

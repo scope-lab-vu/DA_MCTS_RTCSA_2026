@@ -22,3 +22,6 @@ wpt_xind: 1
 wpt_yind: 2
 wpt_thind: 3
 wpt_vind: 5
+
+# centerline for MPPI track-boundary detection
+centerline_path: ./{track_name}_{mu_id}/{track_name}_centerline.csv

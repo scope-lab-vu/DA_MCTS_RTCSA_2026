@@ -58,8 +58,9 @@ class KinematicBicycleModel:
         return VehicleStateMsg(
             x=x_next,
             y=y_next,
-            psi=psi_next,
+            delta=self._steer_angle,
             v=v_next,
-            beta=beta,
+            psi=psi_next,
             omega=omega_next,
+            beta=beta,
         )

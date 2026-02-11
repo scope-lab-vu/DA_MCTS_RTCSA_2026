@@ -13,15 +13,17 @@ from typing import List
 
 @dataclass
 class VehicleStateMsg:
+    """Matches MPPI state vector ordering: [x, y, delta, v, psi, omega, beta]."""
     x: float = 0.0
     y: float = 0.0
-    psi: float = 0.0       # heading angle [rad]
-    v: float = 0.0          # longitudinal velocity [m/s]
-    beta: float = 0.0       # slip angle [rad]
-    omega: float = 0.0      # yaw rate [rad/s]
+    delta: float = 0.0      # steering angle [rad]
+    v: float = 0.0           # longitudinal velocity [m/s]
+    psi: float = 0.0         # heading angle [rad]
+    omega: float = 0.0       # yaw rate [rad/s]
+    beta: float = 0.0        # slip angle [rad]
 
     def validate(self) -> None:
-        for name in ("x", "y", "psi", "v", "beta", "omega"):
+        for name in ("x", "y", "delta", "v", "psi", "omega", "beta"):
             val = getattr(self, name)
             if not math.isfinite(val):
                 raise ValueError(f"VehicleStateMsg.{name} is not finite: {val}")

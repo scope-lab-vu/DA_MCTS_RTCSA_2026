@@ -12,6 +12,7 @@ from src.idl_messages import ControlCmdMsg, VehicleStateMsg
 from src.params import VehicleParams
 
 from src.dynamics.kinematic_bicycle import KinematicBicycleModel
+from src.dynamics.f1tenth_dynamics import F1TenthDynamicsModel
 from src.dynamics.svgp import SVGPModel
 from src.dynamics.pinn import PINNModel
 
@@ -35,6 +36,7 @@ class DynamicsModel(ABC):
 
 DYNAMICS_REGISTRY: Dict[str, Type[DynamicsModel]] = {
     "kinematic_bicycle": KinematicBicycleModel,
+    "f1tenth_dynamics": F1TenthDynamicsModel,
     "svgp": SVGPModel,
     "pinn": PINNModel,
 }
