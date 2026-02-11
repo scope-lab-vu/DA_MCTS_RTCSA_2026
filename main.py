@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--algo-config",
         type=Path,
-        default=Path("params/config_mppi_pinn.yaml"),
+        default=Path("params/config_simple_controller.yaml"),
     )
     parser.add_argument(
         "--map-config",
@@ -121,8 +121,8 @@ def main() -> None:
                 )
 
             if done:
-                reason = "done"
-                log.info("Episode finished at step %d.", step)
+                reason = "collision" if api.collision else "done"
+                log.info("Episode finished at step %d (%s).", step, reason)
                 break
 
             # --- Rate control with drift correction ---

@@ -74,6 +74,10 @@ class DynamicsConfig:
     model_path: Optional[str] = None
     model_cfg_path: Optional[str] = None
     scaler_path: Optional[str] = None
+    # SVGP-specific: separate omega/beta model paths and task index
+    omega_model_path: Optional[str] = None
+    beta_model_path: Optional[str] = None
+    task_index: int = 0
     inference_device: str = "cpu"
 
 

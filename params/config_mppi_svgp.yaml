@@ -1,0 +1,36 @@
+# Algorithm Configuration: MPPI controller + SVGP dynamics model
+# Uses Extended Kinematic base + SVGP residual corrections for omega/beta.
+# Hyperparameters tuned from reference SVGP-MPPI experiments.
+
+controller:
+  type: mppi
+  # --- MPPI-specific ---
+  horizon: 15
+  num_samples: 5000
+  lambda_: 2.93
+  noise_sigma_accel: 2.29
+  noise_sigma_steer: 3.98
+  v_ref: 5.0
+  device: cpu
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- Cost function tuning ---
+  v_max_cost: 12.0
+  alpha_threshold: 0.7
+  speed_weight: 5.0
+
+dynamics:
+  type: svgp
+  omega_model_path: models/svgp/hip_mdp_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data.npz
+  beta_model_path: models/svgp/hip_mdp_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data.npz
+  task_index: 0               # 0: mu=1.0489, 1: mu=0.8642, 2: mu=0.4947
+  inference_device: cpu
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42

@@ -118,6 +118,11 @@ class F1TenthAPI:
         """Apply action. Returns True if the episode is done."""
         return self._vehicle.apply_action(cmd)
 
+    @property
+    def collision(self) -> bool:
+        """True if the last step resulted in a collision."""
+        return getattr(self._vehicle, 'collision', False)
+
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback to draw raceline and follow car."""
         self._vehicle.setup_rendering(waypoints)

@@ -84,10 +84,19 @@ class GymVehicleInterface:
 
         self._state = self._extract_state()
 
+        # Track collision flag from the gym environment.
+        self._collision = bool(self._env.collisions[self._env.ego_idx])
+
         if done:
-            log.warning("Gym env done (collision or out of bounds or lap completed).")
+            reason = "collision" if self._collision else "lap completed"
+            log.warning("Gym env done (%s).", reason)
 
         return bool(done)
+
+    @property
+    def collision(self) -> bool:
+        """True if the last step resulted in a collision."""
+        return getattr(self, '_collision', False)
 
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""

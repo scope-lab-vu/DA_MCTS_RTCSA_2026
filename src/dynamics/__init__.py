@@ -76,7 +76,7 @@ def create_dynamics_model(
             f"Unknown dynamics model '{type_str}'. "
             f"Available: {list(DYNAMICS_REGISTRY.keys())}"
         )
-    if type_str == "pinn":
+    if type_str in ("pinn", "svgp"):
         return cls(
             vehicle_params=vehicle_params,
             dynamics_config=dynamics_config,
