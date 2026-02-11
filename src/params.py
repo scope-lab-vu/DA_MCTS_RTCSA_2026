@@ -81,6 +81,7 @@ class SimulationConfig:
     vehicle_interface: str = "gym"
     dt_s: float = 0.01
     log_every_n_steps: int = 100
+    seed: int = 42
 
 
 @dataclass(frozen=True)

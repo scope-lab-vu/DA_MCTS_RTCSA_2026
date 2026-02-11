@@ -10,8 +10,12 @@ Usage:
 
 import argparse
 import logging
+import random
 import time
 from pathlib import Path
+
+import numpy as np
+import torch
 
 from src.api import F1TenthAPI
 
@@ -53,8 +57,26 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def set_seed(seed: int) -> None:
+    """Set random seeds for reproducibility (matches reference MPPI script)."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+    log.info("Random seed set to %d", seed)
+
+
 def main() -> None:
     args = parse_args()
+
+    # --- Set seed before anything else (read from algo config) ---
+    from src.params import load_algo_config
+    seed = load_algo_config(args.algo_config).simulation.seed
+    set_seed(seed)
 
     # --- Build pipeline via API ---
     api = F1TenthAPI(args.vehicle_params, args.algo_config, args.map_config, mu_override=args.mu)

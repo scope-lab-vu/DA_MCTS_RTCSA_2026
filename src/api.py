@@ -71,6 +71,7 @@ class F1TenthAPI:
             vehicle_params=self.vehicle_params,
             controller_config=self.algo_config.controller,
             map_config=self.map_config,
+            simulation_config=self.algo_config.simulation,
         )
         self._safety = create_safety_monitor(
             type_str=self.algo_config.safety.type,
@@ -83,6 +84,11 @@ class F1TenthAPI:
             simulation_config=self.algo_config.simulation,
             map_config=self.map_config,
         )
+
+        # Reset controller to align RNG state (matches reference script which
+        # calls controller.reset() after env creation).
+        if hasattr(self._controller, 'reset'):
+            self._controller.reset()
 
         log.info("Pipeline ready.")
 

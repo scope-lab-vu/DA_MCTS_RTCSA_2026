@@ -19,7 +19,7 @@ import torch
 from pytorch_mppi import mppi
 
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg, WaypointsMsg
-from src.params import ControllerConfig, MapConfig, VehicleParams
+from src.params import ControllerConfig, MapConfig, SimulationConfig, VehicleParams
 from src.track import (
     ReferenceTrajectory,
     Track,
@@ -39,6 +39,7 @@ class MPPIController:
         vehicle_params: VehicleParams,
         config: ControllerConfig,
         map_config: MapConfig,
+        simulation_config: SimulationConfig = None,
     ) -> None:
         self._vehicle_params = vehicle_params
         self._config = config
@@ -64,7 +65,7 @@ class MPPIController:
         self.v_min = p.v_min
         self.v_max = p.v_max
 
-        self.dt = 0.02  # internal MPPI dynamics dt (can differ from sim dt)
+        self.dt = simulation_config.dt_s if simulation_config is not None else 0.02
         self.horizon = config.horizon
         self.v_ref = config.v_ref
         self.device = config.device
