@@ -1,3 +1,9 @@
 __pycache__
 venv
 results/
+src/controller/mcts_dpw_cpp/mcts_f1tenth_cpp.cpython-38-x86_64-linux-gnu.so
+src/controller/mcts_dpw_cpp/mcts_f1tenth_cpp.egg-info/
+src/controller/mcts_dpw_cpp/pyproject.toml
+f1tenth_gym/gym/f110_gym.egg-info/
+nohup*
+

@@ -144,12 +144,12 @@ class MCTSDPWController:
         self._last_action = action
 
         # Log the best action's mean reward from the tree.
-        action_key = tuple(action)
-        if action_key in self._tree.root.children:
-            rn = self._tree.root.children[action_key]
-            mean_rew = rn.cumulative_reward / max(rn.visits, 1)
-            log.info("best_action=[%.3f, %.3f] visits=%d mean_reward=%.4f",
-                     action[0], action[1], rn.visits, mean_rew)
+        # action_key = tuple(action)
+        # if action_key in self._tree.root.children:
+        #     rn = self._tree.root.children[action_key]
+        #     mean_rew = rn.cumulative_reward / max(rn.visits, 1)
+        #     log.info("best_action=[%.3f, %.3f] visits=%d mean_reward=%.4f",
+        #              action[0], action[1], rn.visits, mean_rew)
 
         return ControlCmdMsg(
             acceleration=float(action[0]),

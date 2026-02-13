@@ -27,5 +27,5 @@ safety:
 simulation:
   vehicle_interface: gym
   dt_s: 0.04             # Timestep in seconds (controls loop rate: 1/dt_s Hz)
-  log_every_n_steps: 100
+  log_every_n_steps: 1
   seed: 42               # Random seed for reproducibility
