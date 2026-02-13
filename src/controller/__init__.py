@@ -14,10 +14,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.controller.simple_controller import SimpleController
 from src.controller.mpc import MPCController
 from src.controller.mppi import MPPIController
+from src.controller.mcts_dpw_py import MCTSDPWController
 
 # Controllers that need extra kwargs in their constructor.
-_NEEDS_MAP_CONFIG = {"mppi"}
-_NEEDS_SIMULATION_CONFIG = {"mppi"}
+_NEEDS_MAP_CONFIG = {"mppi", "mcts_dpw_py"}
+_NEEDS_SIMULATION_CONFIG = {"mppi", "mcts_dpw_py"}
 
 
 class Controller(ABC):
@@ -40,6 +41,7 @@ CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {
     "simple": SimpleController,
     "mpc": MPCController,
     "mppi": MPPIController,
+    "mcts_dpw_py": MCTSDPWController,
 }
 
 

@@ -66,6 +66,13 @@ class ControllerConfig:
     v_max_cost: float = 11.15
     alpha_threshold: float = 3.5
     speed_weight: float = 5.0
+    # MCTS DPW fields
+    n_simulations: int = 500
+    exploration_constant: float = 1.0
+    alpha_dpw: float = 0.5
+    beta_dpw: float = 0.5
+    discount: float = 0.95
+    rollout_horizon: int = 15
 
 
 @dataclass(frozen=True)

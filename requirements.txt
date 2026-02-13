@@ -1,5 +1,6 @@
 pyyaml>=6.0
 pytorch-mppi[test]
+cloudpickle
 # pyglet==1.5.14 # for mac users
 # pip install -e . in the f1tenth_gym repo
 numpy==1.22.4
