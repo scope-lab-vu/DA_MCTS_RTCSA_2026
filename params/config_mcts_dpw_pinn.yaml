@@ -1,0 +1,39 @@
+# Algorithm Configuration: MCTS DPW controller + PINN dynamics
+# Uses known dynamics for fast tree traversal and batched PINN on GPU
+# for leaf rollout evaluation.
+
+controller:
+  type: mcts_dpw_pinn
+  # --- MCTS DPW hyperparameters ---
+  n_simulations: 500
+  exploration_constant: 1.0    # K (UCB exploration)
+  alpha_dpw: 0.5               # action progressive widening exponent
+  beta_dpw: 0.5                # outcome progressive widening exponent
+  discount: 0.99               # rollout discount factor
+  rollout_horizon: 15          # matches MPPI horizon
+  # --- Reward/cost tuning (matched to MPPI PINN config) ---
+  v_ref: 5.0
+  speed_weight: 50.0
+  alpha_threshold: 1.0
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- Batched evaluation ---
+  batch_size: 8                # leaves per GPU evaluation round (small = more UCB feedback)
+  eval_K: 4                    # parallel rollouts per leaf for variance reduction (free on GPU)
+  eval_device: cuda             # GPU for PINN evaluation (falls back to cpu)
+
+dynamics:
+  type: pinn
+  model_path: models/pinn/weights/epoch_388.pth
+  model_cfg_path: models/pinn/deep_pacejka_f1tenth_multi_fric_best_param.yaml
+  scaler_path: models/pinn/weights/scaler_safe.npz
+  inference_device: cpu
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04             # Timestep in seconds
+  log_every_n_steps: 1
+  seed: 42

@@ -1,6 +1,8 @@
 # Algorithm Configuration: MCTS DPW controller + known F1TENTH dynamics
 # Uses Monte Carlo Tree Search with Double Progressive Widening.
 
+# This crashes a lot for low friction values that is 0.4947. Will need a HP search.
+
 controller:
   type: mcts_dpw_py
   # --- MCTS DPW hyperparameters ---

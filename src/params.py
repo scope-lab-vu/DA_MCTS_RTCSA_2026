@@ -73,6 +73,10 @@ class ControllerConfig:
     beta_dpw: float = 0.5
     discount: float = 0.95
     rollout_horizon: int = 15
+    # MCTS DPW PINN fields
+    batch_size: int = 8
+    eval_K: int = 4
+    eval_device: str = "cuda"
 
 
 @dataclass(frozen=True)
