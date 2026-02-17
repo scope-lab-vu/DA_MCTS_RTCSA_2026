@@ -1,0 +1,31 @@
+# Algorithm Configuration: MCTS DPW C++ controller + PINN dynamics
+# Same MCTS tree search as mcts_dpw_cpp but uses a TorchScript PINN
+# for dynamics instead of the analytical single-track model.
+
+controller:
+  type: mcts_dpw_pinn_cpp
+  # --- MCTS DPW hyperparameters ---
+  n_simulations: 500
+  exploration_constant: 1.0    # K (UCB exploration)
+  alpha_dpw: 0.5               # action progressive widening exponent
+  beta_dpw: 0.5                # outcome progressive widening exponent
+  discount: 0.99               # rollout discount factor
+  rollout_horizon: 15
+  # --- Reward/cost tuning ---
+  v_ref: 10.0
+  speed_weight: 90.0
+  alpha_threshold: 1.0
+  use_occupancy_map: true
+  lane_width: 1.1
+
+dynamics:
+  type: f1tenth_dynamics   # Not used by the controller (PINN is internal), but needed by the factory
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04             # Timestep: 25 Hz (→ 2 PINN substeps of 0.02s each)
+  log_every_n_steps: 1
+  seed: 42

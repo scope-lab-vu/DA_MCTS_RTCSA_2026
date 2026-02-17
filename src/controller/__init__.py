@@ -17,10 +17,11 @@ from src.controller.mppi import MPPIController
 from src.controller.mcts_dpw_py import MCTSDPWController
 from src.controller.mcts_dpw_cpp import MCTSDPWCppController
 from src.controller.mcts_dpw_pinn import MCTSDPWPINNController
+from src.controller.mcts_dpw_pinn_cpp import MCTSDPWPinnCppController
 
 # Controllers that need extra kwargs in their constructor.
-_NEEDS_MAP_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn"}
-_NEEDS_SIMULATION_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn"}
+_NEEDS_MAP_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp"}
+_NEEDS_SIMULATION_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp"}
 
 
 class Controller(ABC):
@@ -46,6 +47,7 @@ CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {
     "mcts_dpw_py": MCTSDPWController,
     "mcts_dpw_cpp": MCTSDPWCppController,
     "mcts_dpw_pinn": MCTSDPWPINNController,
+    "mcts_dpw_pinn_cpp": MCTSDPWPinnCppController,
 }
 
 

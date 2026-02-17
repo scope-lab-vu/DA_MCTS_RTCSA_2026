@@ -1,10 +1,13 @@
 #pragma once
 
 #include "simulator.hpp"
+#include <torch/script.h>
 #include <cmath>
 #include <random>
 #include <algorithm>
 #include <vector>
+#include <string>
+#include <utility>
 
 // Vehicle parameters — mirrors src/params.py VehicleParams
 struct VehicleParamsCpp {
@@ -56,31 +59,157 @@ struct CostParams {
     double dt               = 0.04;
 };
 
-// F1TENTH simulator for MCTS rollouts.
-// Implements the Simulator interface with F1TENTH single-track dynamics
-// and the same cost function as the Python version.
+// PINN configuration
+struct PINNConfig {
+    int horizon      = 10;    // Feature history window length
+    int num_features = 6;     // [vx, vy, yaw_rate, steering_fb, throttle_cmd, steering_cmd]
+    double base_timestep = 0.02;  // PINN was trained on this timestep
+    int gru_num_layers   = 1;
+    int gru_hidden_size  = 10;    // = horizon (as set in the model config)
+};
+
+// F1TENTH simulator for MCTS rollouts, using PINN dynamics.
+// Replaces the analytical single-track model with a traced TorchScript PINN.
+// Keeps the same cost function as the original.
 class F1TenthSimulator : public Simulator {
   private:
-    // Members ordered to match initializer list.
     VehicleParamsCpp vp_;
     OccupancyMapData occ_map_;
     CostParams cost_;
+    PINNConfig pinn_cfg_;
+
+    // PINN model (TorchScript, CPU)
+    torch::jit::Module pinn_model_;
+
+    // Scaler for feature normalization: z = (x - mean) / scale
+    std::vector<float> scaler_mean_;   // (num_features,)
+    std::vector<float> scaler_scale_;  // (num_features,)
+
+    // Feature history: sliding window [horizon][num_features]
+    // Updated during step(), restored to root on set_state()
+    std::vector<std::vector<float>> feature_history_;
+    std::vector<std::vector<float>> root_feature_history_;
+
     // State: [x, y, delta, v, psi, omega, beta]
     std::vector<double> state_;
     int step_count_ = 0;
     std::vector<double> v_ref_window_;
     std::mt19937 rng_;
 
-    static constexpr double G = 9.81;
+    int n_substeps_ = 1;
+
     static constexpr double TWO_PI = 2.0 * M_PI;
+
+    // ── Feature extraction ──────────────────────────────────────────────────
+    // Mirrors PINNModel._extract_features in pinn.py
+    // state = [x, y, delta, v, psi, omega, beta], action = [accl, sv]
+    // Returns [vx, vy, yaw_rate, steering_fb, throttle_cmd, steering_cmd]
+    std::vector<float> extract_features(
+        double v, double beta, double omega, double delta,
+        double accl, double steer_vel, double ts
+    ) const {
+        float vx = static_cast<float>(v * std::cos(beta));
+        float vy = static_cast<float>(v * std::sin(beta));
+        float yaw_rate = static_cast<float>(omega);
+        float steering_fb = static_cast<float>(delta);
+        float throttle_cmd = static_cast<float>(accl * ts);
+        float steering_cmd = static_cast<float>(steer_vel * ts);
+        return {vx, vy, yaw_rate, steering_fb, throttle_cmd, steering_cmd};
+    }
+
+    // ── PINN inference → (omega_pred, beta_pred) ────────────────────────────
+    // Mirrors PINNModel._predict_batch for batch=1
+    std::pair<double, double> pinn_predict(
+        double v, double beta_val, double omega, double delta,
+        double accl, double steer_vel, double ts
+    ) {
+        int H = pinn_cfg_.horizon;
+        int F = pinn_cfg_.num_features;
+
+        // Extract new features from current state + constrained action
+        auto new_feat = extract_features(v, beta_val, omega, delta, accl, steer_vel, ts);
+
+        // Build input tensor: slide window (drop oldest, append new)
+        // Shape: (1, H, F)
+        auto opts = torch::TensorOptions().dtype(torch::kFloat32);
+        auto input_raw  = torch::zeros({1, H, F}, opts);
+        auto input_norm = torch::zeros({1, H, F}, opts);
+
+        auto raw_acc  = input_raw.accessor<float, 3>();
+        auto norm_acc = input_norm.accessor<float, 3>();
+
+        // Copy history[1:] into positions [0..H-2]
+        for (int t = 0; t < H - 1; t++) {
+            for (int f = 0; f < F; f++) {
+                float val = feature_history_[t + 1][f];
+                raw_acc[0][t][f] = val;
+                norm_acc[0][t][f] = (val - scaler_mean_[f]) / scaler_scale_[f];
+            }
+        }
+        // Last timestep: new features
+        for (int f = 0; f < F; f++) {
+            raw_acc[0][H - 1][f] = new_feat[f];
+            norm_acc[0][H - 1][f] = (new_feat[f] - scaler_mean_[f]) / scaler_scale_[f];
+        }
+
+        // Update feature history (slide window)
+        for (int t = 0; t < H - 1; t++) {
+            feature_history_[t] = feature_history_[t + 1];
+        }
+        feature_history_[H - 1] = new_feat;
+
+        // Initialize GRU hidden state to zeros: (num_layers, batch, hidden_size)
+        auto h0 = torch::zeros(
+            {pinn_cfg_.gru_num_layers, 1, pinn_cfg_.gru_hidden_size}, opts);
+
+        // Run PINN forward
+        std::vector<torch::jit::IValue> inputs;
+        inputs.push_back(input_raw);
+        inputs.push_back(input_norm);
+        inputs.push_back(h0);
+
+        auto output_tuple = pinn_model_.forward(inputs).toTuple();
+        auto output = output_tuple->elements()[0].toTensor();  // (1, 3)
+
+        float vx_pred       = output[0][0].item<float>();
+        float vy_pred       = output[0][1].item<float>();
+        float yaw_rate_pred = output[0][2].item<float>();
+
+        double omega_pred = static_cast<double>(yaw_rate_pred);
+        double beta_pred  = std::atan2(
+            static_cast<double>(vy_pred),
+            static_cast<double>(vx_pred) + 1e-8
+        );
+
+        return {omega_pred, beta_pred};
+    }
 
   public:
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
                      const CostParams& cost,
+                     const std::string& model_path,
+                     const std::vector<float>& scaler_mean,
+                     const std::vector<float>& scaler_scale,
                      unsigned seed = std::random_device{}())
         : vp_(vp), occ_map_(occ_map), cost_(cost),
-          state_(7, 0.0), rng_(seed) {}
+          scaler_mean_(scaler_mean), scaler_scale_(scaler_scale),
+          state_(7, 0.0), rng_(seed)
+    {
+        // Load TorchScript model onto CPU
+        pinn_model_ = torch::jit::load(model_path);
+        pinn_model_.eval();
+
+        // Compute substeps: e.g. dt=0.04 / base=0.02 → 2 substeps
+        n_substeps_ = std::max(
+            1, static_cast<int>(std::round(cost_.dt / pinn_cfg_.base_timestep)));
+
+        // Initialize feature history to zeros
+        int H = pinn_cfg_.horizon;
+        int F = pinn_cfg_.num_features;
+        feature_history_.assign(H, std::vector<float>(F, 0.0f));
+        root_feature_history_ = feature_history_;
+    }
 
     // --- Simulator interface ---
 
@@ -92,6 +221,14 @@ class F1TenthSimulator : public Simulator {
     void set_state(const std::vector<double>& state) override {
         state_ = state;
         step_count_ = 0;
+        // Restore feature history to root snapshot
+        feature_history_ = root_feature_history_;
+    }
+
+    // Called from Python to set the root feature history
+    void set_feature_history(const std::vector<std::vector<float>>& history) {
+        root_feature_history_ = history;
+        feature_history_ = history;
     }
 
     void set_v_ref_window(const std::vector<double>& window) {
@@ -110,14 +247,14 @@ class F1TenthSimulator : public Simulator {
         double accl = action[0];
         double sv   = action[1];
 
-        // --- Steering constraint ---
+        // --- Steering constraint (same as original) ---
         if ((delta <= vp_.s_min && sv <= 0.0) ||
             (delta >= vp_.s_max && sv >= 0.0)) {
             sv = 0.0;
         }
         sv = std::max(vp_.sv_min, std::min(vp_.sv_max, sv));
 
-        // --- Acceleration constraint ---
+        // --- Acceleration constraint (same as original) ---
         double pos_limit;
         if (v > vp_.v_switch) {
             pos_limit = vp_.a_max * vp_.v_switch / (v + 1e-8);
@@ -130,78 +267,54 @@ class F1TenthSimulator : public Simulator {
         }
         accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
 
-        double L = vp_.lf + vp_.lr;
+        // --- PINN dynamics with substeps ---
+        bool use_chaining = n_substeps_ > 1;
+        double base_dt = pinn_cfg_.base_timestep;
+        // Feature timestep: base_dt when chaining, full dt otherwise
+        double ts_feature = use_chaining ? base_dt : cost_.dt;
 
-        double f_x, f_y, f_delta, f_v, f_psi, f_omega, f_beta;
+        if (!use_chaining) {
+            // Single-step: one PINN call, integrate with full dt
+            auto [omega_pred, beta_pred] = pinn_predict(
+                v, beta, omega, delta, accl, sv, ts_feature);
 
-        if (std::abs(v) < 0.5) {
-            // Kinematic model
-            f_x     = v * std::cos(psi);
-            f_y     = v * std::sin(psi);
-            f_delta = sv;
-            f_v     = accl;
-            f_psi   = v / L * std::tan(delta);
-            f_omega = accl / L * std::tan(delta)
-                    + v / (L * std::cos(delta) * std::cos(delta)) * sv;
-            f_beta  = 0.0;
+            double dt = cost_.dt;
+            x     += dt * v * std::cos(beta_pred + psi);
+            y     += dt * v * std::sin(beta_pred + psi);
+            delta += dt * sv;
+            v     += dt * accl;
+            psi   += dt * omega_pred;
+            omega  = omega_pred;
+            beta   = beta_pred;
         } else {
-            // Dynamic model
-            f_x     = v * std::cos(beta + psi);
-            f_y     = v * std::sin(beta + psi);
-            f_delta = sv;
-            f_v     = accl;
-            f_psi   = omega;
+            // Chaining: n substeps of base_dt each
+            for (int sub = 0; sub < n_substeps_; sub++) {
+                auto [omega_pred, beta_pred] = pinn_predict(
+                    v, beta, omega, delta, accl, sv, ts_feature);
 
-            double v_safe = std::max(std::abs(v), 0.5);
-            f_omega = (-vp_.mu * vp_.m / (v_safe * vp_.I * L)
-                       * (vp_.lf * vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                        + vp_.lr * vp_.lr * vp_.C_Sr * (G * vp_.lf + accl * vp_.h))
-                       * omega
-                       + vp_.mu * vp_.m / (vp_.I * L)
-                       * (vp_.lr * vp_.C_Sr * (G * vp_.lf + accl * vp_.h)
-                        - vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h))
-                       * beta
-                       + vp_.mu * vp_.m / (vp_.I * L)
-                       * vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                       * delta);
-
-            f_beta = ((vp_.mu / (v_safe * v_safe * L)
-                       * (vp_.C_Sr * (G * vp_.lf + accl * vp_.h) * vp_.lr
-                        - vp_.C_Sf * (G * vp_.lr - accl * vp_.h) * vp_.lf)
-                       - 1.0)
-                      * omega
-                      - vp_.mu / (v_safe * L)
-                      * (vp_.C_Sr * (G * vp_.lf + accl * vp_.h)
-                       + vp_.C_Sf * (G * vp_.lr - accl * vp_.h))
-                      * beta
-                      + vp_.mu / (v_safe * L)
-                      * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                      * delta);
+                x     += base_dt * v * std::cos(beta_pred + psi);
+                y     += base_dt * v * std::sin(beta_pred + psi);
+                delta += base_dt * sv;
+                v     += base_dt * accl;
+                psi   += base_dt * omega_pred;
+                omega  = omega_pred;
+                beta   = beta_pred;
+            }
         }
 
-        // Euler integration
-        double dt = cost_.dt;
-        double x_n     = x     + dt * f_x;
-        double y_n     = y     + dt * f_y;
-        double delta_n = delta + dt * f_delta;
-        double v_n     = v     + dt * f_v;
-        double psi_n   = psi   + dt * f_psi;
-        double omega_n = omega + dt * f_omega;
-        double beta_n  = beta  + dt * f_beta;
-
         // Normalize heading to [0, 2*pi)
-        psi_n = std::fmod(psi_n, TWO_PI);
-        if (psi_n < 0.0) psi_n += TWO_PI;
+        psi = std::fmod(psi, TWO_PI);
+        if (psi < 0.0) psi += TWO_PI;
 
-        state_ = {x_n, y_n, delta_n, v_n, psi_n, omega_n, beta_n};
+        state_ = {x, y, delta, v, psi, omega, beta};
 
         int t = step_count_;
         step_count_++;
 
-        // --- Cost computation (same as Python simulator.py) ---
+        // --- Cost computation (same as original f1tenth_simulator.hpp) ---
 
         // Track cost: 0.9^t * off_track * 10000
-        float off_track = occ_map_.query(x_n, y_n);
+        float off_track = occ_map_.query(x, y);
         double track_cost = std::pow(0.9, static_cast<double>(t))
                           * static_cast<double>(off_track) * 10000.0;
 
@@ -213,11 +326,11 @@ class F1TenthSimulator : public Simulator {
         } else {
             v_ref_t = cost_.v_ref;
         }
-        double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
+        double speed_cost = (v - v_ref_t) * (v - v_ref_t);
 
         // Slip cost: alpha^2 + 10000 * I(|alpha| > threshold)
-        double v_x = v_n * std::cos(beta_n);
-        double v_y = v_n * std::sin(beta_n);
+        double v_x = v * std::cos(beta);
+        double v_y = v * std::sin(beta);
         double alpha_slip = -std::atan2(v_y, std::abs(v_x) + 1e-8);
         double slip_cost = alpha_slip * alpha_slip
                          + 10000.0 * (std::abs(alpha_slip) > cost_.alpha_threshold
@@ -236,11 +349,9 @@ class F1TenthSimulator : public Simulator {
     }
 
     std::unique_ptr<Simulator> clone() const override {
-        auto copy = std::make_unique<F1TenthSimulator>(vp_, occ_map_, cost_);
-        copy->state_ = state_;
-        copy->step_count_ = step_count_;
-        copy->v_ref_window_ = v_ref_window_;
-        copy->rng_ = rng_;
+        // Create a copy sharing the same PINN model (torch::jit::Module
+        // is internally reference-counted, safe for read-only inference).
+        auto copy = std::make_unique<F1TenthSimulator>(*this);
         return copy;
     }
 };

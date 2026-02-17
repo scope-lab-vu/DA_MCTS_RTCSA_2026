@@ -6,4 +6,6 @@ src/controller/mcts_dpw_cpp/mcts_f1tenth_cpp.egg-info/
 src/controller/mcts_dpw_cpp/pyproject.toml
 f1tenth_gym/gym/f110_gym.egg-info/
 nohup*
-
+src/controller/mcts_dpw_pinn_cpp/mcts_f1tenth_pinn_cpp.egg-info
+src/controller/mcts_dpw_pinn_cpp/build/temp.linux-x86_64-3.8
+src/controller/*.so

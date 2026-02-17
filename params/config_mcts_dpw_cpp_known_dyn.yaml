@@ -12,6 +12,8 @@ controller:
   rollout_horizon: 15          # matches MPPI horizon; no early termination now
   # --- Reward/cost tuning (shared with MPPI) ---
   v_ref: 10.0
+  # We might need to reduce this values as the controller crashes for high friction. 
+  # It could be giving more importance to speed than safety.
   speed_weight: 100.0
   alpha_threshold: 1.0
   use_occupancy_map: true

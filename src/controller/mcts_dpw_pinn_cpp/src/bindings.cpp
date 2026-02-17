@@ -25,6 +25,18 @@ inline std::vector<float> to_float_vec(py::array_t<float> arr) {
     return std::vector<float>(ptr, ptr + buf.size);
 }
 
+// Convert flat float32 array (H*F,) -> 2D vector [H][F]
+inline std::vector<std::vector<float>> to_2d_float(
+    py::array_t<float> arr, int rows, int cols
+) {
+    auto flat = to_float_vec(arr);
+    std::vector<std::vector<float>> result(rows, std::vector<float>(cols));
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            result[r][c] = flat[r * cols + c];
+    return result;
+}
+
 // Wrapper class that owns both the simulator and the DPW tree.
 // Exposed to Python as a single object with a clean API.
 class F1TenthDPW {
@@ -50,7 +62,12 @@ class F1TenthDPW {
                // Cost params
                double speed_weight, double alpha_threshold,
                double v_ref, int rollout_horizon,
-               double discount, double dt) {
+               double discount, double dt,
+               // PINN params
+               const std::string& model_path,
+               py::array_t<float> scaler_mean,
+               py::array_t<float> scaler_scale,
+               py::array_t<float> feature_history) {
 
         auto obs = to_vec(initial_obs);
 
@@ -90,13 +107,27 @@ class F1TenthDPW {
         cost.discount_factor = discount;
         cost.dt              = dt;
 
-        sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost);
+        auto mean_vec  = to_float_vec(scaler_mean);
+        auto scale_vec = to_float_vec(scaler_scale);
+
+        sim_ = std::make_unique<F1TenthSimulator>(
+            vp, occ, cost, model_path, mean_vec, scale_vec);
         sim_->set_state(obs);
+
+        // Set initial feature history (10x6, passed as flat array)
+        auto hist = to_2d_float(feature_history, 10, 6);
+        sim_->set_feature_history(hist);
+
         model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K);
     }
 
     void set_v_ref_window(py::array_t<double> window) {
         sim_->set_v_ref_window(to_vec(window));
+    }
+
+    void set_feature_history(py::array_t<float> history) {
+        auto hist = to_2d_float(history, 10, 6);
+        sim_->set_feature_history(hist);
     }
 
     void learn(int Nsim) { model_->learn(Nsim); }
@@ -116,8 +147,8 @@ class F1TenthDPW {
     }
 };
 
-PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
-    m.doc() = "C++ MCTS DPW for F1TENTH racing — fast tree search with native dynamics";
+PYBIND11_MODULE(mcts_f1tenth_pinn_cpp, m) {
+    m.doc() = "C++ MCTS DPW for F1TENTH racing with PINN dynamics (LibTorch)";
 
     py::class_<F1TenthDPW>(m, "F1TenthDPW")
         .def(py::init<py::array_t<double>,
@@ -135,7 +166,12 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
                        py::array_t<float>,
                        double, double, double, int, int,
                        // Cost params
-                       double, double, double, int, double, double>(),
+                       double, double, double, int, double, double,
+                       // PINN params
+                       const std::string&,
+                       py::array_t<float>,
+                       py::array_t<float>,
+                       py::array_t<float>>(),
              py::arg("initial_obs"),
              py::arg("alpha"), py::arg("beta"), py::arg("K"),
              // Vehicle params
@@ -154,9 +190,16 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              // Cost params
              py::arg("speed_weight"), py::arg("alpha_threshold"),
              py::arg("v_ref"), py::arg("rollout_horizon"),
-             py::arg("discount"), py::arg("dt"))
+             py::arg("discount"), py::arg("dt"),
+             // PINN params
+             py::arg("model_path"),
+             py::arg("scaler_mean"),
+             py::arg("scaler_scale"),
+             py::arg("feature_history"))
         .def("set_v_ref_window", &F1TenthDPW::set_v_ref_window,
              py::arg("window"))
+        .def("set_feature_history", &F1TenthDPW::set_feature_history,
+             py::arg("history"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))
         .def("best_action", &F1TenthDPW::best_action)
         .def("forward", &F1TenthDPW::forward,
