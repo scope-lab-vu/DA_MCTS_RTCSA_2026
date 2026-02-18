@@ -27,13 +27,12 @@ inline std::vector<float> to_float_vec(py::array_t<float> arr) {
 }
 
 // Wrapper class that owns both the simulator and the DPW tree.
-// Exposed to Python as a single object with a clean API.
-class F1TenthDPWSvgp {
+class F1TenthDPWPiSvgp {
     std::unique_ptr<F1TenthSimulator> sim_;
     std::unique_ptr<DPWNative> model_;
 
   public:
-    F1TenthDPWSvgp(py::array_t<double> initial_obs,
+    F1TenthDPWPiSvgp(py::array_t<double> initial_obs,
                double alpha, double beta, double K,
                // Vehicle params
                double mu, double C_Sf, double C_Sr,
@@ -52,10 +51,10 @@ class F1TenthDPWSvgp {
                double speed_weight, double alpha_threshold,
                double v_ref, int rollout_horizon,
                double discount, double dt,
-               // SVGP params
-               py::array_t<double> omega_data,
-               py::array_t<double> beta_data,
+               // PI-SVGP params (single flat array)
+               py::array_t<double> svgp_data,
                int svgp_M, int svgp_D_input, int svgp_D_hidden,
+               int svgp_num_outputs,
                double base_timestep) {
 
         auto obs = to_vec(initial_obs);
@@ -96,18 +95,15 @@ class F1TenthDPWSvgp {
         cost.discount_factor = discount;
         cost.dt              = dt;
 
-        // Build SVGP params from flat arrays packed in Python
-        auto omega_buf = omega_data.request();
-        auto beta_buf  = beta_data.request();
-        auto omega_svgp = std::make_shared<SVGPParams>(
-            SVGPParams::from_flat(static_cast<double*>(omega_buf.ptr),
-                                  svgp_M, svgp_D_input, svgp_D_hidden));
-        auto beta_svgp = std::make_shared<SVGPParams>(
-            SVGPParams::from_flat(static_cast<double*>(beta_buf.ptr),
-                                  svgp_M, svgp_D_input, svgp_D_hidden));
+        // Build PI-SVGP params from flat array packed in Python
+        auto svgp_buf = svgp_data.request();
+        auto pi_svgp = std::make_shared<PiSVGPParams>(
+            PiSVGPParams::from_flat(static_cast<double*>(svgp_buf.ptr),
+                                    svgp_M, svgp_D_input, svgp_D_hidden,
+                                    svgp_num_outputs));
 
         sim_ = std::make_unique<F1TenthSimulator>(
-            vp, occ, cost, omega_svgp, beta_svgp, base_timestep);
+            vp, occ, cost, pi_svgp, base_timestep);
         sim_->set_state(obs);
         model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K);
     }
@@ -124,7 +120,6 @@ class F1TenthDPWSvgp {
 
     void forward(py::array_t<double> action, py::array_t<double> new_state) {
         model_->forward(to_vec(action), to_vec(new_state));
-        // Reset simulator to the new root state
         sim_->set_state(to_vec(new_state));
     }
 
@@ -133,10 +128,10 @@ class F1TenthDPWSvgp {
     }
 };
 
-PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
-    m.doc() = "C++ MCTS DPW + SVGP dynamics for F1TENTH racing";
+PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
+    m.doc() = "C++ MCTS DPW + PI-SVGP (Pacejka) dynamics for F1TENTH racing";
 
-    py::class_<F1TenthDPWSvgp>(m, "F1TenthDPWSvgp")
+    py::class_<F1TenthDPWPiSvgp>(m, "F1TenthDPWPiSvgp")
         .def(py::init<py::array_t<double>,
                        double, double, double,
                        // Vehicle params (18)
@@ -153,9 +148,9 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
                        double, double, double, int, int,
                        // Cost params
                        double, double, double, int, double, double,
-                       // SVGP params
-                       py::array_t<double>, py::array_t<double>,
-                       int, int, int, double>(),
+                       // PI-SVGP params
+                       py::array_t<double>,
+                       int, int, int, int, double>(),
              py::arg("initial_obs"),
              py::arg("alpha"), py::arg("beta"), py::arg("K"),
              // Vehicle params
@@ -175,15 +170,16 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
              py::arg("speed_weight"), py::arg("alpha_threshold"),
              py::arg("v_ref"), py::arg("rollout_horizon"),
              py::arg("discount"), py::arg("dt"),
-             // SVGP params
-             py::arg("omega_data"), py::arg("beta_data"),
+             // PI-SVGP params
+             py::arg("svgp_data"),
              py::arg("svgp_M"), py::arg("svgp_D_input"), py::arg("svgp_D_hidden"),
+             py::arg("svgp_num_outputs"),
              py::arg("base_timestep"))
-        .def("set_v_ref_window", &F1TenthDPWSvgp::set_v_ref_window,
+        .def("set_v_ref_window", &F1TenthDPWPiSvgp::set_v_ref_window,
              py::arg("window"))
-        .def("learn", &F1TenthDPWSvgp::learn, py::arg("Nsim"))
-        .def("best_action", &F1TenthDPWSvgp::best_action)
-        .def("forward", &F1TenthDPWSvgp::forward,
+        .def("learn", &F1TenthDPWPiSvgp::learn, py::arg("Nsim"))
+        .def("best_action", &F1TenthDPWPiSvgp::best_action)
+        .def("forward", &F1TenthDPWPiSvgp::forward,
              py::arg("action"), py::arg("new_state"))
-        .def("set_state", &F1TenthDPWSvgp::set_state, py::arg("state"));
+        .def("set_state", &F1TenthDPWPiSvgp::set_state, py::arg("state"));
 }

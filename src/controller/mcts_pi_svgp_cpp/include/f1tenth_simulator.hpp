@@ -58,52 +58,68 @@ struct CostParams {
 };
 
 // ---------------------------------------------------------------------------
-// SVGP (Sparse Variational Gaussian Process) parameters for one GP.
-// Holds all data needed for kernel evaluation and prediction.
+// PI-SVGP parameters: multi-output GP predicting 9 Pacejka tire parameters.
 // ---------------------------------------------------------------------------
-struct SVGPParams {
-    int M;          // number of inducing points (e.g. 50)
-    int D_input;    // raw input dimension (6)
-    int D_hidden;   // hidden/task dimension (2)
-    int D_aug;      // D_input + D_hidden (8)
+struct PiSVGPParams {
+    int M;            // number of inducing points (50)
+    int D_input;      // raw input dimension (6)
+    int D_hidden;     // hidden/task dimension (2)
+    int D_aug;        // D_input + D_hidden (8)
+    int num_outputs;  // number of GP outputs (9 Pacejka params)
 
-    std::vector<double> theta;    // (D_aug + 1): [lengthscale_0..D_aug-1, sigma]
-    std::vector<double> alpha;    // (M): precomputed K_mm_inv @ mu_m, squeezed
-    std::vector<double> Z_aug;    // (M * D_aug): augmented inducing points, row-major
-    std::vector<double> xmean;    // (D_input): input scaler mean
-    std::vector<double> xscale;   // (D_input): input scaler std
-    double ymean;                 // output scaler mean (scalar)
-    double yscale;                // output scaler std (scalar)
-    std::vector<double> hp_mu;    // (D_hidden): task-specific hidden parameters
+    std::vector<double> theta;        // (D_aug + 1): kernel hyperparams
+    std::vector<double> alpha;        // (M * num_outputs): K_mm_inv @ m, row-major
+    std::vector<double> Z_aug;        // (M * D_aug): augmented inducing points
+    std::vector<double> xmean;        // (D_input): input scaler mean
+    std::vector<double> xscale;       // (D_input): input scaler std
+    std::vector<double> hp_mu;        // (D_hidden): task-specific latent params
+    std::vector<double> output_bias;  // (num_outputs): learnable output bias
 
-    // Construct from a flat double array packed in Python.
-    // Layout: theta | alpha | Z_aug | xmean | xscale | ymean | yscale | hp_mu
-    static SVGPParams from_flat(const double* data, int M_, int D_input_, int D_hidden_) {
-        SVGPParams p;
+    // Construct from flat array packed in Python.
+    // Layout: theta | alpha | Z_aug | xmean | xscale | hp_mu | output_bias
+    static PiSVGPParams from_flat(const double* data, int M_, int D_input_,
+                                   int D_hidden_, int num_outputs_) {
+        PiSVGPParams p;
         p.M = M_;
         p.D_input = D_input_;
         p.D_hidden = D_hidden_;
         p.D_aug = D_input_ + D_hidden_;
+        p.num_outputs = num_outputs_;
 
         int off = 0;
-        p.theta.assign(data + off, data + off + p.D_aug + 1); off += p.D_aug + 1;
-        p.alpha.assign(data + off, data + off + M_);           off += M_;
-        p.Z_aug.assign(data + off, data + off + M_ * p.D_aug); off += M_ * p.D_aug;
-        p.xmean.assign(data + off, data + off + D_input_);     off += D_input_;
-        p.xscale.assign(data + off, data + off + D_input_);    off += D_input_;
-        p.ymean = data[off++];
-        p.yscale = data[off++];
-        p.hp_mu.assign(data + off, data + off + D_hidden_);    off += D_hidden_;
+        p.theta.assign(data + off, data + off + p.D_aug + 1);          off += p.D_aug + 1;
+        p.alpha.assign(data + off, data + off + M_ * num_outputs_);    off += M_ * num_outputs_;
+        p.Z_aug.assign(data + off, data + off + M_ * p.D_aug);        off += M_ * p.D_aug;
+        p.xmean.assign(data + off, data + off + D_input_);            off += D_input_;
+        p.xscale.assign(data + off, data + off + D_input_);           off += D_input_;
+        p.hp_mu.assign(data + off, data + off + D_hidden_);           off += D_hidden_;
+        p.output_bias.assign(data + off, data + off + num_outputs_);   off += num_outputs_;
         return p;
     }
 };
 
 // ---------------------------------------------------------------------------
-// SVGP single-sample prediction: normalize → augment → RBF ARD kernel → predict → denormalize
+// Softplus: log(1 + exp(x))
 // ---------------------------------------------------------------------------
-inline double svgp_predict_single(
-    const double* gp_input,   // (D_input) raw GP input: [delta, v, omega, beta, accl, sv]
-    const SVGPParams& gp
+inline double softplus(double x) {
+    if (x > 20.0) return x;  // numerical stability
+    return std::log(1.0 + std::exp(x));
+}
+
+// Pacejka positive-constraint indices: Bf=0, Cf=1, Df=2, Br=4, Cr=5, Dr=6
+inline bool is_positive_pacejka(int idx) {
+    return idx == 0 || idx == 1 || idx == 2 ||
+           idx == 4 || idx == 5 || idx == 6;
+}
+
+// ---------------------------------------------------------------------------
+// PI-SVGP multi-output prediction:
+//   normalize -> augment -> RBF ARD kernel -> 9 Pacejka params
+// ---------------------------------------------------------------------------
+inline void pi_svgp_predict(
+    const double* gp_input,   // (D_input=6): [VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD]
+    const PiSVGPParams& gp,
+    double* pacejka_out       // (num_outputs=9): output Pacejka parameters
 ) {
     // Stack-allocate augmented input (max D_aug = 8)
     double x_aug[8];
@@ -117,31 +133,45 @@ inline double svgp_predict_single(
         x_aug[gp.D_input + d] = gp.hp_mu[d];
     }
 
-    // 3. RBF ARD kernel evaluation + dot product with alpha (fused)
-    const double sigma = gp.theta[gp.D_aug];   // last element of theta
+    // 3. Initialize raw GP output to zero
+    for (int p = 0; p < gp.num_outputs; ++p) {
+        pacejka_out[p] = 0.0;
+    }
+
+    // 4. RBF ARD kernel evaluation + matrix-vector product with alpha (fused)
+    //    K(x, Z_j) * alpha[j, :] accumulated across all M inducing points
+    const double sigma = gp.theta[gp.D_aug];
     const double sigma_sq = sigma * sigma;
-    double f_mean = 0.0;
 
     for (int j = 0; j < gp.M; ++j) {
         double dist = 0.0;
-        const int base = j * gp.D_aug;
+        const int z_base = j * gp.D_aug;
         for (int d = 0; d < gp.D_aug; ++d) {
-            double diff = (x_aug[d] - gp.Z_aug[base + d]) / gp.theta[d];
+            double diff = (x_aug[d] - gp.Z_aug[z_base + d]) / gp.theta[d];
             dist += diff * diff;
         }
         double k_j = sigma_sq * std::exp(-0.5 * dist);
-        f_mean += k_j * gp.alpha[j];
+
+        // Accumulate k_j * alpha[j, p] for each output p
+        const int a_base = j * gp.num_outputs;
+        for (int p = 0; p < gp.num_outputs; ++p) {
+            pacejka_out[p] += k_j * gp.alpha[a_base + p];
+        }
     }
 
-    // 4. Denormalize
-    return f_mean * gp.yscale + gp.ymean;
+    // 5. Add output bias and apply Pacejka constraints (softplus on B, C, D)
+    for (int p = 0; p < gp.num_outputs; ++p) {
+        pacejka_out[p] += gp.output_bias[p];
+        if (is_positive_pacejka(p)) {
+            pacejka_out[p] = softplus(pacejka_out[p]);
+        }
+    }
 }
 
 
 // ---------------------------------------------------------------------------
 // F1TENTH simulator for MCTS rollouts.
-// Uses Extended Kinematic (Ekin) base model + SVGP residual corrections
-// for omega (yaw rate) and beta (slip angle).
+// Uses PI-SVGP: multi-output GP -> Pacejka tire physics.
 // ---------------------------------------------------------------------------
 class F1TenthSimulator : public Simulator {
   private:
@@ -149,9 +179,8 @@ class F1TenthSimulator : public Simulator {
     OccupancyMapData occ_map_;
     CostParams cost_;
 
-    // SVGP models (shared across clones for efficiency)
-    std::shared_ptr<const SVGPParams> omega_svgp_;
-    std::shared_ptr<const SVGPParams> beta_svgp_;
+    // PI-SVGP model (shared across clones for efficiency)
+    std::shared_ptr<const PiSVGPParams> pi_svgp_;
     double base_timestep_;
     int n_substeps_;
 
@@ -167,13 +196,11 @@ class F1TenthSimulator : public Simulator {
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
                      const CostParams& cost,
-                     std::shared_ptr<const SVGPParams> omega_svgp,
-                     std::shared_ptr<const SVGPParams> beta_svgp,
+                     std::shared_ptr<const PiSVGPParams> pi_svgp,
                      double base_timestep,
                      unsigned seed = std::random_device{}())
         : vp_(vp), occ_map_(occ_map), cost_(cost),
-          omega_svgp_(std::move(omega_svgp)),
-          beta_svgp_(std::move(beta_svgp)),
+          pi_svgp_(std::move(pi_svgp)),
           base_timestep_(base_timestep),
           n_substeps_(std::max(1, static_cast<int>(std::round(cost.dt / base_timestep)))),
           state_(7, 0.0), rng_(seed) {}
@@ -222,8 +249,7 @@ class F1TenthSimulator : public Simulator {
         }
         accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
 
-        // --- Substep loop: Ekin base + SVGP residuals ---
-        const double L = vp_.lf + vp_.lr;
+        // --- Substep loop: GP -> Pacejka physics -> kinematic update ---
         const double sub_dt = (n_substeps_ > 1) ? base_timestep_ : cost_.dt;
 
         for (int sub = 0; sub < n_substeps_; ++sub) {
@@ -235,31 +261,66 @@ class F1TenthSimulator : public Simulator {
             double omega = state_[5];
             double beta  = state_[6];
 
-            // Extended Kinematic model derivatives
-            double x_dot     = v * std::cos(beta + psi);
-            double y_dot     = v * std::sin(beta + psi);
-            double v_dot     = accl;
-            double psi_dot   = omega;
-            double omega_dot = (sv * v + delta * accl) / L;
-            double beta_dot  = (vp_.lf * (sv * v + delta * accl)) / L;
+            // 1. Extract body-frame features for GP
+            double VX          = v * std::cos(beta);
+            double VY          = v * std::sin(beta);
+            double YAW_RATE    = omega;
+            double STEERING_FB = delta;
+            double THROTTLE_CMD = accl * base_timestep_;
+            double STEERING_CMD = sv * base_timestep_;
 
-            // Euler integration (Ekin baseline)
-            double next_x     = x     + sub_dt * x_dot;
-            double next_y     = y     + sub_dt * y_dot;
+            double gp_input[6] = {VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD};
+
+            // 2. GP predict -> 9 constrained Pacejka parameters
+            double pacejka[9];
+            pi_svgp_predict(gp_input, *pi_svgp_, pacejka);
+
+            // Unpack Pacejka parameters
+            double Bf  = pacejka[0];
+            double Cf  = pacejka[1];
+            double Df  = pacejka[2];
+            double Ef  = pacejka[3];
+            double Br  = pacejka[4];
+            double Cr  = pacejka[5];
+            double Dr  = pacejka[6];
+            double Er  = pacejka[7];
+            double Frx = pacejka[8];
+
+            // 3. Pacejka tire physics
+            double steering = STEERING_FB + STEERING_CMD;
+
+            // Slip angles
+            double alphaf = steering - std::atan2(vp_.lf * YAW_RATE + VY, std::abs(VX) + 1e-8);
+            double alphar = std::atan2(vp_.lr * YAW_RATE - VY, std::abs(VX) + 1e-8);
+
+            // Tire forces
+            double Bf_alphaf = Bf * alphaf;
+            double Br_alphar = Br * alphar;
+            double Ffy = Df * std::sin(Cf * std::atan(Bf_alphaf - Ef * (Bf_alphaf - std::atan(Bf_alphaf))));
+            double Fry = Dr * std::sin(Cr * std::atan(Br_alphar - Er * (Br_alphar - std::atan(Br_alphar))));
+
+            // Vehicle dynamics derivatives
+            double dVX       = (1.0 / vp_.m) * (Frx - Ffy * std::sin(steering)) + VY * YAW_RATE;
+            double dVY       = (1.0 / vp_.m) * (Fry + Ffy * std::cos(steering)) - VX * YAW_RATE;
+            double dYAW_RATE = (1.0 / vp_.I) * (Ffy * vp_.lf * std::cos(steering) - Fry * vp_.lr);
+
+            // Euler integration -> next body-frame state
+            double next_VX       = VX       + dVX * sub_dt;
+            double next_VY       = VY       + dVY * sub_dt;
+            double next_YAW_RATE = YAW_RATE + dYAW_RATE * sub_dt;
+
+            // 4. Map back to vehicle state
+            double omega_pred = next_YAW_RATE;
+            double beta_pred  = std::atan2(next_VY, next_VX + 1e-8);
+
+            // Kinematic updates
+            double next_x     = x     + sub_dt * v * std::cos(beta_pred + psi);
+            double next_y     = y     + sub_dt * v * std::sin(beta_pred + psi);
             double next_delta = delta + sub_dt * sv;
-            double next_v     = v     + sub_dt * v_dot;
-            double next_psi   = psi   + sub_dt * psi_dot;
-            double next_omega = omega + sub_dt * omega_dot;
-            double next_beta  = beta  + sub_dt * beta_dot;
+            double next_v     = v     + sub_dt * accl;
+            double next_psi   = psi   + sub_dt * omega_pred;
 
-            // SVGP residual corrections (using PRE-step state values)
-            double gp_input[6] = {delta, v, omega, beta, accl, sv};
-            double err_omega = svgp_predict_single(gp_input, *omega_svgp_);
-            double err_beta  = svgp_predict_single(gp_input, *beta_svgp_);
-            next_omega += err_omega;
-            next_beta  += err_beta;
-
-            state_ = {next_x, next_y, next_delta, next_v, next_psi, next_omega, next_beta};
+            state_ = {next_x, next_y, next_delta, next_v, next_psi, omega_pred, beta_pred};
         }
 
         // Normalize heading to [0, 2*pi)
@@ -269,7 +330,7 @@ class F1TenthSimulator : public Simulator {
         int t = step_count_;
         step_count_++;
 
-        // --- Cost computation (same as Python simulator.py) ---
+        // --- Cost computation (same as other MCTS variants) ---
 
         double x_n     = state_[0];
         double y_n     = state_[1];
@@ -312,9 +373,9 @@ class F1TenthSimulator : public Simulator {
     }
 
     std::unique_ptr<Simulator> clone() const override {
-        // SVGP params are shared (read-only) — cheap shared_ptr copy
+        // PI-SVGP params are shared (read-only) — cheap shared_ptr copy
         auto copy = std::make_unique<F1TenthSimulator>(
-            vp_, occ_map_, cost_, omega_svgp_, beta_svgp_, base_timestep_);
+            vp_, occ_map_, cost_, pi_svgp_, base_timestep_);
         copy->state_ = state_;
         copy->step_count_ = step_count_;
         copy->v_ref_window_ = v_ref_window_;

@@ -19,10 +19,11 @@ from src.controller.mcts_dpw_cpp import MCTSDPWCppController
 from src.controller.mcts_dpw_pinn import MCTSDPWPINNController
 from src.controller.mcts_dpw_pinn_cpp import MCTSDPWPinnCppController
 from src.controller.mcts_dpw_svgp_cpp import MCTSDPWSvgpCppController
+from src.controller.mcts_pi_svgp_cpp import MCTSPiSvgpCppController
 
 # Controllers that need extra kwargs in their constructor.
-_NEEDS_MAP_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp"}
-_NEEDS_SIMULATION_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp"}
+_NEEDS_MAP_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp"}
+_NEEDS_SIMULATION_CONFIG = {"mppi", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp"}
 
 
 class Controller(ABC):
@@ -50,6 +51,7 @@ CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {
     "mcts_dpw_pinn": MCTSDPWPINNController,
     "mcts_dpw_pinn_cpp": MCTSDPWPinnCppController,
     "mcts_dpw_svgp_cpp": MCTSDPWSvgpCppController,
+    "mcts_pi_svgp_cpp": MCTSPiSvgpCppController,
 }
 
 

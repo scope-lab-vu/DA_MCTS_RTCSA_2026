@@ -81,6 +81,8 @@ class ControllerConfig:
     svgp_omega_model_path: Optional[str] = None
     svgp_beta_model_path: Optional[str] = None
     svgp_task_index: int = 0
+    # MCTS DPW PI-SVGP fields
+    pi_svgp_model_path: Optional[str] = None
 
 
 @dataclass(frozen=True)

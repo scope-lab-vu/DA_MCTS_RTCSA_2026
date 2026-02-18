@@ -1,8 +1,8 @@
 """
-MCTS DPW controller + SVGP dynamics — C++ accelerated.
+MCTS DPW controller + PI-SVGP dynamics — C++ accelerated.
 
-Uses Extended Kinematic base model with SVGP residual corrections for
-omega (yaw rate) and beta (slip angle), all running in C++.
+Uses a multi-output GP to predict 9 Pacejka tire parameters,
+then applies Pacejka physics for dynamics rollouts, all in C++.
 """
 
 import json
@@ -18,25 +18,25 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_f1tenth_svgp_cpp import F1TenthDPWSvgp as F1TenthDPW
+    from mcts_f1tenth_pi_svgp_cpp import F1TenthDPWPiSvgp as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_f1tenth_svgp_cpp C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp/"
+        "mcts_f1tenth_pi_svgp_cpp C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_pi_svgp_cpp/"
     ) from e
 
 log = logging.getLogger(__name__)
 
-# Task index → friction mapping (for logging)
+# Task index -> friction mapping (for logging)
 TASK_FRICTION_MAP = {0: 1.0489, 1: 0.8642, 2: 0.4947}
 
 
 # ---------------------------------------------------------------------------
-# Helper: load SVGP model from .npz (same loader as src/dynamics/svgp.py)
+# Helper: load PI-SVGP model from .npz
 # ---------------------------------------------------------------------------
 
 def _load_model_and_scalers_npz(path: str):
-    """Load SVGP model, scalers from a .npz file."""
+    """Load PI-SVGP model + scalers from .npz file."""
     data = np.load(path, allow_pickle=False)
     model_json = json.loads(str(data["model_json"]))
 
@@ -59,40 +59,50 @@ def _load_model_and_scalers_npz(path: str):
         return s
 
     xscaler = unpack_scaler("xscaler")
-    yscaler = unpack_scaler("yscaler")
-    return model, xscaler, yscaler
+    return model, xscaler
 
 
-def _pack_svgp_data(model_dict, xscaler, yscaler, hp_mu, M, D_input, D_hidden):
-    """Pack all SVGP parameters into a flat float64 array for C++.
+def _pack_pi_svgp_data(model_dict, xscaler, hp_mu, M, D_input, D_hidden, num_outputs):
+    """Pack all PI-SVGP parameters into a flat float64 array for C++.
 
-    Layout: theta(D_aug+1) | alpha(M) | Z_aug(M*D_aug) |
-            xmean(D_input) | xscale(D_input) | ymean(1) | yscale(1) | hp_mu(D_hidden)
+    Layout: theta(D_aug+1) | alpha(M*num_outputs) | Z_aug(M*D_aug) |
+            xmean(D_input) | xscale(D_input) | hp_mu(D_hidden) | output_bias(num_outputs)
     """
-    theta = np.array(model_dict['theta_opt'], dtype=np.float64)
-    K_mm_inv = np.array(model_dict['K_mm_inv'], dtype=np.float64)
-    mu_m = np.array(model_dict['mu_m_opt'], dtype=np.float64)
-    alpha = (K_mm_inv @ mu_m).ravel()
+    D_aug = D_input + D_hidden
 
+    theta = np.array(model_dict['theta_opt'], dtype=np.float64)
+
+    # Precompute K_mm_inv @ m in Python
     Zx = np.array(model_dict['Zx_opt'], dtype=np.float64)
     Zh = np.array(model_dict['Zh_opt'], dtype=np.float64)
-    Z_aug = np.concatenate([Zx, Zh], axis=1).ravel()
+    Z_aug = np.concatenate([Zx, Zh], axis=1)  # (M, D_aug)
+
+    # Build K_mm and invert
+    from src.dynamics.pi_svgp import _rbf_ard_kernel
+    import torch
+    theta_t = torch.tensor(theta, dtype=torch.float64)
+    Z_aug_t = torch.tensor(Z_aug, dtype=torch.float64)
+    K_mm = _rbf_ard_kernel(Z_aug_t, Z_aug_t, theta_t)
+    K_mm = K_mm + torch.eye(M, dtype=torch.float64) * 1e-6
+    K_mm_inv = torch.linalg.inv(K_mm).numpy()
+
+    m_opt = np.array(model_dict['m_opt'], dtype=np.float64)  # (M, num_outputs)
+    alpha = (K_mm_inv @ m_opt).ravel()  # (M * num_outputs), row-major
+
+    Z_aug_flat = Z_aug.ravel()
 
     xmean = np.array(xscaler.mean_, dtype=np.float64)
     xscale = np.array(xscaler.scale_, dtype=np.float64)
-    ymean_val = float(np.asarray(yscaler.mean_).ravel()[0])
-    yscale_val = float(np.asarray(yscaler.scale_).ravel()[0])
     hp = np.array(hp_mu, dtype=np.float64)
+    output_bias = np.array(model_dict['output_bias_opt'], dtype=np.float64)
 
     return np.concatenate([
-        theta, alpha, Z_aug, xmean, xscale,
-        np.array([ymean_val, yscale_val], dtype=np.float64),
-        hp,
+        theta, alpha, Z_aug_flat, xmean, xscale, hp, output_bias,
     ])
 
 
-class MCTSDPWSvgpCppController:
-    """MCTS DPW controller with SVGP dynamics (C++ accelerated)."""
+class MCTSPiSvgpCppController:
+    """MCTS DPW controller with PI-SVGP dynamics (C++ accelerated)."""
 
     def __init__(
         self,
@@ -122,7 +132,7 @@ class MCTSDPWSvgpCppController:
         # Load track (centerline CSV).
         if map_config.centerline_path is None:
             raise ValueError(
-                "MCTS DPW SVGP C++ controller requires centerline_path in map config."
+                "MCTS PI-SVGP C++ controller requires centerline_path in map config."
             )
         self.track = Track(map_config.centerline_path)
 
@@ -133,7 +143,7 @@ class MCTSDPWSvgpCppController:
             lane_width=config.lane_width,
         )
 
-        # Extract occupancy map data for C++ (flat numpy array).
+        # Extract occupancy map data for C++.
         self._occ_grid = self.track_occ_map._map.ravel().astype(np.float32)
         self._occ_x_min = self.track_occ_map.x_min
         self._occ_y_min = self.track_occ_map.y_min
@@ -153,39 +163,34 @@ class MCTSDPWSvgpCppController:
                     "Using constant v_ref=%.1f", e, self.v_ref
                 )
 
-        # --- Load SVGP models ---
+        # --- Load PI-SVGP model ---
         project_root = Path(__file__).resolve().parents[3]
         task_index = getattr(config, 'svgp_task_index', 0)
 
-        omega_path = str(project_root / config.svgp_omega_model_path)
-        beta_path = str(project_root / config.svgp_beta_model_path)
+        model_path = str(project_root / config.pi_svgp_model_path)
 
-        log.info("Loading omega SVGP from: %s", omega_path)
-        omega_dict, omega_xs, omega_ys = _load_model_and_scalers_npz(omega_path)
+        log.info("Loading PI-SVGP from: %s", model_path)
+        model_dict, xscaler = _load_model_and_scalers_npz(model_path)
 
-        log.info("Loading beta SVGP from: %s", beta_path)
-        beta_dict, beta_xs, beta_ys = _load_model_and_scalers_npz(beta_path)
-
-        M = omega_dict['Zx_opt'].shape[0]
-        D_input = omega_dict['Zx_opt'].shape[1]
-        D_hidden = omega_dict['Zh_opt'].shape[1]
+        M = int(model_dict['M'])
+        D_input = int(model_dict['dx_flat'])
+        D_hidden = int(model_dict['Hdim'])
+        num_outputs = int(model_dict['num_outputs'])
         self._svgp_M = M
         self._svgp_D_input = D_input
         self._svgp_D_hidden = D_hidden
+        self._svgp_num_outputs = num_outputs
 
-        omega_hp_mu = np.array(omega_dict['h_mu_opt'][task_index], dtype=np.float64)
-        beta_hp_mu = np.array(beta_dict['h_mu_opt'][task_index], dtype=np.float64)
+        hp_mu = np.array(model_dict['h_mu_opt'][task_index], dtype=np.float64)
 
-        self._omega_data = _pack_svgp_data(
-            omega_dict, omega_xs, omega_ys, omega_hp_mu, M, D_input, D_hidden,
-        )
-        self._beta_data = _pack_svgp_data(
-            beta_dict, beta_xs, beta_ys, beta_hp_mu, M, D_input, D_hidden,
+        self._svgp_data = _pack_pi_svgp_data(
+            model_dict, xscaler, hp_mu, M, D_input, D_hidden, num_outputs,
         )
 
         log.info(
-            "SVGP loaded: M=%d D_input=%d D_hidden=%d task=%d (mu≈%.4f)",
-            M, D_input, D_hidden, task_index, TASK_FRICTION_MAP.get(task_index, -1),
+            "PI-SVGP loaded: M=%d D_input=%d D_hidden=%d outputs=%d task=%d (mu~%.4f)",
+            M, D_input, D_hidden, num_outputs, task_index,
+            TASK_FRICTION_MAP.get(task_index, -1),
         )
 
         # Tree state.
@@ -193,7 +198,7 @@ class MCTSDPWSvgpCppController:
         self._last_action = None
 
         log.info(
-            "MCTS DPW SVGP C++ ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
+            "MCTS DPW PI-SVGP C++ ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
             "discount=%.2f rollout_horizon=%d",
             self.n_simulations, self.K, self.alpha, self.beta,
             self.discount, self.rollout_horizon,
@@ -238,12 +243,12 @@ class MCTSDPWSvgpCppController:
             rollout_horizon=self.rollout_horizon,
             discount=self.discount,
             dt=self.dt,
-            # SVGP params
-            omega_data=self._omega_data,
-            beta_data=self._beta_data,
+            # PI-SVGP params
+            svgp_data=self._svgp_data,
             svgp_M=self._svgp_M,
             svgp_D_input=self._svgp_D_input,
             svgp_D_hidden=self._svgp_D_hidden,
+            svgp_num_outputs=self._svgp_num_outputs,
             base_timestep=self.base_timestep,
         )
 
@@ -274,15 +279,11 @@ class MCTSDPWSvgpCppController:
             self._tree.set_v_ref_window(v_ref_window)
 
         # Run MCTS simulations.
-        t0 = time.monotonic()
         self._tree.learn(self.n_simulations)
-        mcts_ms = (time.monotonic() - t0) * 1000.0
 
         # Select best action (most visited).
         action = self._tree.best_action()
         self._last_action = action
-
-        # log.info("mcts_time=%.1fms", mcts_ms)
 
         return ControlCmdMsg(
             acceleration=float(action[0]),
