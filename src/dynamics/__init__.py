@@ -21,6 +21,7 @@ from src.dynamics.kinematic_bicycle import KinematicBicycleModel
 from src.dynamics.f1tenth_dynamics import F1TenthDynamicsModel
 from src.dynamics.svgp import SVGPModel
 from src.dynamics.pinn import PINNModel
+from src.dynamics.pi_svgp import PiSVGPModel
 
 
 class DynamicsModel(ABC):
@@ -61,6 +62,7 @@ DYNAMICS_REGISTRY: Dict[str, Type[DynamicsModel]] = {
     "f1tenth_dynamics": F1TenthDynamicsModel,
     "svgp": SVGPModel,
     "pinn": PINNModel,
+    "pi_svgp": PiSVGPModel,
 }
 
 
@@ -76,7 +78,7 @@ def create_dynamics_model(
             f"Unknown dynamics model '{type_str}'. "
             f"Available: {list(DYNAMICS_REGISTRY.keys())}"
         )
-    if type_str in ("pinn", "svgp"):
+    if type_str in ("pinn", "svgp", "pi_svgp"):
         return cls(
             vehicle_params=vehicle_params,
             dynamics_config=dynamics_config,
