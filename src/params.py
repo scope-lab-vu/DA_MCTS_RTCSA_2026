@@ -83,6 +83,14 @@ class ControllerConfig:
     svgp_task_index: int = 0
     # MCTS DPW PI-SVGP fields
     pi_svgp_model_path: Optional[str] = None
+    # Cornering stiffness adaptive velocity parameters (mppi_cs controller)
+    # v_ref_t -= cs_w1 * log(cs_w2 * delta_C_alpha + cs_w3)
+    # delta_C_alpha = max(0, C_alpha_th - cornering_stiffness)
+    cs_w1: float = 1.0
+    cs_w2: float = 0.25
+    cs_w3: float = 0.0
+    C_alpha_th: float = 104.89
+    calpha_window_size: int = 10
 
 
 @dataclass(frozen=True)

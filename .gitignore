@@ -12,3 +12,4 @@ src/controller/*.so
 *egg-info
 *temp.linux-x86_64-3.8
 *linux-gnu.so
+results_old

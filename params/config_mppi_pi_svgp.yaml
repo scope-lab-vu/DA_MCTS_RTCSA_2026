@@ -15,7 +15,7 @@ controller:
   use_occupancy_map: true
   lane_width: 1.1
   # --- Cost function tuning ---
-  v_max_cost: 12.0
+  v_max_cost: 11.0
   alpha_threshold: 0.7
   speed_weight: 5.0
 

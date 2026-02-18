@@ -206,6 +206,9 @@ class PiSVGPModel:
         self._h_mu_all = model_dict['h_mu_opt']  # (T, Hdim) numpy
         self.set_task_index(task_index)
 
+        # Build linear interpolators: C_alpha -> latent h
+        self._build_calpha_interpolators()
+
         # Positive-constraint mask for Pacejka parameters
         self._positive_mask = torch.zeros(
             num_outputs, device=self._gp_device, dtype=torch.bool,
@@ -232,6 +235,46 @@ class PiSVGPModel:
             "PI-SVGP task=%d (mu~%.4f)",
             task_index, TASK_FRICTION_MAP.get(task_index, -1),
         )
+
+    # -- C_alpha latent interpolation ---------------------------------------
+
+    def _build_calpha_interpolators(self) -> None:
+        """Fit per-dimension linear maps from C_alpha -> latent h.
+
+        C_alpha anchors correspond to the three training friction levels:
+            task 0: mu=1.0489  ->  C_alpha ≈ 104.89
+            task 1: mu=0.8642  ->  C_alpha ≈  86.42
+            task 2: mu=0.4947  ->  C_alpha ≈  49.47
+        """
+        self._c_alpha_anchors = np.array([104.89, 86.42, 49.47])
+        h_anchors = np.array(self._h_mu_all[:3])  # (3, Hdim)
+        Hdim = h_anchors.shape[1]
+
+        self._calpha_slopes = np.zeros(Hdim)
+        self._calpha_intercepts = np.zeros(Hdim)
+        for d in range(Hdim):
+            self._calpha_slopes[d], self._calpha_intercepts[d] = np.polyfit(
+                self._c_alpha_anchors, h_anchors[:, d], 1
+            )
+
+        self._c_alpha_min = float(self._c_alpha_anchors.min())
+        self._c_alpha_max = float(self._c_alpha_anchors.max())
+        log.info(
+            "PI-SVGP C_alpha interpolators built: range [%.2f, %.2f] -> Hdim=%d",
+            self._c_alpha_min, self._c_alpha_max, Hdim,
+        )
+
+    def set_latents_from_calpha(self, c_alpha: float) -> None:
+        """Interpolate and set task latent parameters from cornering stiffness.
+
+        Args:
+            c_alpha: Estimated rear cornering stiffness [N/rad]. Values are
+                     clamped to the training range [49.47, 104.89].
+        """
+        c_alpha_clamped = np.clip(c_alpha, self._c_alpha_min, self._c_alpha_max)
+        h = self._calpha_slopes * c_alpha_clamped + self._calpha_intercepts  # (Hdim,)
+        self._hp_mu = torch.tensor(h, device=self._gp_device, dtype=self._gp_dtype)
+        log.debug("PI-SVGP latents updated from c_alpha=%.2f (clamped=%.2f)", c_alpha, c_alpha_clamped)
 
     # -- Feature extraction -------------------------------------------------
 

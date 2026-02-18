@@ -1,0 +1,55 @@
+# Algorithm Configuration: MPPI (cornering stiffness) + PI-SVGP dynamics
+#
+# Uses MPPICorneringStiffnessController which:
+#   1. Estimates rear cornering stiffness C_alpha from consecutive states.
+#   2. Smooths C_alpha over a rolling window and updates PI-SVGP latents.
+#   3. Reduces the reference velocity when estimated grip is low:
+#        delta_C = max(0, C_alpha_th - C_alpha)
+#        v_ref_t -= cs_w1 * log(cs_w2 * delta_C + cs_w3)
+
+controller:
+  type: mppi_cs
+  # --- MPPI-specific ---
+  horizon: 15
+  num_samples: 5000
+  lambda_: 2.93
+  noise_sigma_accel: 2.29
+  noise_sigma_steer: 3.98
+  v_ref: 5.0
+  device: cpu
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- Cost function tuning ---
+  v_max_cost: 8.0
+  alpha_threshold: 1.2
+  speed_weight: 5.0
+  # --- Cornering stiffness adaptive velocity ---
+  # v_ref_t -= cs_w1 * log(cs_w2 * delta_C_alpha + cs_w3)
+  # delta_C_alpha = max(0, C_alpha_th - cornering_stiffness)
+  # cs_w1: 1.0
+  # cs_w2: 0.25
+  # cs_w3: 0.0
+  cs_w1: 1.0
+  cs_w2: 0.25
+  cs_w3: 0.0
+  C_alpha_th: 104.89
+  calpha_window_size: 10
+
+    # 'cs_w1': 0.38,
+    # 'cs_w2': 2.35,
+    # 'cs_w3': 1.64,
+
+dynamics:
+  type: pi_svgp
+  model_path: models/pi_svgp/pi_svgp_best_params.npz
+  task_index: 0               # 0: mu=1.0489, 1: mu=0.8642, 2: mu=0.4947
+  inference_device: cpu
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04
+  log_every_n_steps: 200
+  seed: 42

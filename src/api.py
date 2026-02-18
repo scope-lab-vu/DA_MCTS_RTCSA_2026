@@ -157,13 +157,36 @@ class F1TenthAPI:
         logger: EpisodeLogger,
         output_dir: str,
         reason: str = "unknown",
+        config_name: Optional[str] = None,
+        extra_metadata: Optional[dict] = None,
     ) -> str:
-        """Save the episode trajectory CSV and return its path."""
+        """Save the episode trajectory CSV and return its path.
+
+        Args:
+            logger: EpisodeLogger with recorded steps.
+            output_dir: Directory to save into.
+            reason: Termination reason string.
+            config_name: Algo config stem (e.g. "config_mppi_pi_svgp") used
+                         to prefix the filename.
+            extra_metadata: Additional key-value pairs appended to CSV header.
+        """
+        track_name = self.map_config.track_name or "unknown"
+        mu = self.vehicle_params.mu
+        mu_id = str(mu).replace(".", "")
+
         metadata = {
-            "track": self.map_config.track_name,
-            "mu": self.vehicle_params.mu,
+            "track": track_name,
+            "mu": mu,
             "dt": self.algo_config.simulation.dt_s,
             "controller": self.algo_config.controller.type,
             "dynamics": self.algo_config.dynamics.type,
         }
-        return logger.save(output_dir, reason=reason, metadata=metadata)
+        if extra_metadata:
+            metadata.update(extra_metadata)
+
+        if config_name:
+            prefix = f"traj_{config_name}_{track_name}_{mu_id}"
+        else:
+            prefix = "traj"
+
+        return logger.save(output_dir, reason=reason, metadata=metadata, filename_prefix=prefix)
