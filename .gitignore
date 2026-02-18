@@ -9,3 +9,6 @@ nohup*
 src/controller/mcts_dpw_pinn_cpp/mcts_f1tenth_pinn_cpp.egg-info
 src/controller/mcts_dpw_pinn_cpp/build/temp.linux-x86_64-3.8
 src/controller/*.so
+*egg-info
+*temp.linux-x86_64-3.8
+*linux-gnu.so
