@@ -38,7 +38,8 @@ TRACKS = ["YasMarina", "Shanghai", "Sepang"]
 MU_VALUES = [1.0489, 0.8642, 0.4947]
 
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
-ALGO_CONFIG = Path("params/config_mcts_dpw_cpp_known_dyn.yaml")
+# ALGO_CONFIG = Path("params/config_mcts_dpw_cpp_known_dyn.yaml")
+DEFAULT_ALGO_CONFIG = Path("params/config_mcts_dpw_svgp_cpp.yaml")
 RESULTS_DIR = Path("results")
 
 
@@ -63,6 +64,7 @@ def run_experiment(
     trial: int,
     max_steps: int,
     render: bool,
+    algo_config: Path = DEFAULT_ALGO_CONFIG,
 ) -> dict:
     """Run a single trial. Returns a summary dict."""
     mu_id = mu_to_id(mu)
@@ -85,7 +87,7 @@ def run_experiment(
     log.info("EXPERIMENT: %s  mu=%.4f  trial=%d  seed=%d", track, mu, trial, seed)
     log.info("=" * 60)
 
-    api = F1TenthAPI(VEHICLE_PARAMS, ALGO_CONFIG, map_config_path, mu_override=mu)
+    api = F1TenthAPI(VEHICLE_PARAMS, algo_config, map_config_path, mu_override=mu)
     waypoints = api.load_waypoints()
 
     # Load track centerline for progress computation.
@@ -186,9 +188,10 @@ def run_experiment(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MCTS DPW C++ batch experiments")
+    parser = argparse.ArgumentParser(description="MCTS DPW batch experiments")
+    parser.add_argument("--algo-config", type=Path, default=DEFAULT_ALGO_CONFIG, help="Algorithm config YAML")
     parser.add_argument("--max-steps", type=int, default=10000, help="Max steps per episode")
-    parser.add_argument("--num-trials", type=int, default=10, help="Trials per (track, mu) combo")
+    parser.add_argument("--num-trials", type=int, default=5, help="Trials per (track, mu) combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed (trial i uses base_seed + i)")
     parser.add_argument("--render", action="store_true", help="Enable visualisation")
     args = parser.parse_args()
@@ -207,7 +210,7 @@ def main():
                 seed = args.base_seed + trial - 1
                 log.info("\n>>> Run %d/%d: %s  mu=%.4f  trial=%d  seed=%d",
                          idx, total, track, mu, trial, seed)
-                result = run_experiment(track, mu, seed, trial, args.max_steps, args.render)
+                result = run_experiment(track, mu, seed, trial, args.max_steps, args.render, args.algo_config)
                 results.append(result)
 
     # ── Per-trial table ──────────────────────────────────────────────────

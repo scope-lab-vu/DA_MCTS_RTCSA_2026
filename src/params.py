@@ -77,6 +77,10 @@ class ControllerConfig:
     batch_size: int = 8
     eval_K: int = 4
     eval_device: str = "cuda"
+    # MCTS DPW SVGP fields
+    svgp_omega_model_path: Optional[str] = None
+    svgp_beta_model_path: Optional[str] = None
+    svgp_task_index: int = 0
 
 
 @dataclass(frozen=True)

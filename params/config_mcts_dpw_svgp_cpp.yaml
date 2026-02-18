@@ -1,0 +1,35 @@
+# Algorithm Configuration: MCTS DPW C++ controller + SVGP dynamics
+# Same MCTS tree search as mcts_dpw_cpp but uses Ekin + SVGP residual
+# corrections for omega and beta instead of the analytical single-track model.
+
+controller:
+  type: mcts_dpw_svgp_cpp
+  # --- MCTS DPW hyperparameters ---
+  n_simulations: 500
+  exploration_constant: 1.0    # K (UCB exploration)
+  alpha_dpw: 0.5               # action progressive widening exponent
+  beta_dpw: 0.5                # outcome progressive widening exponent
+  discount: 1.0               # rollout discount factor
+  rollout_horizon: 15
+  # --- Reward/cost tuning ---
+  v_ref: 10.0
+  speed_weight: 50.0
+  alpha_threshold: 1.0
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- SVGP model paths (relative to project root) ---
+  svgp_omega_model_path: models/svgp/hip_mdp_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data.npz
+  svgp_beta_model_path: models/svgp/hip_mdp_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data.npz
+  svgp_task_index: 0           # 0=mu1.0489, 1=mu0.8642, 2=mu0.4947
+
+dynamics:
+  type: f1tenth_dynamics   # Not used by the controller (SVGP is internal), but needed by the factory
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04         # Timestep: 25 Hz (→ 2 SVGP substeps of 0.02s each)
+  log_every_n_steps: 1
+  seed: 42

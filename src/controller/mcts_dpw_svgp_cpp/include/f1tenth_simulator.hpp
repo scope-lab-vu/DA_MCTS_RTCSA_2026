@@ -5,6 +5,7 @@
 #include <random>
 #include <algorithm>
 #include <vector>
+#include <memory>
 
 // Vehicle parameters — mirrors src/params.py VehicleParams
 struct VehicleParamsCpp {
@@ -56,30 +57,125 @@ struct CostParams {
     double dt               = 0.04;
 };
 
+// ---------------------------------------------------------------------------
+// SVGP (Sparse Variational Gaussian Process) parameters for one GP.
+// Holds all data needed for kernel evaluation and prediction.
+// ---------------------------------------------------------------------------
+struct SVGPParams {
+    int M;          // number of inducing points (e.g. 50)
+    int D_input;    // raw input dimension (6)
+    int D_hidden;   // hidden/task dimension (2)
+    int D_aug;      // D_input + D_hidden (8)
+
+    std::vector<double> theta;    // (D_aug + 1): [lengthscale_0..D_aug-1, sigma]
+    std::vector<double> alpha;    // (M): precomputed K_mm_inv @ mu_m, squeezed
+    std::vector<double> Z_aug;    // (M * D_aug): augmented inducing points, row-major
+    std::vector<double> xmean;    // (D_input): input scaler mean
+    std::vector<double> xscale;   // (D_input): input scaler std
+    double ymean;                 // output scaler mean (scalar)
+    double yscale;                // output scaler std (scalar)
+    std::vector<double> hp_mu;    // (D_hidden): task-specific hidden parameters
+
+    // Construct from a flat double array packed in Python.
+    // Layout: theta | alpha | Z_aug | xmean | xscale | ymean | yscale | hp_mu
+    static SVGPParams from_flat(const double* data, int M_, int D_input_, int D_hidden_) {
+        SVGPParams p;
+        p.M = M_;
+        p.D_input = D_input_;
+        p.D_hidden = D_hidden_;
+        p.D_aug = D_input_ + D_hidden_;
+
+        int off = 0;
+        p.theta.assign(data + off, data + off + p.D_aug + 1); off += p.D_aug + 1;
+        p.alpha.assign(data + off, data + off + M_);           off += M_;
+        p.Z_aug.assign(data + off, data + off + M_ * p.D_aug); off += M_ * p.D_aug;
+        p.xmean.assign(data + off, data + off + D_input_);     off += D_input_;
+        p.xscale.assign(data + off, data + off + D_input_);    off += D_input_;
+        p.ymean = data[off++];
+        p.yscale = data[off++];
+        p.hp_mu.assign(data + off, data + off + D_hidden_);    off += D_hidden_;
+        return p;
+    }
+};
+
+// ---------------------------------------------------------------------------
+// SVGP single-sample prediction: normalize → augment → RBF ARD kernel → predict → denormalize
+// ---------------------------------------------------------------------------
+inline double svgp_predict_single(
+    const double* gp_input,   // (D_input) raw GP input: [delta, v, omega, beta, accl, sv]
+    const SVGPParams& gp
+) {
+    // Stack-allocate augmented input (max D_aug = 8)
+    double x_aug[8];
+
+    // 1. Normalize raw inputs
+    for (int d = 0; d < gp.D_input; ++d) {
+        x_aug[d] = (gp_input[d] - gp.xmean[d]) / gp.xscale[d];
+    }
+    // 2. Append task-specific hidden parameters
+    for (int d = 0; d < gp.D_hidden; ++d) {
+        x_aug[gp.D_input + d] = gp.hp_mu[d];
+    }
+
+    // 3. RBF ARD kernel evaluation + dot product with alpha (fused)
+    const double sigma = gp.theta[gp.D_aug];   // last element of theta
+    const double sigma_sq = sigma * sigma;
+    double f_mean = 0.0;
+
+    for (int j = 0; j < gp.M; ++j) {
+        double dist = 0.0;
+        const int base = j * gp.D_aug;
+        for (int d = 0; d < gp.D_aug; ++d) {
+            double diff = (x_aug[d] - gp.Z_aug[base + d]) / gp.theta[d];
+            dist += diff * diff;
+        }
+        double k_j = sigma_sq * std::exp(-0.5 * dist);
+        f_mean += k_j * gp.alpha[j];
+    }
+
+    // 4. Denormalize
+    return f_mean * gp.yscale + gp.ymean;
+}
+
+
+// ---------------------------------------------------------------------------
 // F1TENTH simulator for MCTS rollouts.
-// Implements the Simulator interface with F1TENTH single-track dynamics
-// and the same cost function as the Python version.
+// Uses Extended Kinematic (Ekin) base model + SVGP residual corrections
+// for omega (yaw rate) and beta (slip angle).
+// ---------------------------------------------------------------------------
 class F1TenthSimulator : public Simulator {
   private:
-    // Members ordered to match initializer list.
     VehicleParamsCpp vp_;
     OccupancyMapData occ_map_;
     CostParams cost_;
+
+    // SVGP models (shared across clones for efficiency)
+    std::shared_ptr<const SVGPParams> omega_svgp_;
+    std::shared_ptr<const SVGPParams> beta_svgp_;
+    double base_timestep_;
+    int n_substeps_;
+
     // State: [x, y, delta, v, psi, omega, beta]
     std::vector<double> state_;
     int step_count_ = 0;
     std::vector<double> v_ref_window_;
     std::mt19937 rng_;
 
-    static constexpr double G = 9.81;
     static constexpr double TWO_PI = 2.0 * M_PI;
 
   public:
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
                      const CostParams& cost,
+                     std::shared_ptr<const SVGPParams> omega_svgp,
+                     std::shared_ptr<const SVGPParams> beta_svgp,
+                     double base_timestep,
                      unsigned seed = std::random_device{}())
         : vp_(vp), occ_map_(occ_map), cost_(cost),
+          omega_svgp_(std::move(omega_svgp)),
+          beta_svgp_(std::move(beta_svgp)),
+          base_timestep_(base_timestep),
+          n_substeps_(std::max(1, static_cast<int>(std::round(cost.dt / base_timestep)))),
           state_(7, 0.0), rng_(seed) {}
 
     // --- Simulator interface ---
@@ -99,106 +195,86 @@ class F1TenthSimulator : public Simulator {
     }
 
     StepResult step(const std::vector<double>& action) override {
-        double x     = state_[0];
-        double y     = state_[1];
-        double delta = state_[2];
-        double v     = state_[3];
-        double psi   = state_[4];
-        double omega = state_[5];
-        double beta  = state_[6];
-
         double accl = action[0];
         double sv   = action[1];
 
-        // --- Steering constraint ---
-        if ((delta <= vp_.s_min && sv <= 0.0) ||
-            (delta >= vp_.s_max && sv >= 0.0)) {
+        // --- Constrain actions ONCE (using initial state) ---
+        double delta_init = state_[2];
+        double v_init     = state_[3];
+
+        // Steering constraint
+        if ((delta_init <= vp_.s_min && sv <= 0.0) ||
+            (delta_init >= vp_.s_max && sv >= 0.0)) {
             sv = 0.0;
         }
         sv = std::max(vp_.sv_min, std::min(vp_.sv_max, sv));
 
-        // --- Acceleration constraint ---
+        // Acceleration constraint
         double pos_limit;
-        if (v > vp_.v_switch) {
-            pos_limit = vp_.a_max * vp_.v_switch / (v + 1e-8);
+        if (v_init > vp_.v_switch) {
+            pos_limit = vp_.a_max * vp_.v_switch / (v_init + 1e-8);
         } else {
             pos_limit = vp_.a_max;
         }
-        if ((v <= vp_.v_min && accl <= 0.0) ||
-            (v >= vp_.v_max && accl >= 0.0)) {
+        if ((v_init <= vp_.v_min && accl <= 0.0) ||
+            (v_init >= vp_.v_max && accl >= 0.0)) {
             accl = 0.0;
         }
         accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
 
-        double L = vp_.lf + vp_.lr;
+        // --- Substep loop: Ekin base + SVGP residuals ---
+        const double L = vp_.lf + vp_.lr;
+        const double sub_dt = (n_substeps_ > 1) ? base_timestep_ : cost_.dt;
 
-        double f_x, f_y, f_delta, f_v, f_psi, f_omega, f_beta;
+        for (int sub = 0; sub < n_substeps_; ++sub) {
+            double x     = state_[0];
+            double y     = state_[1];
+            double delta = state_[2];
+            double v     = state_[3];
+            double psi   = state_[4];
+            double omega = state_[5];
+            double beta  = state_[6];
 
-        if (std::abs(v) < 0.5) {
-            // Kinematic model
-            f_x     = v * std::cos(psi);
-            f_y     = v * std::sin(psi);
-            f_delta = sv;
-            f_v     = accl;
-            f_psi   = v / L * std::tan(delta);
-            f_omega = accl / L * std::tan(delta)
-                    + v / (L * std::cos(delta) * std::cos(delta)) * sv;
-            f_beta  = 0.0;
-        } else {
-            // Dynamic model
-            f_x     = v * std::cos(beta + psi);
-            f_y     = v * std::sin(beta + psi);
-            f_delta = sv;
-            f_v     = accl;
-            f_psi   = omega;
+            // Extended Kinematic model derivatives
+            double x_dot     = v * std::cos(beta + psi);
+            double y_dot     = v * std::sin(beta + psi);
+            double v_dot     = accl;
+            double psi_dot   = omega;
+            double omega_dot = (sv * v + delta * accl) / L;
+            double beta_dot  = (vp_.lf * (sv * v + delta * accl)) / L;
 
-            double v_safe = std::max(std::abs(v), 0.5);
-            f_omega = (-vp_.mu * vp_.m / (v_safe * vp_.I * L)
-                       * (vp_.lf * vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                        + vp_.lr * vp_.lr * vp_.C_Sr * (G * vp_.lf + accl * vp_.h))
-                       * omega
-                       + vp_.mu * vp_.m / (vp_.I * L)
-                       * (vp_.lr * vp_.C_Sr * (G * vp_.lf + accl * vp_.h)
-                        - vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h))
-                       * beta
-                       + vp_.mu * vp_.m / (vp_.I * L)
-                       * vp_.lf * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                       * delta);
+            // Euler integration (Ekin baseline)
+            double next_x     = x     + sub_dt * x_dot;
+            double next_y     = y     + sub_dt * y_dot;
+            double next_delta = delta + sub_dt * sv;
+            double next_v     = v     + sub_dt * v_dot;
+            double next_psi   = psi   + sub_dt * psi_dot;
+            double next_omega = omega + sub_dt * omega_dot;
+            double next_beta  = beta  + sub_dt * beta_dot;
 
-            f_beta = ((vp_.mu / (v_safe * v_safe * L)
-                       * (vp_.C_Sr * (G * vp_.lf + accl * vp_.h) * vp_.lr
-                        - vp_.C_Sf * (G * vp_.lr - accl * vp_.h) * vp_.lf)
-                       - 1.0)
-                      * omega
-                      - vp_.mu / (v_safe * L)
-                      * (vp_.C_Sr * (G * vp_.lf + accl * vp_.h)
-                       + vp_.C_Sf * (G * vp_.lr - accl * vp_.h))
-                      * beta
-                      + vp_.mu / (v_safe * L)
-                      * vp_.C_Sf * (G * vp_.lr - accl * vp_.h)
-                      * delta);
+            // SVGP residual corrections (using PRE-step state values)
+            double gp_input[6] = {delta, v, omega, beta, accl, sv};
+            double err_omega = svgp_predict_single(gp_input, *omega_svgp_);
+            double err_beta  = svgp_predict_single(gp_input, *beta_svgp_);
+            next_omega += err_omega;
+            next_beta  += err_beta;
+
+            state_ = {next_x, next_y, next_delta, next_v, next_psi, next_omega, next_beta};
         }
 
-        // Euler integration
-        double dt = cost_.dt;
-        double x_n     = x     + dt * f_x;
-        double y_n     = y     + dt * f_y;
-        double delta_n = delta + dt * f_delta;
-        double v_n     = v     + dt * f_v;
-        double psi_n   = psi   + dt * f_psi;
-        double omega_n = omega + dt * f_omega;
-        double beta_n  = beta  + dt * f_beta;
-
         // Normalize heading to [0, 2*pi)
-        psi_n = std::fmod(psi_n, TWO_PI);
-        if (psi_n < 0.0) psi_n += TWO_PI;
-
-        state_ = {x_n, y_n, delta_n, v_n, psi_n, omega_n, beta_n};
+        state_[4] = std::fmod(state_[4], TWO_PI);
+        if (state_[4] < 0.0) state_[4] += TWO_PI;
 
         int t = step_count_;
         step_count_++;
 
         // --- Cost computation (same as Python simulator.py) ---
+
+        double x_n     = state_[0];
+        double y_n     = state_[1];
+        double v_n     = state_[3];
+        double beta_n  = state_[6];
 
         // Track cost: 0.9^t * off_track * 10000
         float off_track = occ_map_.query(x_n, y_n);
@@ -236,7 +312,9 @@ class F1TenthSimulator : public Simulator {
     }
 
     std::unique_ptr<Simulator> clone() const override {
-        auto copy = std::make_unique<F1TenthSimulator>(vp_, occ_map_, cost_);
+        // SVGP params are shared (read-only) — cheap shared_ptr copy
+        auto copy = std::make_unique<F1TenthSimulator>(
+            vp_, occ_map_, cost_, omega_svgp_, beta_svgp_, base_timestep_);
         copy->state_ = state_;
         copy->step_count_ = step_count_;
         copy->v_ref_window_ = v_ref_window_;

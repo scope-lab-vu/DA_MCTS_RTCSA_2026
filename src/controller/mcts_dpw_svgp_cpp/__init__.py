@@ -1,5 +1,5 @@
-"""MCTS with Double Progressive Widening (C++ accelerated)."""
+"""MCTS with Double Progressive Widening + SVGP dynamics (C++ accelerated)."""
 
-from src.controller.mcts_dpw_cpp.controller import MCTSDPWCppController
+from src.controller.mcts_dpw_svgp_cpp.controller import MCTSDPWSvgpCppController
 
-__all__ = ["MCTSDPWCppController"]
+__all__ = ["MCTSDPWSvgpCppController"]
