@@ -257,6 +257,15 @@ class MCTSPiSvgpCppController:
         state: VehicleStateMsg,
         waypoints: WaypointsMsg,
     ) -> ControlCmdMsg:
+        # Low-speed override: full throttle, no steering until v > 0.5.
+        if abs(state.v) < 0.5:
+            self._tree = None
+            self._last_action = None
+            return ControlCmdMsg(
+                acceleration=self._vehicle_params.a_max,
+                steering_vel=0.0,
+            )
+
         state_np = np.array([
             state.x, state.y, state.delta, state.v,
             state.psi, state.omega, state.beta,

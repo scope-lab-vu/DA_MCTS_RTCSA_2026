@@ -16,12 +16,14 @@ import argparse
 import logging
 import os
 import random
+import tempfile
 import time
 from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
 import torch
+import yaml
 
 from src.api import F1TenthAPI
 from src.track import Track
@@ -35,11 +37,15 @@ log = logging.getLogger("experiments")
 # ── Experiment grid ──────────────────────────────────────────────────────────
 
 TRACKS = ["YasMarina", "Shanghai", "Sepang"]
-MU_VALUES = [1.0489, 0.8642, 0.4947]
+MU_CONFIGS = [
+    # (mu, task_index)  — task_index selects the GP friction head
+    (1.0489, 0),
+    (0.8642, 1),
+    (0.4947, 2),
+]
 
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
-# ALGO_CONFIG = Path("params/config_mcts_dpw_cpp_known_dyn.yaml")
-DEFAULT_ALGO_CONFIG = Path("params/config_mcts_dpw_svgp_cpp.yaml")
+DEFAULT_ALGO_CONFIG = Path("params/config_mcts_dpw_pi_svgp_cpp.yaml")
 RESULTS_DIR = Path("results")
 
 
@@ -57,9 +63,23 @@ def set_seed(seed: int) -> None:
         torch.backends.cudnn.benchmark = False
 
 
+def _make_config_with_task_index(base_path: Path, task_index: int) -> Path:
+    """Load base YAML, override svgp_task_index, return temp file path."""
+    with open(base_path) as f:
+        cfg = yaml.safe_load(f)
+    cfg["controller"]["svgp_task_index"] = task_index
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", delete=False, prefix="exp_",
+    )
+    yaml.dump(cfg, tmp)
+    tmp.close()
+    return Path(tmp.name)
+
+
 def run_experiment(
     track: str,
     mu: float,
+    task_index: int,
     seed: int,
     trial: int,
     max_steps: int,
@@ -84,107 +104,112 @@ def run_experiment(
     set_seed(seed)
 
     log.info("=" * 60)
-    log.info("EXPERIMENT: %s  mu=%.4f  trial=%d  seed=%d", track, mu, trial, seed)
+    log.info("EXPERIMENT: %s  mu=%.4f  task=%d  trial=%d  seed=%d",
+             track, mu, task_index, trial, seed)
     log.info("=" * 60)
 
-    api = F1TenthAPI(VEHICLE_PARAMS, algo_config, map_config_path, mu_override=mu)
-    waypoints = api.load_waypoints()
-
-    # Load track centerline for progress computation.
-    centerline_path = api.map_config.centerline_path
-    track_obj = Track(centerline_path)
-
-    if render:
-        api.setup_rendering(waypoints)
-
-    episode_logger = api.create_episode_logger()
-    dt_s = api.algo_config.simulation.dt_s
-
-    step = 0
-    reason = "max_steps"
-    step_times = []
-    start_progress = None
-    prev_progress = 0.0
-    laps_completed = 0
-    accumulated_progress = 0.0
-
+    config_path = _make_config_with_task_index(algo_config, task_index)
     try:
-        while step < max_steps:
-            t0 = time.monotonic()
+        api = F1TenthAPI(VEHICLE_PARAMS, config_path, map_config_path, mu_override=mu)
+        waypoints = api.load_waypoints()
 
-            state = api.get_state()
-            cmd = api.compute_action(state, waypoints)
-            episode_logger.log_step(state, cmd)
-            done = api.apply_action(cmd)
+        # Load track centerline for progress computation.
+        centerline_path = api.map_config.centerline_path
+        track_obj = Track(centerline_path)
 
-            if render:
-                api.render()
+        if render:
+            api.setup_rendering(waypoints)
 
-            elapsed = time.monotonic() - t0
-            step_times.append(elapsed)
-            step += 1
+        episode_logger = api.create_episode_logger()
+        dt_s = api.algo_config.simulation.dt_s
 
-            # Track progress along centerline.
-            pos = np.array([state.x, state.y])
-            _, _, progress = track_obj.get_nearest_point(pos)
-            if start_progress is None:
-                start_progress = progress
+        step = 0
+        reason = "max_steps"
+        step_times = []
+        start_progress = None
+        prev_progress = 0.0
+        laps_completed = 0
+        accumulated_progress = 0.0
+
+        try:
+            while step < max_steps:
+                t0 = time.monotonic()
+
+                state = api.get_state()
+                cmd = api.compute_action(state, waypoints)
+                episode_logger.log_step(state, cmd)
+                done = api.apply_action(cmd)
+
+                if render:
+                    api.render()
+
+                elapsed = time.monotonic() - t0
+                step_times.append(elapsed)
+                step += 1
+
+                # Track progress along centerline.
+                pos = np.array([state.x, state.y])
+                _, _, progress = track_obj.get_nearest_point(pos)
+                if start_progress is None:
+                    start_progress = progress
+                    prev_progress = progress
+
+                delta_p = progress - prev_progress
+                if delta_p < -track_obj.total_length * 0.5:
+                    delta_p += track_obj.total_length
+                elif delta_p > track_obj.total_length * 0.5:
+                    delta_p -= track_obj.total_length
+                accumulated_progress += delta_p
                 prev_progress = progress
 
-            delta_p = progress - prev_progress
-            if delta_p < -track_obj.total_length * 0.5:
-                delta_p += track_obj.total_length
-            elif delta_p > track_obj.total_length * 0.5:
-                delta_p -= track_obj.total_length
-            accumulated_progress += delta_p
-            prev_progress = progress
+                laps_completed = int(accumulated_progress / track_obj.total_length)
 
-            laps_completed = int(accumulated_progress / track_obj.total_length)
+                if step % 100 == 0:
+                    pct = (accumulated_progress / track_obj.total_length) * 100
+                    log.info(
+                        "[%s mu=%.4f t%d] step=%d  v=%.2f  progress=%.1f%%  dt=%.4fs",
+                        track, mu, trial, step, state.v, pct, elapsed,
+                    )
 
-            if step % 100 == 0:
-                pct = (accumulated_progress / track_obj.total_length) * 100
-                log.info(
-                    "[%s mu=%.4f t%d] step=%d  v=%.2f  progress=%.1f%%  dt=%.4fs",
-                    track, mu, trial, step, state.v, pct, elapsed,
-                )
+                if done:
+                    reason = "collision" if api.collision else "done"
+                    log.info("[%s mu=%.4f t%d] Finished at step %d (%s)",
+                             track, mu, trial, step, reason)
+                    break
 
-            if done:
-                reason = "collision" if api.collision else "done"
-                log.info("[%s mu=%.4f t%d] Finished at step %d (%s)",
-                         track, mu, trial, step, reason)
-                break
+                sleep_time = dt_s - elapsed
+                if sleep_time > 0 and render:
+                    time.sleep(sleep_time)
 
-            sleep_time = dt_s - elapsed
-            if sleep_time > 0 and render:
-                time.sleep(sleep_time)
+        except KeyboardInterrupt:
+            reason = "interrupted"
+            log.info("[%s mu=%.4f t%d] Interrupted at step %d", track, mu, trial, step)
 
-    except KeyboardInterrupt:
-        reason = "interrupted"
-        log.info("[%s mu=%.4f t%d] Interrupted at step %d", track, mu, trial, step)
+        # Save trajectory.
+        output_dir = str(RESULTS_DIR / f"{track}_{mu_id}")
+        csv_path = api.save_episode(episode_logger, output_dir=output_dir, reason=reason)
 
-    # Save trajectory.
-    output_dir = str(RESULTS_DIR / f"{track}_{mu_id}")
-    csv_path = api.save_episode(episode_logger, output_dir=output_dir, reason=reason)
+        avg_dt = np.mean(step_times) if step_times else 0.0
+        progress_pct = (accumulated_progress / track_obj.total_length) * 100
+        collided = reason == "collision"
 
-    avg_dt = np.mean(step_times) if step_times else 0.0
-    progress_pct = (accumulated_progress / track_obj.total_length) * 100
-    collided = reason == "collision"
-
-    return {
-        "track": track,
-        "mu": mu,
-        "trial": trial,
-        "seed": seed,
-        "steps": step,
-        "reason": reason,
-        "collision": collided,
-        "laps": laps_completed,
-        "progress_pct": progress_pct,
-        "track_length": track_obj.total_length,
-        "avg_step_ms": avg_dt * 1000,
-        "csv": csv_path,
-        "status": "OK",
-    }
+        return {
+            "track": track,
+            "mu": mu,
+            "trial": trial,
+            "seed": seed,
+            "steps": step,
+            "reason": reason,
+            "collision": collided,
+            "laps": laps_completed,
+            "progress_pct": progress_pct,
+            "track_length": track_obj.total_length,
+            "avg_step_ms": avg_dt * 1000,
+            "csv": csv_path,
+            "status": "OK",
+        }
+    finally:
+        os.unlink(config_path)
 
 
 def main():
@@ -199,18 +224,19 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     results = []
-    combos = len(TRACKS) * len(MU_VALUES)
+    combos = len(TRACKS) * len(MU_CONFIGS)
     total = combos * args.num_trials
     idx = 0
 
     for track in TRACKS:
-        for mu in MU_VALUES:
+        for mu, task_index in MU_CONFIGS:
             for trial in range(1, args.num_trials + 1):
                 idx += 1
                 seed = args.base_seed + trial - 1
-                log.info("\n>>> Run %d/%d: %s  mu=%.4f  trial=%d  seed=%d",
-                         idx, total, track, mu, trial, seed)
-                result = run_experiment(track, mu, seed, trial, args.max_steps, args.render, args.algo_config)
+                log.info("\n>>> Run %d/%d: %s  mu=%.4f  task=%d  trial=%d  seed=%d",
+                         idx, total, track, mu, task_index, trial, seed)
+                result = run_experiment(track, mu, task_index, seed, trial,
+                                        args.max_steps, args.render, args.algo_config)
                 results.append(result)
 
     # ── Per-trial table ──────────────────────────────────────────────────
@@ -259,7 +285,7 @@ def main():
     total_collisions = 0
 
     for track in TRACKS:
-        for mu in MU_VALUES:
+        for mu, _ in MU_CONFIGS:
             key = (track, mu)
             trials = grouped.get(key, [])
             if not trials:
