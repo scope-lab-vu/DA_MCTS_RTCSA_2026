@@ -55,7 +55,8 @@ class F1TenthDPWPiSvgp {
                py::array_t<double> svgp_data,
                int svgp_M, int svgp_D_input, int svgp_D_hidden,
                int svgp_num_outputs,
-               double base_timestep) {
+               double base_timestep,
+               unsigned seed = 0) {
 
         auto obs = to_vec(initial_obs);
 
@@ -103,9 +104,9 @@ class F1TenthDPWPiSvgp {
                                     svgp_num_outputs));
 
         sim_ = std::make_unique<F1TenthSimulator>(
-            vp, occ, cost, pi_svgp, base_timestep);
+            vp, occ, cost, pi_svgp, base_timestep, seed);
         sim_->set_state(obs);
-        model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K);
+        model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K, seed);
     }
 
     void set_v_ref_window(py::array_t<double> window) {
@@ -150,7 +151,8 @@ PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
                        double, double, double, int, double, double,
                        // PI-SVGP params
                        py::array_t<double>,
-                       int, int, int, int, double>(),
+                       int, int, int, int, double,
+                       unsigned>(),
              py::arg("initial_obs"),
              py::arg("alpha"), py::arg("beta"), py::arg("K"),
              // Vehicle params
@@ -174,7 +176,8 @@ PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
              py::arg("svgp_data"),
              py::arg("svgp_M"), py::arg("svgp_D_input"), py::arg("svgp_D_hidden"),
              py::arg("svgp_num_outputs"),
-             py::arg("base_timestep"))
+             py::arg("base_timestep"),
+             py::arg("seed") = 0)
         .def("set_v_ref_window", &F1TenthDPWPiSvgp::set_v_ref_window,
              py::arg("window"))
         .def("learn", &F1TenthDPWPiSvgp::learn, py::arg("Nsim"))

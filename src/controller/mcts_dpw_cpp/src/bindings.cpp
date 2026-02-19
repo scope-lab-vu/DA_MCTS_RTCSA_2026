@@ -50,7 +50,8 @@ class F1TenthDPW {
                // Cost params
                double speed_weight, double alpha_threshold,
                double v_ref, int rollout_horizon,
-               double discount, double dt) {
+               double discount, double dt,
+               unsigned seed = 0) {
 
         auto obs = to_vec(initial_obs);
 
@@ -90,9 +91,9 @@ class F1TenthDPW {
         cost.discount_factor = discount;
         cost.dt              = dt;
 
-        sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost);
+        sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost, seed);
         sim_->set_state(obs);
-        model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K);
+        model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K, seed);
     }
 
     void set_v_ref_window(py::array_t<double> window) {
@@ -135,7 +136,8 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
                        py::array_t<float>,
                        double, double, double, int, int,
                        // Cost params
-                       double, double, double, int, double, double>(),
+                       double, double, double, int, double, double,
+                       unsigned>(),
              py::arg("initial_obs"),
              py::arg("alpha"), py::arg("beta"), py::arg("K"),
              // Vehicle params
@@ -154,7 +156,8 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              // Cost params
              py::arg("speed_weight"), py::arg("alpha_threshold"),
              py::arg("v_ref"), py::arg("rollout_horizon"),
-             py::arg("discount"), py::arg("dt"))
+             py::arg("discount"), py::arg("dt"),
+             py::arg("seed") = 0)
         .def("set_v_ref_window", &F1TenthDPW::set_v_ref_window,
              py::arg("window"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))

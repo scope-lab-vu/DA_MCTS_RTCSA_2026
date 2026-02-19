@@ -116,6 +116,7 @@ class MCTSPiSvgpCppController:
         self._config = config
 
         self.dt = simulation_config.dt_s if simulation_config is not None else 0.04
+        self.seed = simulation_config.seed if simulation_config is not None else 42
         self.base_timestep = 0.02
 
         # MCTS hyperparameters.
@@ -250,6 +251,7 @@ class MCTSPiSvgpCppController:
             svgp_D_hidden=self._svgp_D_hidden,
             svgp_num_outputs=self._svgp_num_outputs,
             base_timestep=self.base_timestep,
+            seed=self.seed,
         )
 
     def compute_action(
@@ -257,8 +259,8 @@ class MCTSPiSvgpCppController:
         state: VehicleStateMsg,
         waypoints: WaypointsMsg,
     ) -> ControlCmdMsg:
-        # Low-speed override: full throttle, no steering until v > 0.5.
-        if abs(state.v) < 0.5:
+        # Low-speed override: full throttle, no steering until v > 2.0.
+        if abs(state.v) < 2.0:
             self._tree = None
             self._last_action = None
             return ControlCmdMsg(

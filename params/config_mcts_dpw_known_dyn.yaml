@@ -10,14 +10,13 @@ controller:
   exploration_constant: 1.0    # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
-  discount: 0.99             # rollout discount factor
+  discount: 1.0            # rollout discount factor
   rollout_horizon: 15          # matches MPPI horizon; no early termination now
   # --- Reward/cost tuning (shared with MPPI) ---
   v_ref: 10.0
-  speed_weight: 100.0
+  speed_weight: 5
   alpha_threshold: 1.0
   use_occupancy_map: true
-  # lane_width: 2.2
   lane_width: 1.1
 
 dynamics:

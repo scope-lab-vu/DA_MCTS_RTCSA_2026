@@ -339,17 +339,18 @@ class F1TenthSimulator : public Simulator {
 
         // Track cost: 0.9^t * off_track * 10000
         float off_track = occ_map_.query(x_n, y_n);
-        double track_cost = std::pow(0.9, static_cast<double>(t))
-                          * static_cast<double>(off_track) * 10000.0;
+        bool done = (off_track >= 0.5f);
+        double track_cost = static_cast<double>(off_track) * 10000.0;
 
-        // Speed cost: (v - v_ref_t)^2
+        // Speed cost: (v - v_ref_t)^2, with v_ref clamped to [3.0, 8.0]
         double v_ref_t;
-        if (!v_ref_window_.empty() &&
-            t < static_cast<int>(v_ref_window_.size())) {
-            v_ref_t = v_ref_window_[t];
+        if (!v_ref_window_.empty()) {
+            int idx = std::min(t, static_cast<int>(v_ref_window_.size()) - 1);
+            v_ref_t = v_ref_window_[idx];
         } else {
             v_ref_t = cost_.v_ref;
         }
+        v_ref_t = std::max(3.5, std::min(8.0, v_ref_t));
         double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
 
         // Slip cost: alpha^2 + 10000 * I(|alpha| > threshold)
@@ -363,7 +364,7 @@ class F1TenthSimulator : public Simulator {
         // Reward = negated cost (MCTS maximizes)
         double reward = -(track_cost + cost_.speed_weight * speed_cost + slip_cost);
 
-        return {state_, reward, false};
+        return {state_, reward, done};
     }
 
     std::vector<double> sample_action() override {

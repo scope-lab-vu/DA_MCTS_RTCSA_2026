@@ -19,8 +19,9 @@ class MCTSNative {
     std::mt19937 rng_;
 
   public:
-    MCTSNative(Simulator* sim, const std::vector<double>& initial_obs, double K)
-        : sim_(sim), K_(K), rng_(std::random_device{}()) {
+    MCTSNative(Simulator* sim, const std::vector<double>& initial_obs, double K,
+               unsigned seed = 0)
+        : sim_(sim), K_(K), rng_(seed) {
         root_ = std::make_shared<DecisionNode>(initial_obs, true);
     }
 
@@ -174,8 +175,8 @@ class SPWNative : public MCTSNative {
 
   public:
     SPWNative(Simulator* sim, const std::vector<double>& initial_obs,
-              double alpha, double K)
-        : MCTSNative(sim, initial_obs, K), alpha_(alpha) {}
+              double alpha, double K, unsigned seed = 0)
+        : MCTSNative(sim, initial_obs, K, seed), alpha_(alpha) {}
 
     std::vector<double> select(DecisionNode* x) override {
         if (std::pow(static_cast<double>(x->visits), alpha_) >=
@@ -195,8 +196,8 @@ class DPWNative : public SPWNative {
 
   public:
     DPWNative(Simulator* sim, const std::vector<double>& initial_obs,
-              double alpha, double beta, double K)
-        : SPWNative(sim, initial_obs, alpha, K), beta_(beta) {}
+              double alpha, double beta, double K, unsigned seed = 0)
+        : SPWNative(sim, initial_obs, alpha, K, seed), beta_(beta) {}
 
     std::pair<std::shared_ptr<DecisionNode>, double>
     select_outcome(RandomNode* random_node) override {

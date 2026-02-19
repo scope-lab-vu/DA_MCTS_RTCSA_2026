@@ -4,18 +4,18 @@
 controller:
   type: mcts_dpw_cpp
   # --- MCTS DPW hyperparameters ---
-  n_simulations: 500
+  n_simulations: 1000
   exploration_constant: 1.0    # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
-  discount: 0.99               # rollout discount factor
-  rollout_horizon: 15          # matches MPPI horizon; no early termination now
+  discount: 0.9             # rollout discount factor
+  rollout_horizon: 10          # matches MPPI horizon; no early termination now
   # --- Reward/cost tuning (shared with MPPI) ---
-  v_ref: 10.0
+  v_ref: 1000.0
   # We might need to reduce this values as the controller crashes for high friction. 
   # It could be giving more importance to speed than safety.
-  speed_weight: 100.0
-  alpha_threshold: 1.0
+  speed_weight: 1.0
+  alpha_threshold: 1.6
   use_occupancy_map: true
   lane_width: 1.1
 

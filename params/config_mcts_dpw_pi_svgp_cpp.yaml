@@ -5,16 +5,16 @@
 controller:
   type: mcts_pi_svgp_cpp
   # --- MCTS DPW hyperparameters ---
-  n_simulations: 500
-  exploration_constant: 1.0    # K (UCB exploration)
+  n_simulations: 1000
+  exploration_constant: 0.7    # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
   discount: 1.0               # rollout discount factor
   rollout_horizon: 15
   # --- Reward/cost tuning ---
-  v_ref: 10.0
-  speed_weight: 30.0
-  alpha_threshold: 1.0
+  v_ref: 10000000
+  speed_weight: 100.0
+  alpha_threshold: 1.2
   use_occupancy_map: true
   lane_width: 1.1
   # --- PI-SVGP model path (relative to project root) ---

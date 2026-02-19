@@ -40,6 +40,7 @@ class MCTSDPWCppController:
         self._config = config
 
         self.dt = simulation_config.dt_s if simulation_config is not None else 0.04
+        self.seed = simulation_config.seed if simulation_config is not None else 42
 
         # MCTS hyperparameters.
         self.n_simulations = config.n_simulations
@@ -136,6 +137,7 @@ class MCTSDPWCppController:
             rollout_horizon=self.rollout_horizon,
             discount=self.discount,
             dt=self.dt,
+            seed=self.seed,
         )
 
     def compute_action(
