@@ -179,8 +179,8 @@ class F1TenthSimulator : public Simulator {
     OccupancyMapData occ_map_;
     CostParams cost_;
 
-    // PI-SVGP model (shared across clones for efficiency)
-    std::shared_ptr<const PiSVGPParams> pi_svgp_;
+    // PI-SVGP model (shared across clones — hp_mu is mutable for latent updates)
+    std::shared_ptr<PiSVGPParams> pi_svgp_;
     double base_timestep_;
     int n_substeps_;
 
@@ -196,7 +196,7 @@ class F1TenthSimulator : public Simulator {
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
                      const CostParams& cost,
-                     std::shared_ptr<const PiSVGPParams> pi_svgp,
+                     std::shared_ptr<PiSVGPParams> pi_svgp,
                      double base_timestep,
                      unsigned seed = std::random_device{}())
         : vp_(vp), occ_map_(occ_map), cost_(cost),
@@ -219,6 +219,10 @@ class F1TenthSimulator : public Simulator {
 
     void set_v_ref_window(const std::vector<double>& window) {
         v_ref_window_ = window;
+    }
+
+    void set_hp_mu(const std::vector<double>& new_hp_mu) {
+        pi_svgp_->hp_mu = new_hp_mu;
     }
 
     StepResult step(const std::vector<double>& action) override {
@@ -374,7 +378,7 @@ class F1TenthSimulator : public Simulator {
     }
 
     std::unique_ptr<Simulator> clone() const override {
-        // PI-SVGP params are shared (read-only) — cheap shared_ptr copy
+        // PI-SVGP params are shared — all clones see latent updates via set_hp_mu()
         auto copy = std::make_unique<F1TenthSimulator>(
             vp_, occ_map_, cost_, pi_svgp_, base_timestep_);
         copy->state_ = state_;

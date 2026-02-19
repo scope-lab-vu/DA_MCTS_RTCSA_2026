@@ -113,6 +113,10 @@ class F1TenthDPWPiSvgp {
         sim_->set_v_ref_window(to_vec(window));
     }
 
+    void set_hp_mu(py::array_t<double> hp_mu) {
+        sim_->set_hp_mu(to_vec(hp_mu));
+    }
+
     void learn(int Nsim) { model_->learn(Nsim); }
 
     py::array_t<double> best_action() {
@@ -180,6 +184,8 @@ PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
              py::arg("seed") = 0)
         .def("set_v_ref_window", &F1TenthDPWPiSvgp::set_v_ref_window,
              py::arg("window"))
+        .def("set_hp_mu", &F1TenthDPWPiSvgp::set_hp_mu,
+             py::arg("hp_mu"))
         .def("learn", &F1TenthDPWPiSvgp::learn, py::arg("Nsim"))
         .def("best_action", &F1TenthDPWPiSvgp::best_action)
         .def("forward", &F1TenthDPWPiSvgp::forward,

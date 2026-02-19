@@ -36,7 +36,9 @@ log = logging.getLogger("experiments")
 
 # ── Experiment grid ──────────────────────────────────────────────────────────
 
-TRACKS = ["Shanghai", "Sepang", ]
+# TRACKS = ["Shanghai", "Sepang", "YasMarina"]
+TRACKS = ["Shanghai", "Sepang"]# "YasMarina"]
+
 MU_CONFIGS = [
     # (mu, task_index)  — task_index selects the GP friction head
     (0.8642, 1),

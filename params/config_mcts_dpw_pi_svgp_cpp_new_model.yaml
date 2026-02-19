@@ -13,7 +13,7 @@ controller:
   rollout_horizon: 15
   # --- Reward/cost tuning ---
   v_ref: 1000000.0
-  speed_weight: 200.0
+  speed_weight: 30.0
   alpha_threshold: 1.2
   use_occupancy_map: true
   lane_width: 1.1
