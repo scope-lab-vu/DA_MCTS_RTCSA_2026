@@ -121,19 +121,15 @@ class GymVehicleInterface:
             e.top = top + 800
             e.bottom = bottom - 800
 
-            # Draw waypoints as points.
-            for i in range(scaled_points.shape[0]):
-                if len(self._drawn_waypoints) < scaled_points.shape[0]:
+            # Draw waypoints once (they never move, so no need to update vertices).
+            if len(self._drawn_waypoints) < scaled_points.shape[0]:
+                for i in range(scaled_points.shape[0]):
                     b = e.batch.add(
                         1, GL_POINTS, None,
                         ('v3f/stream', [scaled_points[i, 0], scaled_points[i, 1], 0.]),
                         ('c3B/stream', [183, 193, 222]),
                     )
                     self._drawn_waypoints.append(b)
-                else:
-                    self._drawn_waypoints[i].vertices = [
-                        scaled_points[i, 0], scaled_points[i, 1], 0.
-                    ]
 
         self._env.add_render_callback(render_callback)
         log.info("Render callback registered with %d waypoints.", len(waypoints.x))

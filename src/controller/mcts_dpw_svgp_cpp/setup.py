@@ -1,3 +1,4 @@
+import glob
 from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 
@@ -6,6 +7,7 @@ ext_modules = [
         "mcts_f1tenth_svgp_cpp",
         ["src/bindings.cpp"],
         include_dirs=["include"],
+        depends=glob.glob("include/*.hpp"),
         cxx_std=17,
         extra_compile_args=["-O3"],
     ),

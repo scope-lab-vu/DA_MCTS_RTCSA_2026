@@ -88,8 +88,8 @@ class F1TenthDPW {
         cost.alpha_threshold = alpha_threshold;
         cost.v_ref           = v_ref;
         cost.rollout_horizon = rollout_horizon;
-        cost.discount_factor = discount;
-        cost.dt              = dt;
+        cost.discount_factor   = discount;
+        cost.dt                = dt;
 
         sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost, seed);
         sim_->set_state(obs);
@@ -100,7 +100,13 @@ class F1TenthDPW {
         sim_->set_v_ref_window(to_vec(window));
     }
 
+    void set_rollout_horizon(int h) {
+        sim_->set_rollout_horizon(h);
+    }
+
     void learn(int Nsim) { model_->learn(Nsim); }
+
+    int learn_timed(double budget_s) { return model_->learn_timed(budget_s); }
 
     py::array_t<double> best_action() {
         return to_numpy(model_->best_action_vec());
@@ -114,6 +120,20 @@ class F1TenthDPW {
 
     void set_state(py::array_t<double> state) {
         sim_->set_state(to_vec(state));
+    }
+
+    // Return root actions as list of dicts: [{action, visits, avg_reward}, ...]
+    py::list get_root_actions() {
+        auto infos = model_->get_root_actions();
+        py::list result;
+        for (auto& info : infos) {
+            py::dict d;
+            d["action"] = to_numpy(info.action);
+            d["visits"] = info.visits;
+            d["avg_reward"] = info.avg_reward;
+            result.append(d);
+        }
+        return result;
     }
 };
 
@@ -160,9 +180,13 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              py::arg("seed") = 0)
         .def("set_v_ref_window", &F1TenthDPW::set_v_ref_window,
              py::arg("window"))
+        .def("set_rollout_horizon", &F1TenthDPW::set_rollout_horizon,
+             py::arg("horizon"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))
+        .def("learn_timed", &F1TenthDPW::learn_timed, py::arg("budget_s"))
         .def("best_action", &F1TenthDPW::best_action)
         .def("forward", &F1TenthDPW::forward,
              py::arg("action"), py::arg("new_state"))
-        .def("set_state", &F1TenthDPW::set_state, py::arg("state"));
+        .def("set_state", &F1TenthDPW::set_state, py::arg("state"))
+        .def("get_root_actions", &F1TenthDPW::get_root_actions);
 }

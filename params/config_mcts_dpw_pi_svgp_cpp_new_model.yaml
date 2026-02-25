@@ -18,7 +18,8 @@ controller:
   use_occupancy_map: true
   lane_width: 1.1
   # --- PI-SVGP model path (relative to project root) ---
-  pi_svgp_model_path: models/pi_svgp_mcts_data/mcts_svgp_best_params.npz
+  # pi_svgp_model_path: models/pi_svgp_mcts_data/mcts_svgp_best_params.npz
+  pi_svgp_model_path: models/pi_svgp_mcts_fixed/mcts_svgp_fixed.npz
   svgp_task_index: 0           # 0=mu1.0489, 1=mu0.8642, 2=mu0.4947
 
 dynamics:

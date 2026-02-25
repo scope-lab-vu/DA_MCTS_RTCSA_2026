@@ -355,7 +355,11 @@ class F1TenthSimulator : public Simulator {
             v_ref_t = cost_.v_ref;
         }
         v_ref_t = std::max(3.5, std::min(8.0, v_ref_t));
-        double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
+        // double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
+        double speed_cost = -(v_n);
+
+        double speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
+        double speed_cap_cost_min = 10000.0 * (std::abs(v_n) < 1.0 ? 1.0 : 0.0);
 
         // Slip cost: alpha^2 + 10000 * I(|alpha| > threshold)
         double v_x = v_n * std::cos(beta_n);
@@ -366,7 +370,7 @@ class F1TenthSimulator : public Simulator {
                                       ? 1.0 : 0.0);
 
         // Reward = negated cost (MCTS maximizes)
-        double reward = -(track_cost + cost_.speed_weight * speed_cost + slip_cost);
+        double reward = -(track_cost + cost_.speed_weight * speed_cost + slip_cost + speed_cap_cost_max + speed_cap_cost_min);
 
         return {state_, reward, done};
     }

@@ -49,10 +49,15 @@ class MCTSDPWCppController:
         self.beta = config.beta_dpw
         self.discount = config.discount
         self.rollout_horizon = config.rollout_horizon
+        self.rollout_horizon_straight = config.rollout_horizon_straight
+        self.rollout_horizon_curve = config.rollout_horizon_curve
+        self.kappa_threshold = config.kappa_threshold
         self.v_ref = config.v_ref
         self.speed_weight = config.speed_weight
         self.alpha_threshold = config.alpha_threshold
-
+        self.a_lat_budget = config.a_lat_budget
+        self.curvature_lookahead = config.curvature_lookahead
+        self.mcts_time_budget = config.mcts_time_budget
         # Load track (centerline CSV).
         if map_config.centerline_path is None:
             raise ValueError(
@@ -90,6 +95,8 @@ class MCTSDPWCppController:
         # Tree state.
         self._tree = None
         self._last_action = None
+        self._max_kappa_lookahead = 0.0
+        self._dynamic_horizon = self.rollout_horizon
 
         log.info(
             "MCTS DPW C++ ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
@@ -99,12 +106,45 @@ class MCTSDPWCppController:
         )
 
     def _get_v_ref_window(self, state_np):
-        """Compute per-step reference velocity window."""
-        if self.ref_traj is not None:
-            return self.ref_traj.get_reference_velocity_window(
-                state_np[:2], self.rollout_horizon, self.dt,
-            )
-        return np.full(self.rollout_horizon, self.v_ref)
+        """Compute per-step reference velocity from curvature lookahead.
+
+        For each rollout step i, v_ref[i] is based on the max curvature
+        from step i onward within the lookahead window. This ensures the
+        car starts braking before a turn, not when it's already in it.
+
+        Also computes the dynamic rollout horizon based on max kappa:
+        straight (low kappa) → short horizon, curve → long horizon.
+        """
+        # v_max = self._vehicle_params.v_max
+        v_max = 12.0
+        kappas = self.track.get_curvature_lookahead(
+            position=state_np[:2], v=state_np[3],
+            horizon=self.curvature_lookahead, dt=self.dt,
+        )
+
+        self._max_kappa_lookahead = float(np.max(kappas))
+
+        # Dynamic horizon: short on straights, long near curves.
+        if self._max_kappa_lookahead < self.kappa_threshold:
+            self._dynamic_horizon = self.rollout_horizon_straight
+        else:
+            self._dynamic_horizon = self.rollout_horizon_curve
+
+        # Always size window to the max possible horizon (curve) so C++
+        # has enough entries regardless of dynamic horizon.
+        window_size = self.rollout_horizon_curve
+        v_ref_window = np.zeros(window_size)
+        for i in range(window_size):
+            max_kappa = np.max(kappas[i:])
+            v_ref_window[i] = min(v_max, np.sqrt(self.a_lat_budget / max(max_kappa, 1e-6)))
+
+        min_v_ref = min(v_ref_window)
+        for i in range(window_size):
+            v_ref_window[i] = min_v_ref
+
+        self._v_ref_window = v_ref_window.copy()
+        self._min_v_ref_curv = float(v_ref_window[0])
+        return v_ref_window
 
     def _make_tree(self, state_np, v_ref_window):
         """Create a fresh C++ DPW tree at the given state."""
@@ -166,8 +206,16 @@ class MCTSDPWCppController:
             self._tree = self._make_tree(state_np, v_ref_window)
             self._tree.set_v_ref_window(v_ref_window)
 
-        # Run MCTS simulations.
-        self._tree.learn(self.n_simulations)
+        # Set dynamic rollout horizon based on curvature.
+        self._tree.set_rollout_horizon(self._dynamic_horizon)
+
+        # Run MCTS: fixed count for determinism, time budget for real-time.
+        if self.mcts_time_budget > 0:
+            n_sims = self._tree.learn_timed(self.mcts_time_budget)
+        else:
+            self._tree.learn(self.n_simulations)
+            n_sims = self.n_simulations
+        log.debug("MCTS ran %d simulations", n_sims)
 
         # Select best action (most visited).
         action = self._tree.best_action()

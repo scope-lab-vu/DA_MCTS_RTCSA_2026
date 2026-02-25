@@ -14,3 +14,5 @@ src/controller/*.so
 *linux-gnu.so
 results_old
 results_old_old
+final_res/
+plotting_code/

@@ -38,22 +38,22 @@ logging.basicConfig(
 )
 log = logging.getLogger("mcts_pi_svgp_cs_experiments")
 
-TRACKS = ["Sepang", "Shanghai", "YasMarina"]
-# TRACKS = ["YasMarina"]
+# TRACKS = ["Sepang", "Shanghai", "YasMarina"]
+TRACKS = ["YasMarina"]
 
 
 # (mu, task_index) — task_index is always 0; the CS controller adapts online.
 MU_CONFIGS = [
     (1.0, 0),
-    (0.9, 0),
-    (0.8, 0),
-    (0.7, 0),
-    (0.6, 0),
-    (0.5, 0),
-    (0.4, 0),
-    (0.3, 0),
-    (0.2, 0),
-    (0.1, 0),
+    # (0.9, 0),
+    # (0.8, 0),
+    # (0.7, 0),
+    # (0.6, 0),
+    # (0.5, 0),
+    # (0.4, 0),
+    # (0.3, 0),
+    # (0.2, 0),
+    # (0.1, 0),
 ]
 
 BASE_CONFIG = Path("params/config_mcts_dpw_pi_svgp_cpp_cs.yaml")
@@ -167,9 +167,21 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                 cmd = api.compute_action(state, waypoints)
 
                 # MCTS dynamics are internal to C++ — no RMSE prediction available.
+                cs_raw = (
+                    controller.get_cornering_stiffness()
+                    if hasattr(controller, "get_cornering_stiffness")
+                    else float("nan")
+                )
+                cs_smooth = (
+                    controller.get_smoothed_calpha()
+                    if hasattr(controller, "get_smoothed_calpha")
+                    else float("nan")
+                )
                 episode_logger.log_step(
                     state, cmd,
                     float("nan"), float("nan"), float("nan"),
+                    c_alpha=cs_raw,
+                    c_alpha_smooth=cs_smooth,
                 )
                 done = api.apply_action(cmd)
 
@@ -203,7 +215,7 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                         lap_step_start = step
                     prev_laps = laps_completed
 
-                if step % 100 == 0:
+                if step % 1 == 0:
                     pct = (accumulated_progress / track_obj.total_length) * 100
                     cs = (
                         controller.get_cornering_stiffness()
@@ -295,7 +307,7 @@ def main():
         description="MCTS DPW + PI-SVGP + Cornering Stiffness batch experiments"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
-    parser.add_argument("--num-trials", type=int, default=10, help="Trials per (track, mu) combo")
+    parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu) combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed (trial i uses base_seed + i - 1)")
     parser.add_argument("--render", action="store_true")
     args = parser.parse_args()

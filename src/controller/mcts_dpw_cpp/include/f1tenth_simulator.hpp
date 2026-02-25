@@ -98,6 +98,8 @@ class F1TenthSimulator : public Simulator {
         v_ref_window_ = window;
     }
 
+    void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
+
     StepResult step(const std::vector<double>& action) override {
         double x     = state_[0];
         double y     = state_[1];
@@ -120,7 +122,7 @@ class F1TenthSimulator : public Simulator {
         // --- Acceleration constraint ---
         double pos_limit;
         if (v > vp_.v_switch) {
-            pos_limit = vp_.a_max * vp_.v_switch / (v + 1e-8);
+            pos_limit = vp_.a_max * vp_.v_switch / v;
         } else {
             pos_limit = vp_.a_max;
         }
@@ -203,36 +205,45 @@ class F1TenthSimulator : public Simulator {
         // Track cost: 0.9^t * off_track * 10000
         float off_track = occ_map_.query(x_n, y_n);
         bool done = (off_track >= 0.5f);
-        double track_cost = static_cast<double>(off_track) * 10000.0;
+        double track_cost = static_cast<double>(off_track) * 100000000.0;
 
-        // Speed cost: (v - v_ref_t)^2
-        double v_ref_t;
+        // Speed cost: linear reward for going fast + one-sided curvature penalty
+        double v_ref_curv = cost_.v_ref;  // fallback
         if (!v_ref_window_.empty()) {
             int idx = std::min(t, static_cast<int>(v_ref_window_.size()) - 1);
-            v_ref_t = v_ref_window_[idx];
-        } else {
-            v_ref_t = cost_.v_ref;
+            v_ref_curv = v_ref_window_[idx];
         }
-        double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
+        double speed_cost = -(cost_.speed_weight * v_n * v_n);
+        // if (v_n > v_ref_curv) {
+        //     double excess = v_n - v_ref_curv;
+        //     speed_cost += 10.0 * excess * excess;
+        // }
 
-        // Slip cost: alpha^2 + 10000 * I(|alpha| > threshold)
+        double speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
+        double speed_cap_cost_min = 10000.0 * (v_n < 1.5 ? 1.0 : 0.0);
+
+
+        // Slip cost
         double v_x = v_n * std::cos(beta_n);
         double v_y = v_n * std::sin(beta_n);
         double alpha_slip = -std::atan2(v_y, std::abs(v_x) + 1e-8);
         double slip_cost = alpha_slip * alpha_slip
-                         + 10000.0 * (std::abs(alpha_slip) > cost_.alpha_threshold
-                                      ? 1.0 : 0.0);
+                  + v_n * 10000.0 * (std::abs(alpha_slip) > cost_.alpha_threshold
+                               ? 1.0 : 0.0);
 
-        // Reward = negated cost (MCTS maximizes)
-        double reward = -(track_cost + cost_.speed_weight * speed_cost + slip_cost);
+        double reward = -(track_cost + speed_cost + slip_cost + speed_cap_cost_max + speed_cap_cost_min);
 
-        
 
         return {state_, reward, done};
     }
 
     std::vector<double> sample_action() override {
-        std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
+        // Speed-dependent acceleration sampling: at low speed, only sample
+        // positive acceleration so MCTS always explores speeding up.
+        // Above the threshold, allow full braking range for turns.
+        double v = state_[3];
+        double accel_lo = (v < 3.0) ? 0.0 : -vp_.a_max;
+        std::uniform_real_distribution<double> accel_dist(accel_lo, vp_.a_max);
         std::uniform_real_distribution<double> steer_dist(vp_.sv_min, vp_.sv_max);
         return {accel_dist(rng_), steer_dist(rng_)};
     }

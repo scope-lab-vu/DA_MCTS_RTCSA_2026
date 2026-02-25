@@ -73,6 +73,12 @@ class ControllerConfig:
     beta_dpw: float = 0.5
     discount: float = 0.95
     rollout_horizon: int = 15
+    rollout_horizon_straight: int = 5
+    rollout_horizon_curve: int = 12
+    kappa_threshold: float = 0.05
+    a_lat_budget: float = 5.0
+    curvature_lookahead: int = 30
+    mcts_time_budget: float = 0.022
     # MCTS DPW PINN fields
     batch_size: int = 8
     eval_K: int = 4

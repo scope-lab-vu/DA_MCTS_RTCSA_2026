@@ -1,3 +1,4 @@
+import glob
 import torch
 import torch.utils.cpp_extension
 from setuptools import setup
@@ -15,6 +16,7 @@ ext_modules = [
         "mcts_f1tenth_pinn_cpp",
         ["src/bindings.cpp"],
         include_dirs=["include"] + torch_include,
+        depends=glob.glob("include/*.hpp"),
         library_dirs=torch_lib,
         runtime_library_dirs=torch_lib,
         libraries=["torch", "torch_cpu", "c10"],

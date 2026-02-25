@@ -161,7 +161,7 @@ def _compute_cornering_stiffness(
     return abs(F_yr) / (abs(alpha_r) + _EPSILON)
 
 
-class MCTSPiSvgpCppCsController:
+class MCTSPiSvgpCppCsExtractController:
     """MCTS DPW controller with PI-SVGP dynamics + online C_alpha adaptation."""
 
     def __init__(
@@ -278,6 +278,11 @@ class MCTSPiSvgpCppCsController:
         # Tree state.
         self._tree = None
         self._last_action = None
+
+        # Best path from MCTS tree (for logging).
+        # After each compute_action(), these hold the best path actions.
+        self._last_best_path_accel: list = []
+        self._last_best_path_steer: list = []
 
         log.info(
             "MCTS DPW PI-SVGP C++ CS ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
@@ -443,6 +448,8 @@ class MCTSPiSvgpCppCsController:
         if abs(state.v) < 2.0:
             self._tree = None
             self._last_action = None
+            self._last_best_path_accel = []
+            self._last_best_path_steer = []
             return ControlCmdMsg(
                 acceleration=self._vehicle_params.a_max,
                 steering_vel=0.0,
@@ -480,6 +487,12 @@ class MCTSPiSvgpCppCsController:
         action = self._tree.best_action()
         self._last_action = action
 
+        # Extract the full best path for logging.
+        path_flat = self._tree.best_path()  # [a0, sv0, a1, sv1, ...]
+        n_actions = len(path_flat) // 2
+        self._last_best_path_accel = [float(path_flat[2 * i]) for i in range(n_actions)]
+        self._last_best_path_steer = [float(path_flat[2 * i + 1]) for i in range(n_actions)]
+
         return ControlCmdMsg(
             acceleration=float(action[0]),
             steering_vel=float(action[1]),
@@ -492,6 +505,8 @@ class MCTSPiSvgpCppCsController:
         self._prev_state = None
         self._cornering_stiffness = _C_ALPHA_NOMINAL
         self._calpha_buffer = []
+        self._last_best_path_accel = []
+        self._last_best_path_steer = []
 
     # -- Introspection helpers ---------------------------------------------
 
@@ -504,3 +519,11 @@ class MCTSPiSvgpCppCsController:
         if not self._calpha_buffer:
             return _C_ALPHA_NOMINAL
         return float(np.mean(self._calpha_buffer))
+
+    def get_best_path_accel(self) -> list:
+        """Return the accel actions along the best MCTS path."""
+        return self._last_best_path_accel
+
+    def get_best_path_steer(self) -> list:
+        """Return the steering vel actions along the best MCTS path."""
+        return self._last_best_path_steer

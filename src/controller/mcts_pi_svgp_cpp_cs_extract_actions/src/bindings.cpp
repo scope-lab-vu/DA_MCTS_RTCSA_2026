@@ -123,6 +123,10 @@ class F1TenthDPWPiSvgp {
         return to_numpy(model_->best_action_vec());
     }
 
+    py::array_t<double> best_path() {
+        return to_numpy(model_->best_path_flat());
+    }
+
     void forward(py::array_t<double> action, py::array_t<double> new_state) {
         model_->forward(to_vec(action), to_vec(new_state));
         sim_->set_state(to_vec(new_state));
@@ -188,6 +192,7 @@ PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
              py::arg("hp_mu"))
         .def("learn", &F1TenthDPWPiSvgp::learn, py::arg("Nsim"))
         .def("best_action", &F1TenthDPWPiSvgp::best_action)
+        .def("best_path", &F1TenthDPWPiSvgp::best_path)
         .def("forward", &F1TenthDPWPiSvgp::forward,
              py::arg("action"), py::arg("new_state"))
         .def("set_state", &F1TenthDPWPiSvgp::set_state, py::arg("state"));

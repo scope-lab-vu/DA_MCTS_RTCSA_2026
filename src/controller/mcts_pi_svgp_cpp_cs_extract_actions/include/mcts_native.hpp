@@ -129,6 +129,48 @@ class MCTSNative {
         return best;
     }
 
+    // Extract the best path from root to leaf by following most-visited
+    // children at each level.  Returns a flat vector of actions:
+    //   [a0_0, a0_1, a1_0, a1_1, ..., aN_0, aN_1]
+    // where each action is 2-dim [accel, steer_vel].
+    // Path may be shorter than rollout_horizon if a terminal node is reached.
+    std::vector<double> best_path_flat() {
+        std::vector<double> path;
+        DecisionNode* dn = root_.get();
+
+        while (!dn->children.empty() && !dn->is_final) {
+            // Pick the most-visited action child (RandomNode)
+            int max_visits = -1;
+            RandomNode* best_rn = nullptr;
+            for (auto& [action, rn] : dn->children) {
+                if (rn->visits > max_visits) {
+                    max_visits = rn->visits;
+                    best_rn = rn.get();
+                }
+            }
+            if (!best_rn) break;
+
+            // Record this action
+            for (double v : best_rn->action) {
+                path.push_back(v);
+            }
+
+            // Pick the most-visited outcome child (DecisionNode)
+            if (best_rn->children.empty()) break;
+            int max_dn_visits = -1;
+            DecisionNode* best_dn = nullptr;
+            for (auto& [state, child_dn] : best_rn->children) {
+                if (child_dn->visits > max_dn_visits) {
+                    max_dn_visits = child_dn->visits;
+                    best_dn = child_dn.get();
+                }
+            }
+            if (!best_dn) break;
+            dn = best_dn;
+        }
+        return path;
+    }
+
     void learn(int Nsim) {
         for (int i = 0; i < Nsim; ++i) {
             grow_tree();

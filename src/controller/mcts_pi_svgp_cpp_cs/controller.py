@@ -322,7 +322,8 @@ class MCTSPiSvgpCppCsController:
 
         Values are clamped to the training range [49.47, 104.89].
         """
-        c_alpha_clamped = np.clip(c_alpha, self._c_alpha_min, self._c_alpha_max)
+        # c_alpha_clamped = np.clip(c_alpha, self._c_alpha_min, self._c_alpha_max)
+        c_alpha_clamped = c_alpha
         return self._calpha_slopes * c_alpha_clamped + self._calpha_intercepts
 
     # -- v_ref adaptation --------------------------------------------------
@@ -440,7 +441,7 @@ class MCTSPiSvgpCppCsController:
         self._prev_state = state
 
         # Low-speed override: full throttle, no steering until v > 2.0.
-        if abs(state.v) < 2.0:
+        if abs(state.v) < 1.5:
             self._tree = None
             self._last_action = None
             return ControlCmdMsg(

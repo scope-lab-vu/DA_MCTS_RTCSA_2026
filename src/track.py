@@ -42,6 +42,26 @@ class Track:
         segment_lengths = np.linalg.norm(diff, axis=1)
         self.arc_length = np.concatenate([[0], np.cumsum(segment_lengths[:-1])])
         self.total_length = self.arc_length[-1] + segment_lengths[-1]
+        self._compute_curvature()
+
+    def _compute_curvature(self):
+        """Compute curvature at each centerline point using finite differences.
+
+        κ = |x'·y'' - y'·x''| / (x'² + y'²)^(3/2)
+        Uses central differences with wrapping for a closed track.
+        """
+        x = self.centerline[:, 0]
+        y = self.centerline[:, 1]
+        # First derivatives (central difference, wrapping for closed track)
+        dx = np.gradient(x, edge_order=2)
+        dy = np.gradient(y, edge_order=2)
+        # Second derivatives
+        ddx = np.gradient(dx, edge_order=2)
+        ddy = np.gradient(dy, edge_order=2)
+        # Curvature: κ = |x'y'' - y'x''| / (x'² + y'²)^(3/2)
+        numerator = np.abs(dx * ddy - dy * ddx)
+        denominator = (dx**2 + dy**2)**1.5 + 1e-10
+        self.curvature = numerator / denominator
 
     def get_nearest_point(self, position: np.ndarray) -> Tuple[int, float, float]:
         distances = np.linalg.norm(self.centerline - position, axis=1)
@@ -50,6 +70,29 @@ class Track:
         lateral_error = np.dot(to_point, self.normal[idx])
         progress = self.arc_length[idx]
         return idx, lateral_error, progress
+
+    def get_curvature_lookahead(self, position: np.ndarray, v: float,
+                                horizon: int, dt: float) -> np.ndarray:
+        """Get curvature values at future positions along the centerline.
+
+        Args:
+            position: Current (x, y) position.
+            v: Current velocity (used to estimate distance per step).
+            horizon: Number of lookahead steps.
+            dt: Time step.
+
+        Returns:
+            Array of curvature values (length = horizon).
+        """
+        idx, _, _ = self.get_nearest_point(position)
+        ds_per_step = max(abs(v), 1.0) * dt
+        curvatures = np.zeros(horizon)
+        current_arc = self.arc_length[idx]
+        for t in range(horizon):
+            future_arc = (current_arc + (t + 1) * ds_per_step) % self.total_length
+            future_idx = np.argmin(np.abs(self.arc_length - future_arc))
+            curvatures[t] = self.curvature[future_idx]
+        return curvatures
 
     def is_off_track(self, position: np.ndarray, vehicle_width: float = 0.0) -> bool:
         idx, lateral_error, _ = self.get_nearest_point(position)

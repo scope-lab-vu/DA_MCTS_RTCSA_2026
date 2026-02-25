@@ -2,6 +2,7 @@
 
 #include "nodes.hpp"
 #include "simulator.hpp"
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -134,6 +135,36 @@ class MCTSNative {
             grow_tree();
         }
         sim_->set_state(root_->state);
+    }
+
+    int learn_timed(double budget_s) {
+        auto start = std::chrono::steady_clock::now();
+        auto deadline = start + std::chrono::duration<double>(budget_s);
+        int count = 0;
+        while (std::chrono::steady_clock::now() < deadline) {
+            grow_tree();
+            ++count;
+        }
+        sim_->set_state(root_->state);
+        return count;
+    }
+
+    // Return root children: list of {action, visits, avg_reward}
+    struct ActionInfo {
+        std::vector<double> action;
+        int visits;
+        double avg_reward;
+    };
+
+    std::vector<ActionInfo> get_root_actions() const {
+        std::vector<ActionInfo> result;
+        for (auto& [action, rnd] : root_->children) {
+            double avg = (rnd->visits > 0)
+                ? rnd->cumulative_reward / rnd->visits
+                : 0.0;
+            result.push_back({action, rnd->visits, avg});
+        }
+        return result;
     }
 
     void forward(const std::vector<double>& action,
