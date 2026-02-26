@@ -103,7 +103,14 @@ def main() -> None:
             # --- Core loop ---
             state = api.get_state()
             cmd = api.compute_action(state, waypoints)
-            episode_logger.log_step(state, cmd)
+
+            # Grab optional per-step diagnostics from controller
+            ctrl = api._controller
+            max_kappa = ctrl.get_max_kappa() if hasattr(ctrl, 'get_max_kappa') else float("nan")
+            avg_kappa = ctrl.get_avg_kappa() if hasattr(ctrl, 'get_avg_kappa') else float("nan")
+            c_alpha = ctrl.get_cornering_stiffness() if hasattr(ctrl, 'get_cornering_stiffness') else float("nan")
+
+            episode_logger.log_step(state, cmd, max_kappa=max_kappa, avg_kappa=avg_kappa, c_alpha=c_alpha)
             done = api.apply_action(cmd)
 
             if render:

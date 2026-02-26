@@ -27,7 +27,7 @@ TRAJECTORY_COLUMNS = [
     "pred_vx", "pred_vy", "pred_omega",
     "Aa_action_list", "Asv_action_list",
     "C_alpha", "C_alpha_smooth",
-    "max_kappa",
+    "max_kappa", "avg_kappa",
 ]
 
 
@@ -53,6 +53,7 @@ class EpisodeLogger:
         c_alpha: float = float("nan"),
         c_alpha_smooth: float = float("nan"),
         max_kappa: float = float("nan"),
+        avg_kappa: float = float("nan"),
     ) -> None:
         """Record one timestep, optionally with dynamics-model predictions."""
         self._rows.append({
@@ -73,6 +74,7 @@ class EpisodeLogger:
             "C_alpha": c_alpha,
             "C_alpha_smooth": c_alpha_smooth,
             "max_kappa": max_kappa,
+            "avg_kappa": avg_kappa,
         })
 
     def save(

@@ -13,6 +13,7 @@ where:
 """
 
 import logging
+import math
 
 import numpy as np
 import torch
@@ -26,6 +27,8 @@ from src.track import (
     TrackOccupancyMap,
     TrackTensor,
 )
+
+_EPSILON = 1e-8
 
 log = logging.getLogger(__name__)
 
@@ -119,6 +122,21 @@ class MPPIController:
             step_dependent_dynamics=True,
         )
 
+        # Curvature lookahead horizon (steps)
+        self._curvature_lookahead = config.curvature_lookahead
+
+        # Cornering stiffness estimation state
+        self._prev_state: VehicleStateMsg = None
+        self._cornering_stiffness: float = float("nan")
+        self._max_kappa_lookahead: float = float("nan")
+        self._avg_kappa_lookahead: float = float("nan")
+
+        # Cache vehicle params for cornering stiffness formula
+        self._lf = vehicle_params.lf
+        self._lr = vehicle_params.lr
+        self._mass = vehicle_params.m
+        self._iz = vehicle_params.I
+
         log.info(
             "MPPI ready: horizon=%d samples=%d lambda=%.1f device=%s dynamics=%s",
             self.horizon, config.num_samples, config.lambda_, self.device,
@@ -187,6 +205,21 @@ class MPPIController:
         else:
             self.v_ref_window = None
 
+        # Compute max curvature lookahead
+        kappas = self.track.get_curvature_lookahead(
+            position=state_np[:2], v=state_np[3],
+            horizon=self._curvature_lookahead, dt=self.dt,
+        )
+        self._max_kappa_lookahead = float(np.max(np.abs(kappas)))
+        self._avg_kappa_lookahead = float(np.mean(np.abs(kappas)))
+
+        # Estimate cornering stiffness from consecutive states
+        if self._prev_state is not None:
+            self._cornering_stiffness = self._compute_cornering_stiffness(
+                self._prev_state, state,
+            )
+        self._prev_state = state
+
         action = self.mppi.command(state_tensor)
         self._last_action_tensor = action.clone()
         action_np = action.cpu().numpy()
@@ -196,5 +229,39 @@ class MPPIController:
             steering_vel=float(action_np[1]),
         )
 
+    def _compute_cornering_stiffness(
+        self, prev: VehicleStateMsg, curr: VehicleStateMsg,
+    ) -> float:
+        """Estimate rear cornering stiffness from two consecutive states."""
+        v_x_prev = prev.v * math.cos(prev.beta)
+        v_y_prev = prev.v * math.sin(prev.beta)
+        v_y_curr = curr.v * math.sin(curr.beta)
+
+        v_y_dot = (v_y_curr - v_y_prev) / self.dt
+        omega_dot = (curr.omega - prev.omega) / self.dt
+
+        F_yr = (
+            self._lf * self._mass * (v_y_dot + v_x_prev * prev.omega)
+            - self._iz * omega_dot
+        ) / (self._lf + self._lr)
+
+        alpha_r = math.atan2(
+            self._lr * prev.omega - v_y_prev, abs(v_x_prev) + _EPSILON,
+        )
+
+        cs = abs(F_yr) / (abs(alpha_r) + _EPSILON)
+        return min(cs, 104.89)
+
+    def get_cornering_stiffness(self) -> float:
+        return self._cornering_stiffness
+
+    def get_max_kappa(self) -> float:
+        return self._max_kappa_lookahead
+
+    def get_avg_kappa(self) -> float:
+        return self._avg_kappa_lookahead
+
     def reset(self):
         self.mppi.reset()
+        self._prev_state = None
+        self._cornering_stiffness = float("nan")
