@@ -37,6 +37,10 @@ class VehicleInterface(ABC):
         """Register render callback for drawing raceline, etc. No-op by default."""
         pass
 
+    def set_planned_trajectory(self, xy_points) -> None:
+        """Set planned trajectory for visualization. No-op by default."""
+        pass
+
     def render(self, mode: str = "human") -> None:
         """Render the environment. No-op by default."""
         pass

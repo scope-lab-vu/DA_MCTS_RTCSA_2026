@@ -89,6 +89,10 @@ class ControllerConfig:
     svgp_task_index: int = 0
     # MCTS DPW PI-SVGP fields
     pi_svgp_model_path: Optional[str] = None
+    # MCTS action prior SVGP model path
+    action_prior_model_path: Optional[str] = None
+    # Normalize reward components to ~[0,1] scale
+    normalize_reward: bool = False
     # Cornering stiffness adaptive velocity parameters (mppi_cs controller)
     # v_ref_t -= cs_w1 * log(cs_w2 * delta_C_alpha + cs_w3)
     # delta_C_alpha = max(0, C_alpha_th - cornering_stiffness)

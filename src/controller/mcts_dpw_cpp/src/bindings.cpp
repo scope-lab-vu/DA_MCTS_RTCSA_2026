@@ -51,6 +51,7 @@ class F1TenthDPW {
                double speed_weight, double alpha_threshold,
                double v_ref, int rollout_horizon,
                double discount, double dt,
+               bool normalize_reward,
                unsigned seed = 0) {
 
         auto obs = to_vec(initial_obs);
@@ -90,6 +91,7 @@ class F1TenthDPW {
         cost.rollout_horizon = rollout_horizon;
         cost.discount_factor   = discount;
         cost.dt                = dt;
+        cost.normalize_reward  = normalize_reward;
 
         sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost, seed);
         sim_->set_state(obs);
@@ -98,6 +100,10 @@ class F1TenthDPW {
 
     void set_v_ref_window(py::array_t<double> window) {
         sim_->set_v_ref_window(to_vec(window));
+    }
+
+    void set_action_prior(py::array_t<double> mean, py::array_t<double> std) {
+        sim_->set_action_prior(to_vec(mean), to_vec(std));
     }
 
     void set_rollout_horizon(int h) {
@@ -135,6 +141,22 @@ class F1TenthDPW {
         }
         return result;
     }
+
+    // Walk tree following most-visited actions to get the best trajectory.
+    // Returns list of dicts: [{state, action, avg_reward, visits}, ...]
+    py::list get_best_trajectory(int max_depth = 50) {
+        auto steps = model_->get_best_trajectory(max_depth);
+        py::list result;
+        for (auto& step : steps) {
+            py::dict d;
+            d["state"] = to_numpy(step.state);
+            d["action"] = to_numpy(step.action);
+            d["avg_reward"] = step.avg_reward;
+            d["visits"] = step.visits;
+            result.append(d);
+        }
+        return result;
+    }
 };
 
 PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
@@ -157,6 +179,7 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
                        double, double, double, int, int,
                        // Cost params
                        double, double, double, int, double, double,
+                       bool,
                        unsigned>(),
              py::arg("initial_obs"),
              py::arg("alpha"), py::arg("beta"), py::arg("K"),
@@ -177,9 +200,12 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              py::arg("speed_weight"), py::arg("alpha_threshold"),
              py::arg("v_ref"), py::arg("rollout_horizon"),
              py::arg("discount"), py::arg("dt"),
+             py::arg("normalize_reward") = false,
              py::arg("seed") = 0)
         .def("set_v_ref_window", &F1TenthDPW::set_v_ref_window,
              py::arg("window"))
+        .def("set_action_prior", &F1TenthDPW::set_action_prior,
+             py::arg("mean"), py::arg("std"))
         .def("set_rollout_horizon", &F1TenthDPW::set_rollout_horizon,
              py::arg("horizon"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))
@@ -188,5 +214,7 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
         .def("forward", &F1TenthDPW::forward,
              py::arg("action"), py::arg("new_state"))
         .def("set_state", &F1TenthDPW::set_state, py::arg("state"))
-        .def("get_root_actions", &F1TenthDPW::get_root_actions);
+        .def("get_root_actions", &F1TenthDPW::get_root_actions)
+        .def("get_best_trajectory", &F1TenthDPW::get_best_trajectory,
+             py::arg("max_depth") = 50);
 }

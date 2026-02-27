@@ -1,0 +1,51 @@
+{
+  "input_cols": [
+    "S_vel",
+    "S_delta",
+    "S_omega",
+    "S_beta",
+    "max_kappa",
+    "C_alpha"
+  ],
+  "input_names": [
+    "velocity",
+    "steering_angle",
+    "yaw_rate",
+    "slip_angle",
+    "max_curvature",
+    "cornering_stiffness"
+  ],
+  "output_cols": [
+    "A_a",
+    "A_sv"
+  ],
+  "output_names": [
+    "acceleration",
+    "steering_velocity"
+  ],
+  "use_avg_kappa": false,
+  "best_params": {
+    "num_inducing": 224,
+    "epochs": 120,
+    "batch_size": 128,
+    "lr": 0.005811716497953552,
+    "init_lengthscale": 9.895285756348471,
+    "init_outputscale": 0.15153635878502467,
+    "init_noise": 0.053065993577424295
+  },
+  "n_trials": 100,
+  "best_trial": 95,
+  "best_val_neg_elbo": 2.3649954795837402,
+  "n_train": 4931,
+  "n_val": 1233,
+  "n_test": 1541,
+  "final_loss": 2.3853727944043217,
+  "mae_accel": 1.853285789489746,
+  "mae_steer": 0.8336426615715027,
+  "rmse_accel": 2.3969314098358154,
+  "rmse_steer": 1.0736937522888184,
+  "coverage_2std_accel": 95.65217391304348,
+  "coverage_2std_steer": 94.74367293964958,
+  "search_time_s": 3060.4529118537903,
+  "retrain_time_s": 74.11969375610352
+}

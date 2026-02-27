@@ -1,0 +1,39 @@
+{
+  "input_cols": [
+    "S_vel",
+    "S_delta",
+    "S_omega",
+    "S_beta",
+    "max_kappa",
+    "avg_kappa",
+    "C_alpha"
+  ],
+  "output_cols": [
+    "A_a",
+    "A_sv"
+  ],
+  "best_params": {
+    "num_inducing": 288,
+    "epochs": 100,
+    "batch_size": 128,
+    "lr": 0.015067887575450821,
+    "init_lengthscale": 3.651217080122411,
+    "init_outputscale": 4.195206968333796,
+    "init_noise": 0.028796165823223505
+  },
+  "n_trials": 300,
+  "best_trial": 243,
+  "best_val_neg_elbo": 2.3151912689208984,
+  "n_train": 4931,
+  "n_val": 1233,
+  "n_test": 1541,
+  "final_loss": 2.3556922455223237,
+  "mae_accel": 1.778436541557312,
+  "mae_steer": 0.8307414054870605,
+  "rmse_accel": 2.307673215866089,
+  "rmse_steer": 1.070294737815857,
+  "coverage_2std_accel": 95.58728098637248,
+  "coverage_2std_steer": 94.5489941596366,
+  "search_time_s": 21522.332216739655,
+  "retrain_time_s": 391.95427799224854
+}

@@ -127,6 +127,10 @@ class F1TenthAPI:
         """Register render callback to draw raceline and follow car."""
         self._vehicle.setup_rendering(waypoints)
 
+    def set_planned_trajectory(self, xy_points) -> None:
+        """Set MCTS planned trajectory for visualization."""
+        self._vehicle.set_planned_trajectory(xy_points)
+
     def render(self, mode: str = "human") -> None:
         self._vehicle.render(mode=mode)
 

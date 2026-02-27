@@ -98,14 +98,20 @@ class GymVehicleInterface:
         """True if the last step resulted in a collision."""
         return getattr(self, '_collision', False)
 
+    def set_planned_trajectory(self, xy_points: np.ndarray) -> None:
+        """Set MCTS planned trajectory for visualization. xy_points: (N, 2)."""
+        self._planned_trajectory = xy_points
+
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""
-        from pyglet.gl import GL_POINTS
+        from pyglet.gl import GL_POINTS, GL_QUADS
 
         # Pre-compute scaled waypoint vertices for drawing.
         points = np.column_stack([waypoints.x, waypoints.y])
         scaled_points = 50.0 * points
         self._drawn_waypoints: List = []
+        self._drawn_trajectory: List = []
+        self._planned_trajectory: np.ndarray = np.empty((0, 2))
 
         def render_callback(env_renderer):
             e = env_renderer
@@ -130,6 +136,34 @@ class GymVehicleInterface:
                         ('c3B/stream', [183, 193, 222]),
                     )
                     self._drawn_waypoints.append(b)
+
+            # Draw MCTS planned trajectory (updated each step).
+            # Remove old trajectory points.
+            for b in self._drawn_trajectory:
+                b.delete()
+            self._drawn_trajectory.clear()
+
+            traj = self._planned_trajectory
+            if traj is not None and len(traj) > 0:
+                sz = 8.0  # half-size of each quad in screen units
+                for i in range(len(traj)):
+                    # Color gradient: green (start) -> red (end)
+                    t = i / max(len(traj) - 1, 1)
+                    r = int(255 * t)
+                    g = int(255 * (1 - t))
+                    b_color = 0
+                    sx, sy = 50.0 * traj[i, 0], 50.0 * traj[i, 1]
+                    b = e.batch.add(
+                        4, GL_QUADS, None,
+                        ('v3f/stream', [
+                            sx - sz, sy - sz, 0.,
+                            sx + sz, sy - sz, 0.,
+                            sx + sz, sy + sz, 0.,
+                            sx - sz, sy + sz, 0.,
+                        ]),
+                        ('c3B/stream', [r, g, b_color] * 4),
+                    )
+                    self._drawn_trajectory.append(b)
 
         self._env.add_render_callback(render_callback)
         log.info("Render callback registered with %d waypoints.", len(waypoints.x))

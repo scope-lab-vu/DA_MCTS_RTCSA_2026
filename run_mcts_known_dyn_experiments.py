@@ -216,12 +216,14 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
                     else float("nan")
                 )
                 max_kappa = getattr(controller, "_max_kappa_lookahead", float("nan"))
+                avg_kappa = getattr(controller, "_avg_kappa_lookahead", float("nan"))
                 episode_logger.log_step(
                     state, cmd,
                     float("nan"), float("nan"), float("nan"),
                     c_alpha=cs_raw,
                     c_alpha_smooth=cs_smooth,
                     max_kappa=max_kappa,
+                    avg_kappa=avg_kappa,
                 )
                 done = api.apply_action(cmd)
 

@@ -58,6 +58,7 @@ class MCTSDPWCppController:
         self.a_lat_budget = config.a_lat_budget
         self.curvature_lookahead = config.curvature_lookahead
         self.mcts_time_budget = config.mcts_time_budget
+        self.normalize_reward = getattr(config, 'normalize_reward', False)
         # Load track (centerline CSV).
         if map_config.centerline_path is None:
             raise ValueError(
@@ -68,7 +69,7 @@ class MCTSDPWCppController:
         # Occupancy map for O(1) off-track detection.
         self.track_occ_map = TrackOccupancyMap(
             track=self.track,
-            cell_size=0.01,
+            cell_size=0.001,
             lane_width=config.lane_width,
         )
 
@@ -177,6 +178,7 @@ class MCTSDPWCppController:
             rollout_horizon=self.rollout_horizon,
             discount=self.discount,
             dt=self.dt,
+            normalize_reward=self.normalize_reward,
             seed=self.seed,
         )
 

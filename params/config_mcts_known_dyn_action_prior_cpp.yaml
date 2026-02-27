@@ -1,0 +1,44 @@
+# Algorithm Configuration: MCTS DPW C++ + known dynamics + SVGP action prior
+# Replaces uniform action sampling with a learned Gaussian prior from SVGP.
+
+controller:
+  type: mcts_known_dyn_action_prior_cpp
+  # --- MCTS DPW hyperparameters ---
+  n_simulations: 1000
+  exploration_constant: 1.0    # K (UCB exploration)
+  alpha_dpw: 0.5               # action progressive widening exponent
+  beta_dpw: 0.5                # outcome progressive widening exponent
+  discount: 0.9                # rollout discount factor
+  rollout_horizon: 12          # initial/fallback horizon
+  rollout_horizon_straight: 15  # horizon on straight segments (low kappa)
+  rollout_horizon_curve: 15    # horizon approaching curves (high kappa)
+  kappa_threshold: 0.05        # max_kappa < threshold → straight
+  # --- Reward/cost tuning ---
+  v_ref: 1000.0
+  speed_weight: 1.0
+  alpha_threshold: 3.0
+  a_lat_budget: 30.0
+  curvature_lookahead: 30
+  mcts_time_budget: 0
+  use_occupancy_map: true
+  lane_width: 1.0
+  normalize_reward: false
+  # --- SVGP action prior ---
+  action_prior_model_path: MCTS_SVGP_action_sampler/best_model_no_kappa/
+  calpha_window_size: 10
+
+dynamics:
+  type: f1tenth_dynamics
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42
+
+
+
+# rm -rf /home/samir/Desktop/WORK/f1tenth_gym_ws/src/controller/mcts_dpw_cpp/build && /home/samir/Desktop/WORK/f1tenth_gym_ws/venv/bin/pip install -e /home/samir/Desktop/WORK/f1tenth_gym_ws/src/controller/mcts_dpw_cpp/ 2>&1
