@@ -1,0 +1,52 @@
+{
+  "model_type": "sgpr_krasserm",
+  "input_cols": [
+    "S_vel",
+    "S_delta",
+    "S_omega",
+    "S_beta",
+    "max_kappa",
+    "C_alpha"
+  ],
+  "input_names": [
+    "velocity",
+    "steering_angle",
+    "yaw_rate",
+    "slip_angle",
+    "max_curvature",
+    "cornering_stiffness"
+  ],
+  "output_cols": [
+    "A_a",
+    "A_sv"
+  ],
+  "output_names": [
+    "acceleration",
+    "steering_velocity"
+  ],
+  "feature_set": "no_avg_kappa",
+  "num_input_dims": 6,
+  "num_outputs": 2,
+  "best_params": {
+    "num_inducing": 91,
+    "epochs": 51,
+    "lr": 0.02177522109320005,
+    "init_lengthscale": 0.4287417776862878,
+    "init_outputscale": 3.9107282553734453,
+    "init_noise": 0.0005687480150661129
+  },
+  "n_trials": 100,
+  "best_trial": 92,
+  "best_val_neg_elbo": 3024.2833776941443,
+  "n_train": 4931,
+  "n_val": 1233,
+  "n_test": 1541,
+  "mae_accel": 1.833247745271738,
+  "mae_steer": 0.8293322939890548,
+  "rmse_accel": 2.391869503826135,
+  "rmse_steer": 1.0698295825627229,
+  "coverage_2std_accel": 95.78195976638546,
+  "coverage_2std_steer": 94.4192083062946,
+  "search_time_s": 2489.21,
+  "retrain_time_s": 25.44
+}
