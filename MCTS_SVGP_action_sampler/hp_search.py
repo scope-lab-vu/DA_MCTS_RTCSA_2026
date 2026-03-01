@@ -34,6 +34,7 @@ import gpytorch
 # Allow importing from the same directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from train import (
+    FEATURE_SETS,
     OUTPUT_COLS,
     OUTPUT_NAMES,
     ActionPriorSVGP,
@@ -178,8 +179,9 @@ def parse_args():
                         help="Optuna study name")
     parser.add_argument("--storage", default=None,
                         help="Optuna storage URL (default: in-memory)")
-    parser.add_argument("--no-avg-kappa", action="store_true",
-                        help="Exclude avg_kappa from input features (use 6D instead of 7D)")
+    parser.add_argument("--feature-set", default="no_avg_kappa",
+                        choices=list(FEATURE_SETS.keys()),
+                        help="Input feature set (default: no_avg_kappa)")
     return parser.parse_args()
 
 
@@ -190,9 +192,14 @@ def main():
     np.random.seed(args.seed)
 
     # ── Feature selection ─────────────────────────────────────────────────
-    use_avg_kappa = not args.no_avg_kappa
-    input_cols, input_names = get_input_features(use_avg_kappa)
-    log.info("Input features (%d): %s", len(input_cols), input_cols)
+    input_cols, input_names = get_input_features(args.feature_set)
+    log.info("Feature set '%s' (%dD): %s", args.feature_set, len(input_cols), input_cols)
+
+    # Append feature set name to output dir and study name for separation
+    if not args.output_dir.rstrip("/").endswith(args.feature_set):
+        args.output_dir = os.path.join(args.output_dir.rstrip("/") + f"_{args.feature_set}")
+    if not args.study_name.endswith(args.feature_set):
+        args.study_name = f"{args.study_name}_{args.feature_set}"
 
     # ── Pre-load all data ─────────────────────────────────────────────────
     data = load_data(args.data_dir, input_cols=input_cols)
@@ -346,7 +353,7 @@ def main():
         "input_names": input_names,
         "output_cols": OUTPUT_COLS,
         "output_names": OUTPUT_NAMES,
-        "use_avg_kappa": use_avg_kappa,
+        "feature_set": args.feature_set,
         "best_params": bp,
         "n_trials": args.n_trials,
         "best_trial": best.number,

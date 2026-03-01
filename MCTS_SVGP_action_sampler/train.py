@@ -48,20 +48,31 @@ ALL_INPUT_NAMES = ["velocity", "steering_angle", "yaw_rate", "slip_angle",
 INPUT_COLS_NO_AVG_KAPPA = ["S_vel", "S_delta", "S_omega", "S_beta", "max_kappa", "C_alpha"]
 INPUT_NAMES_NO_AVG_KAPPA = ["velocity", "steering_angle", "yaw_rate", "slip_angle",
                             "max_curvature", "cornering_stiffness"]
+INPUT_COLS_GENERAL = ["max_kappa", "C_alpha"]
+INPUT_NAMES_GENERAL = ["max_curvature", "cornering_stiffness"]
 OUTPUT_COLS = ["A_a", "A_sv"]
 OUTPUT_NAMES = ["acceleration", "steering_velocity"]
 
-# Default (will be overridden by --no-avg-kappa flag)
+# Default (will be overridden by --feature-set flag)
 INPUT_COLS = ALL_INPUT_COLS
 INPUT_NAMES = ALL_INPUT_NAMES
 
+FEATURE_SETS = {
+    "no_avg_kappa": (INPUT_COLS_NO_AVG_KAPPA, INPUT_NAMES_NO_AVG_KAPPA),
+    "general":      (INPUT_COLS_GENERAL,       INPUT_NAMES_GENERAL),
+    "all":          (ALL_INPUT_COLS,            ALL_INPUT_NAMES),
+}
 
-def get_input_features(use_avg_kappa: bool = True):
-    """Return (INPUT_COLS, INPUT_NAMES) based on whether avg_kappa is included."""
-    if use_avg_kappa:
-        return list(ALL_INPUT_COLS), list(ALL_INPUT_NAMES)
-    else:
-        return list(INPUT_COLS_NO_AVG_KAPPA), list(INPUT_NAMES_NO_AVG_KAPPA)
+
+def get_input_features(feature_set: str = "no_avg_kappa"):
+    """Return (INPUT_COLS, INPUT_NAMES) for the given feature set name."""
+    if feature_set not in FEATURE_SETS:
+        raise ValueError(
+            f"Unknown feature set '{feature_set}'. "
+            f"Choose from: {list(FEATURE_SETS.keys())}"
+        )
+    cols, names = FEATURE_SETS[feature_set]
+    return list(cols), list(names)
 
 
 # ── Data loading ─────────────────────────────────────────────────────────────
@@ -431,8 +442,9 @@ def parse_args():
                         help="Random seed")
     parser.add_argument("--plot", action="store_true",
                         help="Generate diagnostic plots")
-    parser.add_argument("--no-avg-kappa", action="store_true",
-                        help="Exclude avg_kappa from input features (use 6D instead of 7D)")
+    parser.add_argument("--feature-set", default="no_avg_kappa",
+                        choices=list(FEATURE_SETS.keys()),
+                        help="Input feature set (default: no_avg_kappa)")
     return parser.parse_args()
 
 
@@ -444,9 +456,8 @@ def main():
     np.random.seed(args.seed)
 
     # ── Feature selection ─────────────────────────────────────────────────
-    use_avg_kappa = not args.no_avg_kappa
-    input_cols, input_names = get_input_features(use_avg_kappa)
-    log.info("Input features (%d): %s", len(input_cols), input_cols)
+    input_cols, input_names = get_input_features(args.feature_set)
+    log.info("Feature set '%s' (%dD): %s", args.feature_set, len(input_cols), input_cols)
 
     # ── 1. Load data ──────────────────────────────────────────────────────
     data = load_data(args.data_dir, input_cols=input_cols)
@@ -540,7 +551,7 @@ def main():
         "output_cols": OUTPUT_COLS,
         "input_names": input_names,
         "output_names": OUTPUT_NAMES,
-        "use_avg_kappa": use_avg_kappa,
+        "feature_set": args.feature_set,
         "num_inducing": args.num_inducing,
         "num_epochs": args.epochs,
         "batch_size": args.batch_size,
