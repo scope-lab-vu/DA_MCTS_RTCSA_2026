@@ -1,0 +1,35 @@
+{
+  "input_cols": [
+    "max_kappa",
+    "avg_kappa"
+  ],
+  "output_cols": [
+    "A_a",
+    "A_sv"
+  ],
+  "input_names": [
+    "max_curvature",
+    "avg_curvature"
+  ],
+  "output_names": [
+    "acceleration",
+    "steering_velocity"
+  ],
+  "feature_set": "curvature_only",
+  "num_inducing": 128,
+  "num_epochs": 50,
+  "batch_size": 512,
+  "learning_rate": 0.01,
+  "test_split": 0.2,
+  "seed": 42,
+  "n_train": 6166,
+  "n_test": 1542,
+  "final_loss": 2.6205840294177714,
+  "mae_accel": 2.449057102203369,
+  "mae_steer": 0.867676317691803,
+  "rmse_accel": 3.057753086090088,
+  "rmse_steer": 1.120675802230835,
+  "coverage_2std_accel": 95.07133592736704,
+  "coverage_2std_steer": 93.90402075226977,
+  "training_time_s": 9.228431224822998
+}

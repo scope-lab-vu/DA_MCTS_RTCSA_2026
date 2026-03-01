@@ -35,9 +35,10 @@ except ImportError as e:
         "Build it with: pip install -e src/controller/mcts_dpw_cpp/"
     ) from e
 
-# Add SVGP training code to path for load_model
+# Add SVGP/SGPR training code to path for load_model
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "MCTS_SVGP_action_sampler"))
-from train import load_model
+from train import load_model as load_model_svgp
+from train_krasserm import load_model as load_model_krasserm
 
 log = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class MCTSKnownDynActionPriorCppController:
             raise ValueError("MCTS controller requires centerline_path in map config.")
         self.track = Track(map_config.centerline_path)
 
-        # Occupancy map
+        # Occupancy maps: imaginary (soft penalty) + real (hard penalty, done)
         self.track_occ_map = TrackOccupancyMap(
             track=self.track, cell_size=0.01, lane_width=config.lane_width,
         )
@@ -124,6 +125,14 @@ class MCTSKnownDynActionPriorCppController:
         self._occ_nx = self.track_occ_map.nx
         self._occ_ny = self.track_occ_map.ny
 
+        real_width = getattr(config, 'real_track_width', 2.2)
+        self.track_occ_map_real = TrackOccupancyMap(
+            track=self.track, cell_size=0.01, lane_width=real_width,
+        )
+        self._occ_grid_real = self.track_occ_map_real._map.ravel().astype(np.float32)
+        log.info("Dual boundaries: imaginary=%.1f (soft), real=%.1f (hard/done)",
+                 config.lane_width, real_width)
+
         # Reference trajectory
         self.ref_traj = None
         if map_config.wpt_path:
@@ -133,16 +142,30 @@ class MCTSKnownDynActionPriorCppController:
             except Exception as e:
                 log.warning("Could not load reference trajectory: %s", e)
 
-        # ── Load SVGP action prior ────────────────────────────────────────
+        # ── Load action prior model ───────────────────────────────────────
         model_path = config.action_prior_model_path
         if model_path is None:
             raise ValueError("action_prior_model_path must be set in controller config.")
-        self._gp_model, self._gp_likelihood, self._x_scaler, self._y_scaler, gp_config = \
-            load_model(model_path, device="cpu")
-        self._gp_use_avg_kappa = gp_config.get("use_avg_kappa", True)
-        n_ind = gp_config.get("num_inducing") or gp_config.get("best_params", {}).get("num_inducing", "?")
-        log.info("Loaded SVGP action prior from %s (%s inducing points, avg_kappa=%s)",
-                 model_path, n_ind, self._gp_use_avg_kappa)
+        self._model_type = getattr(config, 'action_prior_model_type', 'svgp')
+
+        if self._model_type == "sgpr_krasserm":
+            self._gp_models, self._x_scaler, self._y_scaler, gp_config = \
+                load_model_krasserm(model_path, device="cpu")
+            self._gp_input_cols = gp_config["input_cols"]
+            n_ind = gp_config.get("best_params", {}).get("num_inducing",
+                        gp_config.get("num_inducing", "?"))
+            log.info("Loaded SGPR Krasserm from %s (%s inducing, features=%s)",
+                     model_path, n_ind, self._gp_input_cols)
+        else:
+            self._gp_model, self._gp_likelihood, self._x_scaler, self._y_scaler, gp_config = \
+                load_model_svgp(model_path, device="cpu")
+            self._gp_input_cols = gp_config.get("input_cols", None)
+            self._gp_use_avg_kappa = gp_config.get("use_avg_kappa", True)
+            self._gp_minimal = gp_config.get("minimal_features", False)
+            n_ind = gp_config.get("num_inducing") or gp_config.get("best_params", {}).get("num_inducing", "?")
+            log.info("Loaded SVGP action prior from %s (%s inducing, features=%s)",
+                     model_path, n_ind,
+                     self._gp_input_cols or ("minimal" if self._gp_minimal else "default"))
 
         # ── Cornering stiffness estimation ────────────────────────────────
         self._calpha_window_size = config.calpha_window_size
@@ -164,6 +187,9 @@ class MCTSKnownDynActionPriorCppController:
         self._last_action_std = np.ones(2)
         self._last_best_trajectory = []
         self._timestep = 0
+        self._local_cx = np.zeros(106)
+        self._local_cy = np.zeros(106)
+        self._local_heading = np.zeros(106)
 
         log.info(
             "MCTS SVGP Action Prior ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f",
@@ -171,10 +197,18 @@ class MCTSKnownDynActionPriorCppController:
         )
 
     def _get_v_ref_window(self, state_np):
-        """Compute per-step reference velocity and curvature stats."""
-        v_max = 12.0
+        """Compute per-step reference velocity using forward-backward solver.
+
+        1. Per-point curvature limit:  v_limit[i] = sqrt(a_lat_budget / |kappa[i]|)
+        2. Backward pass:  propagate braking constraint from corners
+        3. Forward pass:   propagate acceleration constraint from current speed
+        """
+        v_cap = 20.0
+        v_current = state_np[3]
+        a_max = self._vehicle_params.a_max
+
         kappas = self.track.get_curvature_lookahead(
-            position=state_np[:2], v=state_np[3],
+            position=state_np[:2], v=v_current,
             horizon=self.curvature_lookahead, dt=self.dt,
         )
 
@@ -187,17 +221,38 @@ class MCTSKnownDynActionPriorCppController:
         else:
             self._dynamic_horizon = self.rollout_horizon_curve
 
-        window_size = self.rollout_horizon_curve
-        v_ref_window = np.zeros(window_size)
-        for i in range(window_size):
-            max_kappa = np.max(kappas[i:])
-            v_ref_window[i] = min(v_max, np.sqrt(self.a_lat_budget / max(max_kappa, 1e-6)))
+        # ds between consecutive kappa samples
+        ds = max(abs(v_current), 1.0) * self.dt
+        N = len(kappas)
 
-        min_v_ref = min(v_ref_window)
-        for i in range(window_size):
-            v_ref_window[i] = min_v_ref
+        # Step 1: per-point curvature speed limit
+        v_limit = np.minimum(v_cap,
+                             np.sqrt(self.a_lat_budget / np.maximum(np.abs(kappas), 1e-6)))
+
+        # Step 2: backward pass — brake in time for corners
+        # "What's the fastest I can go at each point and still brake in time?"
+        for i in range(N - 2, -1, -1):
+            v_limit[i] = min(v_limit[i],
+                             np.sqrt(v_limit[i + 1] ** 2 + 2 * a_max * ds))
+
+        # No forward pass — MCTS handles acceleration via its dynamics.
+        # v_limit[0] is now the target: max safe speed at current position.
+
+        # Use v_limit[0] as uniform value for the rollout window
+        window_size = self.rollout_horizon_curve
+        v_ref_now = float(v_limit[0])
+        v_ref_window = np.full(window_size, v_ref_now)
 
         self._v_ref_window = v_ref_window.copy()
+
+        # Extract local centerline slice (-5 to +100 points) for heading lookup in C++
+        idx, _, _ = self.track.get_nearest_point(state_np[:2])
+        N = len(self.track.centerline)
+        indices = np.arange(idx - 5, idx + 101) % N
+        self._local_cx = self.track.centerline[indices, 0].copy()
+        self._local_cy = self.track.centerline[indices, 1].copy()
+        self._local_heading = self.track.heading[indices].copy()
+
         return v_ref_window
 
     def _estimate_cornering_stiffness(self, state: VehicleStateMsg) -> float:
@@ -219,9 +274,29 @@ class MCTSKnownDynActionPriorCppController:
             self._calpha_buffer = self._calpha_buffer[-self._calpha_window_size:]
         return float(np.mean(self._calpha_buffer))
 
+    # Column name → function argument mapping for krasserm models
+    _COL_TO_ARG = {
+        "S_vel": "v", "S_delta": "delta", "S_omega": "omega", "S_beta": "beta",
+        "max_kappa": "max_kappa", "avg_kappa": "avg_kappa", "C_alpha": "c_alpha",
+    }
+
     def _predict_action_prior(self, v, delta, omega, beta, max_kappa, avg_kappa, c_alpha):
-        """Run SVGP inference to get action prior (mean, std) in original scale."""
-        if self._gp_use_avg_kappa:
+        """Run GP inference to get action prior (mean, std) in original scale."""
+        if self._model_type == "sgpr_krasserm":
+            return self._predict_krasserm(v, delta, omega, beta, max_kappa, avg_kappa, c_alpha)
+        return self._predict_svgp(v, delta, omega, beta, max_kappa, avg_kappa, c_alpha)
+
+    def _predict_svgp(self, v, delta, omega, beta, max_kappa, avg_kappa, c_alpha):
+        """SVGP multi-output prediction (original implementation)."""
+        if self._gp_input_cols is not None:
+            local = {"v": v, "delta": delta, "omega": omega, "beta": beta,
+                     "max_kappa": max_kappa, "avg_kappa": avg_kappa, "c_alpha": c_alpha}
+            vals = [local[self._COL_TO_ARG[c]] for c in self._gp_input_cols]
+            x_raw = np.array([vals], dtype=np.float32)
+        elif self._gp_minimal:
+            x_raw = np.array([[v, max_kappa, c_alpha]],
+                             dtype=np.float32)
+        elif self._gp_use_avg_kappa:
             x_raw = np.array([[v, delta, omega, beta, max_kappa, avg_kappa, c_alpha]],
                              dtype=np.float32)
         else:
@@ -233,14 +308,32 @@ class MCTSKnownDynActionPriorCppController:
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             preds = self._gp_likelihood(self._gp_model(x_tensor))
 
-        # preds.mean: (1, 2), preds.variance: (1, 2)  in scaled space
-        mean_scaled = preds.mean[0].numpy()   # (2,)
-        var_scaled = preds.variance[0].numpy()  # (2,)
+        mean_scaled = preds.mean[0].numpy()
+        var_scaled = preds.variance[0].numpy()
 
-        # Inverse transform to original scale
         mean_original = mean_scaled * self._y_scaler.scale_ + self._y_scaler.mean_
         std_original = np.sqrt(var_scaled) * self._y_scaler.scale_
+        return mean_original, std_original
 
+    def _predict_krasserm(self, v, delta, omega, beta, max_kappa, avg_kappa, c_alpha):
+        """SGPR Krasserm independent single-output prediction."""
+        local = {"v": v, "delta": delta, "omega": omega, "beta": beta,
+                 "max_kappa": max_kappa, "avg_kappa": avg_kappa, "c_alpha": c_alpha}
+        vals = [local[self._COL_TO_ARG[c]] for c in self._gp_input_cols]
+        x_raw = np.array([vals], dtype=np.float64)
+        x_scaled = self._x_scaler.transform(x_raw)
+        x_tensor = torch.tensor(x_scaled, dtype=torch.float64)
+
+        mean_scaled = np.zeros(2)
+        var_scaled = np.zeros(2)
+        with torch.no_grad():
+            for i, model in enumerate(self._gp_models):
+                f_mean, _, y_var = model.predict(x_tensor)
+                mean_scaled[i] = f_mean[0].item()
+                var_scaled[i] = y_var[0].item()
+
+        mean_original = mean_scaled * self._y_scaler.scale_ + self._y_scaler.mean_
+        std_original = np.sqrt(var_scaled) * self._y_scaler.scale_
         return mean_original, std_original
 
     def _make_tree(self, state_np, v_ref_window):
@@ -261,6 +354,7 @@ class MCTSKnownDynActionPriorCppController:
             occ_x_min=self._occ_x_min, occ_y_min=self._occ_y_min,
             occ_cell_size=self._occ_cell_size,
             occ_nx=self._occ_nx, occ_ny=self._occ_ny,
+            occ_grid_real=self._occ_grid_real,
             speed_weight=self.speed_weight,
             alpha_threshold=self.alpha_threshold,
             v_ref=self.v_ref,
@@ -301,6 +395,8 @@ class MCTSKnownDynActionPriorCppController:
         )
         self._last_action_mean = action_mean
         self._last_action_std = action_std
+        # print("GP prior: accel_mean=%.2f accel_std=%.2f  steer_mean=%.2f steer_std=%.2f" %
+        #       (action_mean[0], action_std[0], action_mean[1], action_std[1]))
 
         # 4. Tree reuse or creation
         if self._tree is not None and self._last_action is not None:
@@ -315,9 +411,10 @@ class MCTSKnownDynActionPriorCppController:
             self._tree = self._make_tree(state_np, v_ref_window)
             self._tree.set_v_ref_window(v_ref_window)
 
-        # 5. Push action prior and dynamic horizon to C++
+        # 5. Push action prior, dynamic horizon, and local centerline to C++
         self._tree.set_action_prior(action_mean, action_std)
         self._tree.set_rollout_horizon(self._dynamic_horizon)
+        self._tree.set_centerline(self._local_cx, self._local_cy, self._local_heading)
 
         # 6. Run MCTS
         if self.mcts_time_budget > 0:

@@ -64,7 +64,8 @@ class F1TenthSimulator : public Simulator {
   private:
     // Members ordered to match initializer list.
     VehicleParamsCpp vp_;
-    OccupancyMapData occ_map_;
+    OccupancyMapData occ_map_;       // imaginary boundary (soft penalty, no done)
+    OccupancyMapData occ_map_real_;  // real track boundary (hard penalty, done=true)
     CostParams cost_;
     // State: [x, y, delta, v, psi, omega, beta]
     std::vector<double> state_;
@@ -75,6 +76,10 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> action_mean_;  // size 2
     std::vector<double> action_std_;   // size 2
     bool use_action_prior_ = false;
+    // Centerline for heading lookup: cx_[i], cy_[i], cheading_[i]
+    std::vector<double> cx_;
+    std::vector<double> cy_;
+    std::vector<double> cheading_;
     std::mt19937 rng_;
 
     static constexpr double G = 9.81;
@@ -83,9 +88,10 @@ class F1TenthSimulator : public Simulator {
   public:
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
+                     const OccupancyMapData& occ_map_real,
                      const CostParams& cost,
                      unsigned seed = std::random_device{}())
-        : vp_(vp), occ_map_(occ_map), cost_(cost),
+        : vp_(vp), occ_map_(occ_map), occ_map_real_(occ_map_real), cost_(cost),
           state_(7, 0.0), rng_(seed) {}
 
     // --- Simulator interface ---
@@ -115,6 +121,35 @@ class F1TenthSimulator : public Simulator {
     }
 
     void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
+
+    void set_centerline(const std::vector<double>& cx,
+                        const std::vector<double>& cy,
+                        const std::vector<double>& heading) {
+        cx_ = cx;
+        cy_ = cy;
+        cheading_ = heading;
+    }
+
+    // Returns index of nearest centerline point (used for backward-progress check)
+    int nearest_index(double x, double y) const {
+        double best_d2 = 1e18;
+        int best_idx = 0;
+        int n = static_cast<int>(cx_.size());
+        for (int i = 0; i < n; i++) {
+            double dx = x - cx_[i];
+            double dy = y - cy_[i];
+            double d2 = dx * dx + dy * dy;
+            if (d2 < best_d2) {
+                best_d2 = d2;
+                best_idx = i;
+            }
+        }
+        return best_idx;
+    }
+
+    double nearest_heading(double x, double y) const {
+        return cheading_[nearest_index(x, y)];
+    }
 
     StepResult step(const std::vector<double>& action) override {
         double x     = state_[0];
@@ -218,8 +253,9 @@ class F1TenthSimulator : public Simulator {
 
         // --- Cost computation ---
 
-        float off_track = occ_map_.query(x_n, y_n);
-        bool done_off_track = (off_track >= 0.5f);
+        float off_imag = occ_map_.query(x_n, y_n);       // imaginary boundary
+        float off_real = occ_map_real_.query(x_n, y_n); // real wall
+        bool done_off_track = (off_real >= 0.5f);
 
         double v_ref_curv = cost_.v_ref;
         if (!v_ref_window_.empty()) {
@@ -237,7 +273,9 @@ class F1TenthSimulator : public Simulator {
         if (cost_.normalize_reward) {
             // All components normalized to ~[0, 1]
             double v_max_sq = vp_.v_max * vp_.v_max;
-            track_cost = static_cast<double>(off_track);                          // {0, 1}
+            // double imag_cost = static_cast<double>(off_imag);                     // {0, 1}
+            double real_cost = static_cast<double>(off_real);                     // {0, 1}
+            track_cost = real_cost;
             speed_cost = -(cost_.speed_weight * v_n * v_n / v_max_sq);            // [-sw, 0]
             slip_cost = (alpha_slip * alpha_slip)
                         / (cost_.alpha_threshold * cost_.alpha_threshold)
@@ -245,7 +283,9 @@ class F1TenthSimulator : public Simulator {
             speed_cap_cost_max = (std::abs(v_n) > 12.0 ? 1.0 : 0.0);             // {0, 1}
             speed_cap_cost_min = (v_n < 1.5 ? 1.0 : 0.0);                        // {0, 1}
         } else {
-            track_cost = static_cast<double>(off_track) * 1000000.0;
+            // double imag_cost = static_cast<double>(off_imag) * 10000.0;    // soft penalty
+            double real_cost = static_cast<double>(off_real) * 1000000.0;  // hard penalty
+            track_cost = real_cost;
             speed_cost = -(cost_.speed_weight * v_n );
             slip_cost = alpha_slip * alpha_slip
                       + 10000.0 * (done_slip ? 1.0 : 0.0);
@@ -253,8 +293,29 @@ class F1TenthSimulator : public Simulator {
             speed_cap_cost_min = 10000.0 * (v_n < 1.5 ? 1.0 : 0.0);
         }
 
-        bool done = done_off_track;
-        double reward = -(track_cost + speed_cost + slip_cost + speed_cap_cost_max );
+        // // Heading cost: absolute heading error in radians at each timestep
+        // double heading_cost = 0.0;
+        // if (!cx_.empty()) {
+        //     double ref_heading = nearest_heading(x_n, y_n);
+        //     double hdiff = std::abs(psi_n - ref_heading);
+        //     if (hdiff > M_PI) hdiff = TWO_PI - hdiff;
+        //     heading_cost = hdiff;
+        // }
+
+        // Facing-backward check: if car heading differs from track by > 90°, terminate.
+        bool done_backward = false;
+        if (!cx_.empty()) {
+            double ref_heading = nearest_heading(x_n, y_n);
+            double hdiff = std::abs(psi_n - ref_heading);
+            if (hdiff > M_PI) hdiff = TWO_PI - hdiff;
+            if (hdiff > M_PI / 2.0) {
+                done_backward = true;
+                track_cost += cost_.normalize_reward ? 1.0 : 1000000.0;
+            }
+        }
+
+        bool done = done_off_track || done_backward;
+        double reward = -(track_cost + speed_cost + slip_cost + speed_cap_cost_max);
 
 
         return {state_, reward, done};
@@ -263,9 +324,9 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> sample_action() override {
         double v = state_[3];
         // At low speed: uniform positive accel, GP prior for steering with 50% clamp
-        if (v < 3.0) {
+        if (v < 2.0) {
             std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
-            double sv_limit = std::max(0.5, (v / 3.0)) * vp_.sv_max;
+            double sv_limit = std::max(0.5, (v / 2.0)) * vp_.sv_max;
             double sv;
             if (use_action_prior_) {
                 std::normal_distribution<double> steer_dist(
@@ -278,22 +339,22 @@ class F1TenthSimulator : public Simulator {
             }
             return {accel_dist(rng_), sv};
         }
-        // Overspeed heuristic: if v > min(v_ref_window), only sample braking
-        if (v > v_ref_min_) {
-            std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
-            double sv;
-            if (use_action_prior_) {
-                std::normal_distribution<double> steer_dist(
-                    action_mean_[1], action_std_[1]);
-                sv = std::max(vp_.sv_min,
-                              std::min(vp_.sv_max, steer_dist(rng_)));
-            } else {
-                std::uniform_real_distribution<double> steer_dist(
-                    vp_.sv_min, vp_.sv_max);
-                sv = steer_dist(rng_);
-            }
-            return {accel_dist(rng_), sv};
-        }
+        // // Overspeed heuristic: if v > min(v_ref_window), only sample braking
+        // if (v > v_ref_min_) {
+        //     std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
+        //     double sv;
+        //     if (use_action_prior_) {
+        //         std::normal_distribution<double> steer_dist(
+        //             action_mean_[1], action_std_[1]);
+        //         sv = std::max(vp_.sv_min,
+        //                       std::min(vp_.sv_max, steer_dist(rng_)));
+        //     } else {
+        //         std::uniform_real_distribution<double> steer_dist(
+        //             vp_.sv_min, vp_.sv_max);
+        //         sv = steer_dist(rng_);
+        //     }
+        //     return {accel_dist(rng_), sv};
+        // }
         if (use_action_prior_) {
             // Sample from Gaussian prior N(mean, std), clamp to action limits
             std::normal_distribution<double> accel_dist(action_mean_[0], action_std_[0]);
@@ -309,7 +370,7 @@ class F1TenthSimulator : public Simulator {
     }
 
     std::unique_ptr<Simulator> clone() const override {
-        auto copy = std::make_unique<F1TenthSimulator>(vp_, occ_map_, cost_);
+        auto copy = std::make_unique<F1TenthSimulator>(vp_, occ_map_, occ_map_real_, cost_);
         copy->state_ = state_;
         copy->step_count_ = step_count_;
         copy->v_ref_window_ = v_ref_window_;
@@ -317,6 +378,9 @@ class F1TenthSimulator : public Simulator {
         copy->action_mean_ = action_mean_;
         copy->action_std_ = action_std_;
         copy->use_action_prior_ = use_action_prior_;
+        copy->cx_ = cx_;
+        copy->cy_ = cy_;
+        copy->cheading_ = cheading_;
         copy->rng_ = rng_;
         return copy;
     }

@@ -43,10 +43,12 @@ class F1TenthDPW {
                double v_switch, double a_max,
                double v_min, double v_max,
                double veh_width, double veh_length,
-               // Occupancy map
+               // Occupancy map (imaginary boundary)
                py::array_t<float> occ_grid,
                double occ_x_min, double occ_y_min,
                double occ_cell_size, int occ_nx, int occ_ny,
+               // Occupancy map (real track boundary)
+               py::array_t<float> occ_grid_real,
                // Cost params
                double speed_weight, double alpha_threshold,
                double v_ref, int rollout_horizon,
@@ -84,6 +86,15 @@ class F1TenthDPW {
         occ.nx        = occ_nx;
         occ.ny        = occ_ny;
 
+        // Real boundary shares same grid metadata
+        OccupancyMapData occ_real;
+        occ_real.grid      = to_float_vec(occ_grid_real);
+        occ_real.x_min     = occ_x_min;
+        occ_real.y_min     = occ_y_min;
+        occ_real.cell_size = occ_cell_size;
+        occ_real.nx        = occ_nx;
+        occ_real.ny        = occ_ny;
+
         CostParams cost;
         cost.speed_weight    = speed_weight;
         cost.alpha_threshold = alpha_threshold;
@@ -93,7 +104,7 @@ class F1TenthDPW {
         cost.dt                = dt;
         cost.normalize_reward  = normalize_reward;
 
-        sim_ = std::make_unique<F1TenthSimulator>(vp, occ, cost, seed);
+        sim_ = std::make_unique<F1TenthSimulator>(vp, occ, occ_real, cost, seed);
         sim_->set_state(obs);
         model_ = std::make_unique<DPWNative>(sim_.get(), obs, alpha, beta, K, seed);
     }
@@ -108,6 +119,11 @@ class F1TenthDPW {
 
     void set_rollout_horizon(int h) {
         sim_->set_rollout_horizon(h);
+    }
+
+    void set_centerline(py::array_t<double> cx, py::array_t<double> cy,
+                        py::array_t<double> heading) {
+        sim_->set_centerline(to_vec(cx), to_vec(cy), to_vec(heading));
     }
 
     void learn(int Nsim) { model_->learn(Nsim); }
@@ -174,9 +190,11 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
                        double, double,
                        double, double,
                        double, double,
-                       // Occupancy map
+                       // Occupancy map (imaginary)
                        py::array_t<float>,
                        double, double, double, int, int,
+                       // Occupancy map (real)
+                       py::array_t<float>,
                        // Cost params
                        double, double, double, int, double, double,
                        bool,
@@ -192,10 +210,12 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              py::arg("v_switch"), py::arg("a_max"),
              py::arg("v_min"), py::arg("v_max"),
              py::arg("width"), py::arg("length"),
-             // Occupancy map
+             // Occupancy map (imaginary)
              py::arg("occ_grid"),
              py::arg("occ_x_min"), py::arg("occ_y_min"),
              py::arg("occ_cell_size"), py::arg("occ_nx"), py::arg("occ_ny"),
+             // Occupancy map (real)
+             py::arg("occ_grid_real"),
              // Cost params
              py::arg("speed_weight"), py::arg("alpha_threshold"),
              py::arg("v_ref"), py::arg("rollout_horizon"),
@@ -208,6 +228,8 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              py::arg("mean"), py::arg("std"))
         .def("set_rollout_horizon", &F1TenthDPW::set_rollout_horizon,
              py::arg("horizon"))
+        .def("set_centerline", &F1TenthDPW::set_centerline,
+             py::arg("cx"), py::arg("cy"), py::arg("heading"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))
         .def("learn_timed", &F1TenthDPW::learn_timed, py::arg("budget_s"))
         .def("best_action", &F1TenthDPW::best_action)

@@ -5,7 +5,7 @@ controller:
   type: mcts_known_dyn_action_prior_cpp
   # --- MCTS DPW hyperparameters ---
   n_simulations: 1000
-  exploration_constant: 1.0    # K (UCB exploration)
+  exploration_constant: 1.0   # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
   discount: 0.9                # rollout discount factor
@@ -16,15 +16,17 @@ controller:
   # --- Reward/cost tuning ---
   v_ref: 1000.0
   speed_weight: 1.0
-  alpha_threshold: 3.0
+  alpha_threshold: 1.5
   a_lat_budget: 30.0
   curvature_lookahead: 30
   mcts_time_budget: 0
   use_occupancy_map: true
-  lane_width: 1.0
+  lane_width: 0.5
+  real_track_width: 1.5
   normalize_reward: false
-  # --- SVGP action prior ---
-  action_prior_model_path: MCTS_SVGP_action_sampler/best_model_no_kappa/
+  # --- Action prior ---
+  action_prior_model_type: svgp   # "svgp" or "sgpr_krasserm"
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
   calpha_window_size: 10
 
 dynamics:

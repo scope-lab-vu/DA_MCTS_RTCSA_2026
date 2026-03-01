@@ -62,6 +62,7 @@ class ControllerConfig:
     device: str = "cpu"
     use_occupancy_map: bool = True
     lane_width: float = 1.1
+    real_track_width: float = 2.2
     # Cost function tuning
     v_max_cost: float = 11.15
     alpha_threshold: float = 3.5
@@ -91,6 +92,7 @@ class ControllerConfig:
     pi_svgp_model_path: Optional[str] = None
     # MCTS action prior SVGP model path
     action_prior_model_path: Optional[str] = None
+    action_prior_model_type: str = "svgp"  # "svgp" or "sgpr_krasserm"
     # Normalize reward components to ~[0,1] scale
     normalize_reward: bool = False
     # Cornering stiffness adaptive velocity parameters (mppi_cs controller)

@@ -43,6 +43,7 @@ class Track:
         self.arc_length = np.concatenate([[0], np.cumsum(segment_lengths[:-1])])
         self.total_length = self.arc_length[-1] + segment_lengths[-1]
         self._compute_curvature()
+        self.heading = -1.0 * (np.arctan2(self.tangent[:, 1], -1.0 * self.tangent[:, 0]) - np.pi) # formula for converting arctan2 -- (-pi,pi) to (0,2pi)
 
     def _compute_curvature(self):
         """Compute curvature at each centerline point using finite differences.
@@ -93,6 +94,19 @@ class Track:
             future_idx = np.argmin(np.abs(self.arc_length - future_arc))
             curvatures[t] = self.curvature[future_idx]
         return curvatures
+
+    def get_heading_lookahead(self, position: np.ndarray, v: float,
+                              horizon: int, dt: float) -> np.ndarray:
+        """Get track forward heading at future positions along the centerline."""
+        idx, _, _ = self.get_nearest_point(position)
+        ds_per_step = max(abs(v), 1.0) * dt
+        headings = np.zeros(horizon)
+        current_arc = self.arc_length[idx]
+        for t in range(horizon):
+            future_arc = (current_arc + (t + 1) * ds_per_step) % self.total_length
+            future_idx = np.argmin(np.abs(self.arc_length - future_arc))
+            headings[t] = self.heading[future_idx]
+        return headings
 
     def is_off_track(self, position: np.ndarray, vehicle_width: float = 0.0) -> bool:
         idx, lateral_error, _ = self.get_nearest_point(position)

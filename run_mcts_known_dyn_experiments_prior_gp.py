@@ -56,11 +56,17 @@ MU_CONFIGS = [
     (0.5, 0),
     (0.4, 0),
     (0.3, 0),
-    # (0.2, 0),
-    # (0.1, 0),
+    (0.2, 0),
+    (0.1, 0),
 ]
 
 LANE_WIDTHS = [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+# LANE_WIDTHS = [ 0.5, 1.0,  1.5]
+# LANE_WIDTHS = [ 1.0]
+
+#   mu=0.7000  task_index=0  trial=1  seed=42  lane_width=1.1
+
+
 
 # LANE_WIDTHS = [0.5]
 # LANE_WIDTHS = [1.5]
@@ -75,7 +81,7 @@ RESULTS_DIR = Path("results")
 def mu_to_id(mu: float) -> str:
     return str(mu).replace(".", "")
 
-
+2
 def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
