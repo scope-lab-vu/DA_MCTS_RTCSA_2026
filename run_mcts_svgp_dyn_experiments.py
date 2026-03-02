@@ -44,7 +44,7 @@ logging.basicConfig(
 log = logging.getLogger("mcts_svgp_dyn_experiments")
 
 # TRACKS = ["Sepang", "Shanghai", "YasMarina"]
-TRACKS = ["YasMarina", "Sepang"]
+TRACKS = ["YasMarina", "Sepang", ]
 # TRACKS = ["YasMarina"]
 
 # (mu, task_index) — known mapping from HiP-MDP SVGP training
