@@ -1,15 +1,15 @@
 """
-MCTS DPW controller + PI-SVGP dynamics — C++ accelerated, with online
-cornering stiffness (C_alpha) adaptation + GP action prior + dual boundaries.
+MCTS DPW controller + PI-SVGP dynamics (C_alpha as direct input) — C++ accelerated,
+with online cornering stiffness (C_alpha) adaptation + GP action prior + dual boundaries.
 
 Extends the base MCTS PI-SVGP C++ controller with:
 
   1. Internal C_alpha estimation — rear cornering stiffness is computed from
      consecutive VehicleStateMsg observations (no external input needed).
 
-  2. Rolling-window latent update — the mean C_alpha over the last
-     `calpha_window_size` steps is mapped to PI-SVGP task latent parameters
-     via linear interpolation, then pushed to C++ via set_hp_mu().
+  2. C_alpha passed directly as 7th GP input — no latent interpolation.
+     The PI-SVGP model was trained with C_alpha as a direct feature
+     (D_input=7, D_hidden=0).
 
   3. C_alpha-adaptive reference velocity — the v_ref window is reduced when
      the estimated surface grip is low.
@@ -43,11 +43,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_f1tenth_pi_svgp_cpp import F1TenthDPWPiSvgp as F1TenthDPW
+    from mcts_f1tenth_pi_svgp_cpp_c_alpha import F1TenthDPWPiSvgpCAlpha as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_f1tenth_pi_svgp_cpp C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_pi_svgp_cpp_cs/"
+        "mcts_f1tenth_pi_svgp_cpp_c_alpha C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_pi_svgp_cpp_cs_c_alpha_input/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model
@@ -56,9 +56,6 @@ from train import load_model as load_model_svgp
 from train_krasserm import load_model as load_model_krasserm
 
 log = logging.getLogger(__name__)
-
-# Task index -> friction mapping (for logging)
-TASK_FRICTION_MAP = {0: 1.0489, 1: 0.8642, 2: 0.4947}
 
 # Small value to avoid division by zero in C_alpha formula
 _EPSILON = 1e-8
@@ -69,78 +66,74 @@ _C_ALPHA_NOMINAL = 104.89
 
 
 # ---------------------------------------------------------------------------
-# Helper: load PI-SVGP model from .npz
+# Helper: load PI-SVGP model from PyTorch model.pt + scalers.npz + config.json
 # ---------------------------------------------------------------------------
 
-def _load_model_and_scalers_npz(path: str):
-    """Load PI-SVGP model + scalers from .npz file."""
-    data = np.load(path, allow_pickle=False)
-    model_json = json.loads(str(data["model_json"]))
+def _load_pi_svgp_no_hip(model_dir: str):
+    """Load PI-SVGP (no hidden params) model from directory.
 
-    model = dict(model_json)
-    for key in data.files:
-        if key.startswith("model__"):
-            k = key.split("__", 1)[1]
-            model[k] = data[key]
+    Args:
+        model_dir: directory containing model.pt, scalers.npz, config.json
 
-    def unpack_scaler(prefix):
-        s = StandardScaler(
-            with_mean=bool(data[f"{prefix}__with_mean"]),
-            with_std=bool(data[f"{prefix}__with_std"]),
-        )
-        s.mean_ = data[f"{prefix}__mean"]
-        s.scale_ = data[f"{prefix}__scale"]
-        if f"{prefix}__var" in data.files:
-            s.var_ = data[f"{prefix}__var"]
-        s.n_features_in_ = int(data[f"{prefix}__n_features_in"])
-        return s
-
-    xscaler = unpack_scaler("xscaler")
-    return model, xscaler
-
-
-def _pack_pi_svgp_data(model_dict, xscaler, hp_mu, M, D_input, D_hidden, num_outputs):
-    """Pack all PI-SVGP parameters into a flat float64 array for C++.
-
-    Layout: theta(D_aug+1) | alpha(M*num_outputs) | Z_aug(M*D_aug) |
-            xmean(D_input) | xscale(D_input) | hp_mu(D_hidden) |
-            output_bias(num_outputs) | K_mm_inv(M*M) | S_diag(M*num_outputs)
+    Returns:
+        ckpt: dict with state_dict, K_mm_inv, input_dim, num_outputs, M
+        scalers: dict with x_mean, x_scale
+        config: dict with training config
     """
-    D_aug = D_input + D_hidden
+    ckpt = torch.load(os.path.join(model_dir, "model.pt"), map_location="cpu")
+    scalers = np.load(os.path.join(model_dir, "scalers.npz"))
+    with open(os.path.join(model_dir, "config.json")) as f:
+        config = json.load(f)
+    return ckpt, scalers, config
 
-    theta = np.array(model_dict['theta_opt'], dtype=np.float64)
 
-    # Precompute K_mm_inv @ m in Python
-    Zx = np.array(model_dict['Zx_opt'], dtype=np.float64)
-    Zh = np.array(model_dict['Zh_opt'], dtype=np.float64)
-    Z_aug = np.concatenate([Zx, Zh], axis=1)  # (M, D_aug)
+def _pack_pi_svgp_no_hip(ckpt, scalers, M, D_input, num_outputs):
+    """Pack PI-SVGP (no hidden params) into flat float64 array for C++.
 
-    # Build K_mm and invert
-    from src.dynamics.pi_svgp import _rbf_ard_kernel
-    theta_t = torch.tensor(theta, dtype=torch.float64)
-    Z_aug_t = torch.tensor(Z_aug, dtype=torch.float64)
-    K_mm = _rbf_ard_kernel(Z_aug_t, Z_aug_t, theta_t)
-    K_mm = K_mm + torch.eye(M, dtype=torch.float64) * 1e-6
-    K_mm_inv = torch.linalg.inv(K_mm).numpy()
+    Layout: theta(D_input+1) | alpha(M*num_outputs) | Z_aug(M*D_input) |
+            xmean(D_input) | xscale(D_input) | hp_mu(0) |
+            output_bias(num_outputs) | K_mm_inv(M*M) | S_diag(M*num_outputs)
 
-    m_opt = np.array(model_dict['m_opt'], dtype=np.float64)  # (M, num_outputs)
-    alpha = (K_mm_inv @ m_opt).ravel()  # (M * num_outputs), row-major
+    With D_hidden=0, Z_aug=Z (no augmentation), hp_mu is empty.
+    """
+    sd = ckpt["state_dict"]
 
-    Z_aug_flat = Z_aug.ravel()
-    K_mm_inv_flat = K_mm_inv.ravel()
+    # theta = [exp(log_lengthscales), exp(log_outputscale)]
+    log_ls = sd["log_lengthscales"].numpy()   # (D_input,)
+    log_os = sd["log_outputscale"].numpy()    # scalar
+    theta = np.concatenate([np.exp(log_ls), [np.exp(log_os)]]).astype(np.float64)
 
-    # Variational posterior diagonal variance: S_diag[j, p] = exp(2 * m_logstd[j, p])
-    m_logstd = np.array(model_dict['m_logstd_opt'], dtype=np.float64)  # (M, num_outputs)
+    # Inducing points
+    Z = sd["X_m"].numpy().astype(np.float64)  # (M, D_input)
+
+    # Variational parameters
+    m = sd["m"].numpy().astype(np.float64)              # (M, num_outputs)
+    m_logstd = sd["m_logstd"].numpy().astype(np.float64)  # (M, num_outputs)
+    output_bias = sd["output_bias"].numpy().astype(np.float64)  # (num_outputs,)
+
+    # K_mm_inv
+    K_mm_inv = ckpt["K_mm_inv"].numpy().astype(np.float64)  # (M, M)
+
+    # alpha = K_mm_inv @ m
+    alpha = (K_mm_inv @ m).ravel()  # (M * num_outputs), row-major
+
+    # S_diag = exp(2 * m_logstd)
     S_diag = np.exp(2.0 * m_logstd).ravel()  # (M * num_outputs), row-major
 
-    xmean = np.array(xscaler.mean_, dtype=np.float64)
-    xscale = np.array(xscaler.scale_, dtype=np.float64)
-    hp = np.array(hp_mu, dtype=np.float64)
-    output_bias = np.array(model_dict['output_bias_opt'], dtype=np.float64)
+    # Scalers
+    xmean = scalers["x_mean"].astype(np.float64)   # (D_input,)
+    xscale = scalers["x_scale"].astype(np.float64)  # (D_input,)
 
     return np.concatenate([
-        theta, alpha, Z_aug_flat, xmean, xscale, hp, output_bias,
-        K_mm_inv_flat, S_diag,
+        theta,                  # D_input + 1
+        alpha,                  # M * num_outputs
+        Z.ravel(),              # M * D_input
+        xmean,                  # D_input
+        xscale,                 # D_input
+        # hp_mu: empty (D_hidden=0)
+        output_bias,            # num_outputs
+        K_mm_inv.ravel(),       # M * M
+        S_diag,                 # M * num_outputs
     ])
 
 
@@ -174,9 +167,9 @@ def _compute_cornering_stiffness(
     return abs(F_yr) / (abs(alpha_r) + _EPSILON)
 
 
-class MCTSPiSvgpCppCsController:
-    """MCTS DPW controller with PI-SVGP dynamics + online C_alpha adaptation
-    + GP action prior + dual boundaries + heading check."""
+class MCTSPiSvgpCppCsCAlphaController:
+    """MCTS DPW controller with PI-SVGP dynamics (C_alpha as direct input)
+    + online C_alpha adaptation + GP action prior + dual boundaries + heading check."""
 
     # Column name -> function argument mapping for krasserm models
     _COL_TO_ARG = {
@@ -233,7 +226,7 @@ class MCTSPiSvgpCppCsController:
         # Load track (centerline CSV).
         if map_config.centerline_path is None:
             raise ValueError(
-                "MCTS PI-SVGP C++ CS controller requires centerline_path in map config."
+                "MCTS PI-SVGP C++ C_alpha controller requires centerline_path in map config."
             )
         self.track = Track(map_config.centerline_path)
 
@@ -270,37 +263,29 @@ class MCTSPiSvgpCppCsController:
                     "Using constant v_ref=%.1f", e, self.v_ref
                 )
 
-        # --- Load PI-SVGP dynamics model ---
+        # --- Load PI-SVGP dynamics model (no hidden params) ---
         project_root = Path(__file__).resolve().parents[3]
-        task_index = getattr(config, 'svgp_task_index', 0)
+        model_dir = str(project_root / config.pi_svgp_no_hip_model_dir)
 
-        model_path = str(project_root / config.pi_svgp_model_path)
+        log.info("Loading PI-SVGP (C_alpha input) from: %s", model_dir)
+        ckpt, scalers, model_config = _load_pi_svgp_no_hip(model_dir)
 
-        log.info("Loading PI-SVGP from: %s", model_path)
-        model_dict, xscaler = _load_model_and_scalers_npz(model_path)
-
-        M = int(model_dict['M'])
-        D_input = int(model_dict['dx_flat'])
-        D_hidden = int(model_dict['Hdim'])
-        num_outputs = int(model_dict['num_outputs'])
+        M = ckpt["M"]
+        D_input = ckpt["input_dim"]
+        D_hidden = 0  # No hidden parameters
+        num_outputs = ckpt["num_outputs"]
         self._svgp_M = M
         self._svgp_D_input = D_input
         self._svgp_D_hidden = D_hidden
         self._svgp_num_outputs = num_outputs
 
-        hp_mu = np.array(model_dict['h_mu_opt'][task_index], dtype=np.float64)
-
-        self._svgp_data = _pack_pi_svgp_data(
-            model_dict, xscaler, hp_mu, M, D_input, D_hidden, num_outputs,
+        self._svgp_data = _pack_pi_svgp_no_hip(
+            ckpt, scalers, M, D_input, num_outputs,
         )
 
-        # Build C_alpha -> latent h interpolators (linear per dimension).
-        self._build_calpha_interpolators(model_dict)
-
         log.info(
-            "PI-SVGP loaded: M=%d D_input=%d D_hidden=%d outputs=%d task=%d (mu~%.4f)",
-            M, D_input, D_hidden, num_outputs, task_index,
-            TASK_FRICTION_MAP.get(task_index, -1),
+            "PI-SVGP loaded: M=%d D_input=%d D_hidden=%d outputs=%d (C_alpha as direct input)",
+            M, D_input, D_hidden, num_outputs,
         )
 
         # --- Load GP action prior model ---
@@ -346,7 +331,7 @@ class MCTSPiSvgpCppCsController:
         self._local_heading = np.zeros(106)
 
         log.info(
-            "MCTS DPW PI-SVGP C++ CS ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
+            "MCTS DPW PI-SVGP C++ C_alpha ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
             "discount=%.2f rollout_horizon=%d  "
             "cs_w1=%.2f cs_w2=%.2f cs_w3=%.2f C_alpha_th=%.2f window=%d",
             self.n_simulations, self.K, self.alpha, self.beta,
@@ -354,33 +339,6 @@ class MCTSPiSvgpCppCsController:
             self._cs_w1, self._cs_w2, self._cs_w3,
             self._C_alpha_th, self._calpha_window_size,
         )
-
-    # -- C_alpha -> latent interpolation -----------------------------------
-
-    def _build_calpha_interpolators(self, model_dict) -> None:
-        """Fit per-dimension linear maps from C_alpha -> latent h."""
-        self._c_alpha_anchors = np.array([104.89, 86.42, 49.47])
-        h_anchors = np.array(model_dict['h_mu_opt'][:3])  # (3, Hdim)
-        Hdim = h_anchors.shape[1]
-
-        self._calpha_slopes = np.zeros(Hdim)
-        self._calpha_intercepts = np.zeros(Hdim)
-        for d in range(Hdim):
-            self._calpha_slopes[d], self._calpha_intercepts[d] = np.polyfit(
-                self._c_alpha_anchors, h_anchors[:, d], 1
-            )
-
-        self._c_alpha_min = float(self._c_alpha_anchors.min())
-        self._c_alpha_max = float(self._c_alpha_anchors.max())
-        log.info(
-            "C_alpha interpolators built: range [%.2f, %.2f] -> Hdim=%d",
-            self._c_alpha_min, self._c_alpha_max, Hdim,
-        )
-
-    def _interpolate_hp_mu(self, c_alpha: float) -> np.ndarray:
-        """Map cornering stiffness to PI-SVGP latent params."""
-        c_alpha_clamped = c_alpha
-        return self._calpha_slopes * c_alpha_clamped + self._calpha_intercepts
 
     # -- v_ref adaptation --------------------------------------------------
 
@@ -423,11 +381,7 @@ class MCTSPiSvgpCppCsController:
     # -- Forward-backward velocity solver ----------------------------------
 
     def _get_v_ref_window(self, state_np):
-        """Compute per-step reference velocity using forward-backward solver.
-
-        1. Per-point curvature limit:  v_limit[i] = sqrt(a_lat_budget / |kappa[i]|)
-        2. Backward pass:  propagate braking constraint from corners
-        """
+        """Compute per-step reference velocity using forward-backward solver."""
         v_cap = 20.0
         v_current = state_np[3]
         a_max = self._vehicle_params.a_max
@@ -607,16 +561,13 @@ class MCTSPiSvgpCppCsController:
         # 1. Estimate cornering stiffness + smooth
         c_alpha_mean = self._estimate_cornering_stiffness(state)
 
-        # 2. Interpolate smoothed C_alpha -> new hp_mu latent params
-        hp_mu_new = self._interpolate_hp_mu(c_alpha_mean)
-
-        # 3. Compute curvature + v_ref window (forward-backward solver)
+        # 2. Compute curvature + v_ref window (forward-backward solver)
         v_ref_window = self._get_v_ref_window(state_np)
 
-        # 4. Adapt v_ref for grip
+        # 3. Adapt v_ref for grip
         v_ref_window = self._adapt_v_ref_window(v_ref_window)
 
-        # 5. GP action prior inference
+        # 4. GP action prior inference
         action_mean, action_std = self._predict_action_prior(
             state.v, state.delta, state.omega, state.beta,
             self._max_kappa_lookahead, self._avg_kappa_lookahead, c_alpha_mean,
@@ -624,30 +575,30 @@ class MCTSPiSvgpCppCsController:
         self._last_action_mean = action_mean
         self._last_action_std = action_std
 
-        # 6. Cache state
+        # 5. Cache state
         self._prev_state = state
 
-        # 7. Tree reuse or creation
+        # 6. Tree reuse or creation
         if self._tree is not None and self._last_action is not None:
             try:
                 self._tree.forward(self._last_action, state_np)
                 self._tree.set_state(state_np)
-                self._tree.set_hp_mu(hp_mu_new)
+                self._tree.set_c_alpha(c_alpha_mean)
                 self._tree.set_v_ref_window(v_ref_window)
             except RuntimeError:
                 self._tree = None
 
         if self._tree is None:
             self._tree = self._make_tree(state_np, v_ref_window)
-            self._tree.set_hp_mu(hp_mu_new)
+            self._tree.set_c_alpha(c_alpha_mean)
             self._tree.set_v_ref_window(v_ref_window)
 
-        # 8. Push action prior, dynamic horizon, and local centerline to C++
+        # 7. Push action prior, dynamic horizon, and local centerline to C++
         self._tree.set_action_prior(action_mean, action_std)
         self._tree.set_rollout_horizon(self._dynamic_horizon)
         self._tree.set_centerline(self._local_cx, self._local_cy, self._local_heading)
 
-        # 9. Run MCTS
+        # 8. Run MCTS
         if self.mcts_time_budget > 0:
             n_sims = self._tree.learn_timed(self.mcts_time_budget)
         else:
@@ -655,14 +606,14 @@ class MCTSPiSvgpCppCsController:
             n_sims = self.n_simulations
         log.debug("MCTS ran %d simulations", n_sims)
 
-        # 10. Extract best trajectory from tree (for visualization)
+        # 9. Extract best trajectory from tree (for visualization)
         try:
             self._last_best_trajectory = self._tree.get_best_trajectory(
                 self._dynamic_horizon)
         except Exception:
             self._last_best_trajectory = []
 
-        # 11. Select best action
+        # 10. Select best action
         action = self._tree.best_action()
         self._last_action = action
 

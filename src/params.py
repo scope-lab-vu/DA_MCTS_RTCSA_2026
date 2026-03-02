@@ -90,6 +90,8 @@ class ControllerConfig:
     svgp_task_index: int = 0
     # MCTS DPW PI-SVGP fields
     pi_svgp_model_path: Optional[str] = None
+    # PI-SVGP with C_alpha as direct input (no hidden params) model directory
+    pi_svgp_no_hip_model_dir: Optional[str] = None
     # MCTS action prior SVGP model path
     action_prior_model_path: Optional[str] = None
     action_prior_model_type: str = "svgp"  # "svgp" or "sgpr_krasserm"

@@ -24,10 +24,11 @@ from src.controller.mcts_pi_svgp_cpp_cs import MCTSPiSvgpCppCsController
 from src.controller.mcts_pi_svgp_cpp_cs_extract_actions import MCTSPiSvgpCppCsExtractController
 from src.controller.mppi_cornering_stiffness import MPPICorneringStiffnessController
 from src.controller.mcts_known_dyn_action_prior_cpp import MCTSKnownDynActionPriorCppController
+from src.controller.mcts_pi_svgp_cpp_cs_c_alpha_input import MCTSPiSvgpCppCsCAlphaController
 
 # Controllers that need extra kwargs in their constructor.
-_NEEDS_MAP_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp"}
-_NEEDS_SIMULATION_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp"}
+_NEEDS_MAP_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input"}
+_NEEDS_SIMULATION_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input"}
 
 
 class Controller(ABC):
@@ -60,6 +61,7 @@ CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {
     "mcts_pi_svgp_cpp_cs": MCTSPiSvgpCppCsController,
     "mcts_pi_svgp_cpp_cs_extract": MCTSPiSvgpCppCsExtractController,
     "mcts_known_dyn_action_prior_cpp": MCTSKnownDynActionPriorCppController,
+    "mcts_pi_svgp_cpp_cs_c_alpha_input": MCTSPiSvgpCppCsCAlphaController,
 }
 
 

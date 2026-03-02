@@ -248,6 +248,8 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> cx_;
     std::vector<double> cy_;
     std::vector<double> cheading_;
+    // C_alpha (cornering stiffness) — passed directly as 7th GP input
+    double c_alpha_value_ = 104.89;  // nominal high-friction value
     std::mt19937 rng_;
 
     static constexpr double TWO_PI = 2.0 * M_PI;
@@ -305,6 +307,8 @@ class F1TenthSimulator : public Simulator {
         cy_ = cy;
         cheading_ = heading;
     }
+
+    void set_c_alpha(double c_alpha) { c_alpha_value_ = c_alpha; }
 
     // Returns index of nearest centerline point
     int nearest_index(double x, double y) const {
@@ -375,7 +379,7 @@ class F1TenthSimulator : public Simulator {
             double THROTTLE_CMD = accl * base_timestep_;
             double STEERING_CMD = sv * base_timestep_;
 
-            double gp_input[6] = {VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD};
+            double gp_input[7] = {VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD, c_alpha_value_};
 
             // 2. GP predict -> 9 constrained Pacejka parameters (sampled from posterior)
             double pacejka[9];
@@ -553,6 +557,7 @@ class F1TenthSimulator : public Simulator {
         copy->cx_ = cx_;
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;
+        copy->c_alpha_value_ = c_alpha_value_;
         copy->rng_ = rng_;
         return copy;
     }

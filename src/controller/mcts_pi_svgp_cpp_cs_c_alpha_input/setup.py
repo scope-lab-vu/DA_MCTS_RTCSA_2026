@@ -4,7 +4,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 
 ext_modules = [
     Pybind11Extension(
-        "mcts_f1tenth_pi_svgp_cpp",
+        "mcts_f1tenth_pi_svgp_cpp_c_alpha",
         ["src/bindings.cpp"],
         include_dirs=["include"],
         depends=glob.glob("include/*.hpp"),
@@ -14,9 +14,9 @@ ext_modules = [
 ]
 
 setup(
-    name="mcts_f1tenth_pi_svgp_cpp",
+    name="mcts_f1tenth_pi_svgp_cpp_c_alpha",
     version="0.1.0",
-    description="C++ MCTS DPW + PI-SVGP (Pacejka) dynamics for F1TENTH racing",
+    description="C++ MCTS DPW + PI-SVGP (Pacejka, C_alpha input) dynamics for F1TENTH racing",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     python_requires=">=3.8",

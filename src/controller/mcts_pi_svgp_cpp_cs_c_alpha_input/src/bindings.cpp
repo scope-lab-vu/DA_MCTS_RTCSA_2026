@@ -27,12 +27,12 @@ inline std::vector<float> to_float_vec(py::array_t<float> arr) {
 }
 
 // Wrapper class that owns both the simulator and the DPW tree.
-class F1TenthDPWPiSvgp {
+class F1TenthDPWPiSvgpCAlpha {
     std::unique_ptr<F1TenthSimulator> sim_;
     std::unique_ptr<DPWNative> model_;
 
   public:
-    F1TenthDPWPiSvgp(py::array_t<double> initial_obs,
+    F1TenthDPWPiSvgpCAlpha(py::array_t<double> initial_obs,
                double alpha, double beta, double K,
                // Vehicle params
                double mu, double C_Sf, double C_Sr,
@@ -143,6 +143,8 @@ class F1TenthDPWPiSvgp {
         sim_->set_centerline(to_vec(cx), to_vec(cy), to_vec(heading));
     }
 
+    void set_c_alpha(double c_alpha) { sim_->set_c_alpha(c_alpha); }
+
     void learn(int Nsim) { model_->learn(Nsim); }
 
     int learn_timed(double budget_s) { return model_->learn_timed(budget_s); }
@@ -190,10 +192,10 @@ class F1TenthDPWPiSvgp {
     }
 };
 
-PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
-    m.doc() = "C++ MCTS DPW + PI-SVGP (Pacejka) dynamics for F1TENTH racing";
+PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp_c_alpha, m) {
+    m.doc() = "C++ MCTS DPW + PI-SVGP (Pacejka, C_alpha input) dynamics for F1TENTH racing";
 
-    py::class_<F1TenthDPWPiSvgp>(m, "F1TenthDPWPiSvgp")
+    py::class_<F1TenthDPWPiSvgpCAlpha>(m, "F1TenthDPWPiSvgpCAlpha")
         .def(py::init<py::array_t<double>,
                        double, double, double,
                        // Vehicle params (18)
@@ -245,23 +247,25 @@ PYBIND11_MODULE(mcts_f1tenth_pi_svgp_cpp, m) {
              py::arg("svgp_num_outputs"),
              py::arg("base_timestep"),
              py::arg("seed") = 0)
-        .def("set_v_ref_window", &F1TenthDPWPiSvgp::set_v_ref_window,
+        .def("set_v_ref_window", &F1TenthDPWPiSvgpCAlpha::set_v_ref_window,
              py::arg("window"))
-        .def("set_hp_mu", &F1TenthDPWPiSvgp::set_hp_mu,
+        .def("set_hp_mu", &F1TenthDPWPiSvgpCAlpha::set_hp_mu,
              py::arg("hp_mu"))
-        .def("set_action_prior", &F1TenthDPWPiSvgp::set_action_prior,
+        .def("set_action_prior", &F1TenthDPWPiSvgpCAlpha::set_action_prior,
              py::arg("mean"), py::arg("std"))
-        .def("set_rollout_horizon", &F1TenthDPWPiSvgp::set_rollout_horizon,
+        .def("set_rollout_horizon", &F1TenthDPWPiSvgpCAlpha::set_rollout_horizon,
              py::arg("horizon"))
-        .def("set_centerline", &F1TenthDPWPiSvgp::set_centerline,
+        .def("set_centerline", &F1TenthDPWPiSvgpCAlpha::set_centerline,
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
-        .def("learn", &F1TenthDPWPiSvgp::learn, py::arg("Nsim"))
-        .def("learn_timed", &F1TenthDPWPiSvgp::learn_timed, py::arg("budget_s"))
-        .def("best_action", &F1TenthDPWPiSvgp::best_action)
-        .def("forward", &F1TenthDPWPiSvgp::forward,
+        .def("set_c_alpha", &F1TenthDPWPiSvgpCAlpha::set_c_alpha,
+             py::arg("c_alpha"))
+        .def("learn", &F1TenthDPWPiSvgpCAlpha::learn, py::arg("Nsim"))
+        .def("learn_timed", &F1TenthDPWPiSvgpCAlpha::learn_timed, py::arg("budget_s"))
+        .def("best_action", &F1TenthDPWPiSvgpCAlpha::best_action)
+        .def("forward", &F1TenthDPWPiSvgpCAlpha::forward,
              py::arg("action"), py::arg("new_state"))
-        .def("set_state", &F1TenthDPWPiSvgp::set_state, py::arg("state"))
-        .def("get_root_actions", &F1TenthDPWPiSvgp::get_root_actions)
-        .def("get_best_trajectory", &F1TenthDPWPiSvgp::get_best_trajectory,
+        .def("set_state", &F1TenthDPWPiSvgpCAlpha::set_state, py::arg("state"))
+        .def("get_root_actions", &F1TenthDPWPiSvgpCAlpha::get_root_actions)
+        .def("get_best_trajectory", &F1TenthDPWPiSvgpCAlpha::get_best_trajectory,
              py::arg("max_depth") = 50);
 }

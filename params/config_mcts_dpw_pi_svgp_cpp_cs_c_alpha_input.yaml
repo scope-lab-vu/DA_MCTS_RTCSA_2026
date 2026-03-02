@@ -1,0 +1,59 @@
+# Algorithm Configuration: MCTS DPW C++ controller + PI-SVGP (Pacejka) dynamics
+# with C_alpha as direct 7th GP input (no hidden parameter MDP).
+#
+# Key difference from config_mcts_dpw_pi_svgp_cpp_cs.yaml:
+#   - PI-SVGP model trained with C_alpha as direct input feature (D_input=7, D_hidden=0)
+#   - No latent interpolation (C_alpha -> h_mu mapping)
+#   - Model loaded from PyTorch format (model.pt + scalers.npz + config.json)
+
+controller:
+  type: mcts_pi_svgp_cpp_cs_c_alpha_input
+  # --- MCTS DPW hyperparameters ---
+  n_simulations: 1000
+  exploration_constant: 1.    # K (UCB exploration)
+  alpha_dpw: 0.5               # action progressive widening exponent
+  beta_dpw: 0.5                # outcome progressive widening exponent
+  discount: 0.9              # rollout discount factor
+  rollout_horizon: 15
+  # --- Reward/cost tuning ---
+  v_ref: 10000.0
+  speed_weight: 1
+  alpha_threshold: 1.5
+  use_occupancy_map: true
+  lane_width: 1.1
+  # --- PI-SVGP model directory (relative to project root) ---
+  pi_svgp_no_hip_model_dir: ../deep_pacejka_model_f1tenth/deep_dynamics/output/pi_svgp_no_hip/run4_low_kl
+  # --- Cornering stiffness adaptive velocity ---
+  # v_ref_t -= cs_w1 * log(cs_w2 * delta_C_alpha + cs_w3)
+  # delta_C_alpha = max(0, C_alpha_th - cornering_stiffness)
+  cs_w1: 1.0
+  cs_w2: 0.25
+  cs_w3: 0.0
+  C_alpha_th: 104.89
+  calpha_window_size: 10
+  # --- Dual boundary / heading check ---
+  real_track_width: 1.1
+  normalize_reward: false
+  # --- Dynamic horizon ---
+  rollout_horizon_straight: 15
+  rollout_horizon_curve: 15
+  kappa_threshold: 0.05
+  # --- Curvature v_ref solver ---
+  a_lat_budget: 30.0
+  curvature_lookahead: 30
+  mcts_time_budget: 0
+  # --- Action prior ---
+  action_prior_model_type: svgp
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+
+dynamics:
+  type: f1tenth_dynamics   # Not used by the controller (PI-SVGP is internal), but needed by the factory
+
+safety:
+  type: noop
+
+simulation:
+  vehicle_interface: gym
+  dt_s: 0.04         # Timestep: 25 Hz (-> 2 PI-SVGP substeps of 0.02s each)
+  log_every_n_steps: 1
+  seed: 42
