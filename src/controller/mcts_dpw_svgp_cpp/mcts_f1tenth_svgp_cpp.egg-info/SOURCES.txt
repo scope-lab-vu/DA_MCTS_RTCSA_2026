@@ -1,6 +1,10 @@
 README.md
 pyproject.toml
 setup.py
+include/f1tenth_simulator.hpp
+include/mcts_native.hpp
+include/nodes.hpp
+include/simulator.hpp
 mcts_f1tenth_svgp_cpp.egg-info/PKG-INFO
 mcts_f1tenth_svgp_cpp.egg-info/SOURCES.txt
 mcts_f1tenth_svgp_cpp.egg-info/dependency_links.txt
