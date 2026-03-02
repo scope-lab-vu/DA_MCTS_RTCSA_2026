@@ -27,4 +27,7 @@ class Simulator {
     // Optional: rollout parameters (used by MCTS evaluate)
     virtual int rollout_horizon() const { return 100; }
     virtual double discount() const { return 1.0; }
+
+    // Dynamically change rollout horizon (e.g. based on curvature)
+    virtual void set_rollout_horizon(int /*h*/) {}
 };

@@ -10,7 +10,7 @@ controller:
   type: mcts_pi_svgp_cpp_cs
   # --- MCTS DPW hyperparameters ---
   n_simulations: 1000
-  exploration_constant: 0.6    # K (UCB exploration)
+  exploration_constant: 1.    # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
   discount: 0.9              # rollout discount factor
@@ -19,11 +19,12 @@ controller:
   v_ref: 10000.0
   # speed_weight: 20.0
   speed_weight: 1
-  alpha_threshold: 1.2
+  alpha_threshold: 1. # MAYBE: 3.0 for better cornering?
   use_occupancy_map: true
   lane_width: 1.1
   # --- PI-SVGP model path (relative to project root) ---
   # pi_svgp_model_path: models/pi_svgp_mcts_data/mcts_svgp_best_params.npz
+  # pi_svgp_model_path: models/pi_svgp/pi_svgp_best_params.npz
   pi_svgp_model_path: models/pi_svgp_mcts_fixed/mcts_svgp_fixed.npz
   svgp_task_index: 0           # 0=mu1.0489, 1=mu0.8642, 2=mu0.4947
   # --- Cornering stiffness adaptive velocity ---
@@ -34,6 +35,20 @@ controller:
   cs_w3: 0.0
   C_alpha_th: 104.89
   calpha_window_size: 10
+  # --- Dual boundary / heading check ---
+  real_track_width: 1.1
+  normalize_reward: false
+  # --- Dynamic horizon ---
+  rollout_horizon_straight: 15
+  rollout_horizon_curve: 15
+  kappa_threshold: 0.05
+  # --- Curvature v_ref solver ---
+  a_lat_budget: 30.0
+  curvature_lookahead: 30
+  mcts_time_budget: 0
+  # --- Action prior ---
+  action_prior_model_type: svgp
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
 
 dynamics:
   type: f1tenth_dynamics   # Not used by the controller (PI-SVGP is internal), but needed by the factory

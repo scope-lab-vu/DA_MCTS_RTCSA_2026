@@ -2,6 +2,7 @@
 
 #include "nodes.hpp"
 #include "simulator.hpp"
+#include <chrono>
 #include <cmath>
 #include <limits>
 #include <random>
@@ -134,6 +135,89 @@ class MCTSNative {
             grow_tree();
         }
         sim_->set_state(root_->state);
+    }
+
+    int learn_timed(double budget_s) {
+        auto start = std::chrono::steady_clock::now();
+        auto deadline = start + std::chrono::duration<double>(budget_s);
+        int count = 0;
+        while (std::chrono::steady_clock::now() < deadline) {
+            grow_tree();
+            ++count;
+        }
+        sim_->set_state(root_->state);
+        return count;
+    }
+
+    // Return root children: list of {action, visits, avg_reward}
+    struct ActionInfo {
+        std::vector<double> action;
+        int visits;
+        double avg_reward;
+    };
+
+    std::vector<ActionInfo> get_root_actions() const {
+        std::vector<ActionInfo> result;
+        for (auto& [action, rnd] : root_->children) {
+            double avg = (rnd->visits > 0)
+                ? rnd->cumulative_reward / rnd->visits
+                : 0.0;
+            result.push_back({action, rnd->visits, avg});
+        }
+        return result;
+    }
+
+    // Walk the tree following most-visited actions/outcomes to extract
+    // the best trajectory MCTS has found.
+    // Returns list of {state, action, reward, visits} at each depth.
+    struct TrajectoryStep {
+        std::vector<double> state;
+        std::vector<double> action;
+        double avg_reward;
+        int visits;
+    };
+
+    std::vector<TrajectoryStep> get_best_trajectory(int max_depth = 50) const {
+        std::vector<TrajectoryStep> traj;
+        const DecisionNode* dn = root_.get();
+
+        for (int d = 0; d < max_depth; ++d) {
+            if (dn->is_final || dn->children.empty()) break;
+
+            // Find most-visited action (RandomNode)
+            int best_visits = -1;
+            const RandomNode* best_rnd = nullptr;
+            std::vector<double> best_action;
+            for (auto& [action, rnd] : dn->children) {
+                if (rnd->visits > best_visits) {
+                    best_visits = rnd->visits;
+                    best_rnd = rnd.get();
+                    best_action = action;
+                }
+            }
+            if (!best_rnd || best_rnd->children.empty()) break;
+
+            double avg_r = (best_rnd->visits > 0)
+                ? best_rnd->cumulative_reward / best_rnd->visits : 0.0;
+            traj.push_back({dn->state, best_action, avg_r, best_visits});
+
+            // Follow most-visited outcome (DecisionNode child)
+            int best_out_visits = -1;
+            const DecisionNode* best_outcome = nullptr;
+            for (auto& [state, child] : best_rnd->children) {
+                if (child->visits > best_out_visits) {
+                    best_out_visits = child->visits;
+                    best_outcome = child.get();
+                }
+            }
+            if (!best_outcome) break;
+            dn = best_outcome;
+        }
+        // Add final state
+        if (dn && !traj.empty()) {
+            traj.push_back({dn->state, {}, 0.0, dn->visits});
+        }
+        return traj;
     }
 
     void forward(const std::vector<double>& action,

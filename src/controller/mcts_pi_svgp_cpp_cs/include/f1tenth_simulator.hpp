@@ -55,6 +55,7 @@ struct CostParams {
     int    rollout_horizon  = 15;
     double discount_factor  = 0.99;
     double dt               = 0.04;
+    bool   normalize_reward = false;
 };
 
 // ---------------------------------------------------------------------------
@@ -74,9 +75,12 @@ struct PiSVGPParams {
     std::vector<double> xscale;       // (D_input): input scaler std
     std::vector<double> hp_mu;        // (D_hidden): task-specific latent params
     std::vector<double> output_bias;  // (num_outputs): learnable output bias
+    std::vector<double> K_mm_inv;     // (M * M): inverse kernel matrix, row-major
+    std::vector<double> S_diag;       // (M * num_outputs): variational posterior variance
+                                      //   S_diag[j * num_outputs + p] = exp(2 * m_logstd[j, p])
 
     // Construct from flat array packed in Python.
-    // Layout: theta | alpha | Z_aug | xmean | xscale | hp_mu | output_bias
+    // Layout: theta | alpha | Z_aug | xmean | xscale | hp_mu | output_bias | K_mm_inv | S_diag
     static PiSVGPParams from_flat(const double* data, int M_, int D_input_,
                                    int D_hidden_, int num_outputs_) {
         PiSVGPParams p;
@@ -94,6 +98,8 @@ struct PiSVGPParams {
         p.xscale.assign(data + off, data + off + D_input_);           off += D_input_;
         p.hp_mu.assign(data + off, data + off + D_hidden_);           off += D_hidden_;
         p.output_bias.assign(data + off, data + off + num_outputs_);   off += num_outputs_;
+        p.K_mm_inv.assign(data + off, data + off + M_ * M_);          off += M_ * M_;
+        p.S_diag.assign(data + off, data + off + M_ * num_outputs_);  off += M_ * num_outputs_;
         return p;
     }
 };
@@ -113,13 +119,19 @@ inline bool is_positive_pacejka(int idx) {
 }
 
 // ---------------------------------------------------------------------------
-// PI-SVGP multi-output prediction:
-//   normalize -> augment -> RBF ARD kernel -> 9 Pacejka params
+// PI-SVGP multi-output prediction with posterior sampling:
+//   normalize -> augment -> RBF ARD kernel -> mean_p, var_p -> sample ~ N(mean_p, var_p)
+//
+//   mean_p  = k*^T @ alpha_p                  (alpha = K_mm_inv @ m)
+//   var_p   = sigma^2 - k*^T @ K_mm_inv @ k*
+//             + k*^T @ K_mm_inv @ S_p @ K_mm_inv @ k*
+//   sample  ~ N(mean_p, var_p)
 // ---------------------------------------------------------------------------
 inline void pi_svgp_predict(
     const double* gp_input,   // (D_input=6): [VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD]
     const PiSVGPParams& gp,
-    double* pacejka_out       // (num_outputs=9): output Pacejka parameters
+    double* pacejka_out,      // (num_outputs=9): sampled Pacejka parameters
+    std::mt19937& rng         // RNG for posterior sampling
 ) {
     // Stack-allocate augmented input (max D_aug = 8)
     double x_aug[8];
@@ -133,15 +145,16 @@ inline void pi_svgp_predict(
         x_aug[gp.D_input + d] = gp.hp_mu[d];
     }
 
-    // 3. Initialize raw GP output to zero
+    // 3. Initialize raw GP mean to zero
     for (int p = 0; p < gp.num_outputs; ++p) {
         pacejka_out[p] = 0.0;
     }
 
-    // 4. RBF ARD kernel evaluation + matrix-vector product with alpha (fused)
-    //    K(x, Z_j) * alpha[j, :] accumulated across all M inducing points
+    // 4. Compute k_star vector and accumulate mean (fused)
     const double sigma = gp.theta[gp.D_aug];
     const double sigma_sq = sigma * sigma;
+
+    double k_star[50];  // stack-allocate (max M = 50)
 
     for (int j = 0; j < gp.M; ++j) {
         double dist = 0.0;
@@ -150,16 +163,52 @@ inline void pi_svgp_predict(
             double diff = (x_aug[d] - gp.Z_aug[z_base + d]) / gp.theta[d];
             dist += diff * diff;
         }
-        double k_j = sigma_sq * std::exp(-0.5 * dist);
+        k_star[j] = sigma_sq * std::exp(-0.5 * dist);
 
-        // Accumulate k_j * alpha[j, p] for each output p
+        // Accumulate mean: k_star[j] * alpha[j, p]
         const int a_base = j * gp.num_outputs;
         for (int p = 0; p < gp.num_outputs; ++p) {
-            pacejka_out[p] += k_j * gp.alpha[a_base + p];
+            pacejka_out[p] += k_star[j] * gp.alpha[a_base + p];
         }
     }
 
-    // 5. Add output bias and apply Pacejka constraints (softplus on B, C, D)
+    // 5. Compute v = K_mm_inv @ k_star  (M-vector)
+    double v[50];
+    for (int i = 0; i < gp.M; ++i) {
+        double sum = 0.0;
+        const int row_base = i * gp.M;
+        for (int j = 0; j < gp.M; ++j) {
+            sum += gp.K_mm_inv[row_base + j] * k_star[j];
+        }
+        v[i] = sum;
+    }
+
+    // 6. Prior variance - explained variance (shared across outputs)
+    //    var_base = sigma^2 - k*^T @ v
+    double k_dot_v = 0.0;
+    for (int j = 0; j < gp.M; ++j) {
+        k_dot_v += k_star[j] * v[j];
+    }
+    double var_base = sigma_sq - k_dot_v;
+
+    // 7. Per-output: compute var_p, then sample from N(mean_p, var_p)
+    //    var_S_p = sum_j v[j]^2 * S_diag[j, p]   (diagonal posterior correction)
+    //    var_p   = var_base + var_S_p
+    for (int p = 0; p < gp.num_outputs; ++p) {
+        double var_S = 0.0;
+        for (int j = 0; j < gp.M; ++j) {
+            var_S += v[j] * v[j] * gp.S_diag[j * gp.num_outputs + p];
+        }
+        double var_p = var_base + var_S;
+        if (var_p < 1e-12) var_p = 1e-12;  // clamp for numerics
+
+        double mean_p = pacejka_out[p];
+        double std_p  = std::sqrt(var_p);
+        std::normal_distribution<double> dist(mean_p, std_p);
+        pacejka_out[p] = dist(rng);
+    }
+
+    // 8. Add output bias and apply Pacejka constraints (softplus on B, C, D)
     for (int p = 0; p < gp.num_outputs; ++p) {
         pacejka_out[p] += gp.output_bias[p];
         if (is_positive_pacejka(p)) {
@@ -172,11 +221,13 @@ inline void pi_svgp_predict(
 // ---------------------------------------------------------------------------
 // F1TENTH simulator for MCTS rollouts.
 // Uses PI-SVGP: multi-output GP -> Pacejka tire physics.
+// Includes dual occupancy maps, heading-backward check, GP action prior.
 // ---------------------------------------------------------------------------
 class F1TenthSimulator : public Simulator {
   private:
     VehicleParamsCpp vp_;
-    OccupancyMapData occ_map_;
+    OccupancyMapData occ_map_;       // imaginary boundary (soft penalty, no done)
+    OccupancyMapData occ_map_real_;  // real track boundary (hard penalty, done=true)
     CostParams cost_;
 
     // PI-SVGP model (shared across clones — hp_mu is mutable for latent updates)
@@ -188,6 +239,15 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> state_;
     int step_count_ = 0;
     std::vector<double> v_ref_window_;
+    double v_ref_min_ = 1e9;  // min of v_ref_window, precomputed
+    // Gaussian action prior from SVGP: [accel_mean, sv_mean], [accel_std, sv_std]
+    std::vector<double> action_mean_;  // size 2
+    std::vector<double> action_std_;   // size 2
+    bool use_action_prior_ = false;
+    // Centerline for heading lookup: cx_[i], cy_[i], cheading_[i]
+    std::vector<double> cx_;
+    std::vector<double> cy_;
+    std::vector<double> cheading_;
     std::mt19937 rng_;
 
     static constexpr double TWO_PI = 2.0 * M_PI;
@@ -195,11 +255,12 @@ class F1TenthSimulator : public Simulator {
   public:
     F1TenthSimulator(const VehicleParamsCpp& vp,
                      const OccupancyMapData& occ_map,
+                     const OccupancyMapData& occ_map_real,
                      const CostParams& cost,
                      std::shared_ptr<PiSVGPParams> pi_svgp,
                      double base_timestep,
                      unsigned seed = std::random_device{}())
-        : vp_(vp), occ_map_(occ_map), cost_(cost),
+        : vp_(vp), occ_map_(occ_map), occ_map_real_(occ_map_real), cost_(cost),
           pi_svgp_(std::move(pi_svgp)),
           base_timestep_(base_timestep),
           n_substeps_(std::max(1, static_cast<int>(std::round(cost.dt / base_timestep)))),
@@ -219,10 +280,51 @@ class F1TenthSimulator : public Simulator {
 
     void set_v_ref_window(const std::vector<double>& window) {
         v_ref_window_ = window;
+        v_ref_min_ = window.empty()
+            ? 1e9
+            : *std::min_element(window.begin(), window.end());
     }
 
     void set_hp_mu(const std::vector<double>& new_hp_mu) {
         pi_svgp_->hp_mu = new_hp_mu;
+    }
+
+    void set_action_prior(const std::vector<double>& mean,
+                          const std::vector<double>& std) {
+        action_mean_ = mean;
+        action_std_ = std;
+        use_action_prior_ = (mean.size() == 2 && std.size() == 2);
+    }
+
+    void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
+
+    void set_centerline(const std::vector<double>& cx,
+                        const std::vector<double>& cy,
+                        const std::vector<double>& heading) {
+        cx_ = cx;
+        cy_ = cy;
+        cheading_ = heading;
+    }
+
+    // Returns index of nearest centerline point
+    int nearest_index(double x, double y) const {
+        double best_d2 = 1e18;
+        int best_idx = 0;
+        int n = static_cast<int>(cx_.size());
+        for (int i = 0; i < n; i++) {
+            double dx = x - cx_[i];
+            double dy = y - cy_[i];
+            double d2 = dx * dx + dy * dy;
+            if (d2 < best_d2) {
+                best_d2 = d2;
+                best_idx = i;
+            }
+        }
+        return best_idx;
+    }
+
+    double nearest_heading(double x, double y) const {
+        return cheading_[nearest_index(x, y)];
     }
 
     StepResult step(const std::vector<double>& action) override {
@@ -275,9 +377,9 @@ class F1TenthSimulator : public Simulator {
 
             double gp_input[6] = {VX, VY, YAW_RATE, STEERING_FB, THROTTLE_CMD, STEERING_CMD};
 
-            // 2. GP predict -> 9 constrained Pacejka parameters
+            // 2. GP predict -> 9 constrained Pacejka parameters (sampled from posterior)
             double pacejka[9];
-            pi_svgp_predict(gp_input, *pi_svgp_, pacejka);
+            pi_svgp_predict(gp_input, *pi_svgp_, pacejka, rng_);
 
             // Unpack Pacejka parameters
             double Bf  = pacejka[0];
@@ -318,11 +420,11 @@ class F1TenthSimulator : public Simulator {
             double beta_pred  = std::atan2(next_VY, next_VX + 1e-8);
 
             // Kinematic updates
-            double next_x     = x     + sub_dt * v * std::cos(beta_pred + psi);
-            double next_y     = y     + sub_dt * v * std::sin(beta_pred + psi);
+            double next_x     = x     + sub_dt * v * std::cos(beta + psi);
+            double next_y     = y     + sub_dt * v * std::sin(beta + psi);
             double next_delta = delta + sub_dt * sv;
             double next_v     = v     + sub_dt * accl;
-            double next_psi   = psi   + sub_dt * omega_pred;
+            double next_psi   = psi   + sub_dt * omega;
 
             state_ = {next_x, next_y, next_delta, next_v, next_psi, omega_pred, beta_pred};
         }
@@ -334,19 +436,20 @@ class F1TenthSimulator : public Simulator {
         int t = step_count_;
         step_count_++;
 
-        // --- Cost computation (same as other MCTS variants) ---
+        // --- Cost computation ---
 
         double x_n     = state_[0];
         double y_n     = state_[1];
         double v_n     = state_[3];
+        double psi_n   = state_[4];
         double beta_n  = state_[6];
 
-        // Track cost: 0.9^t * off_track * 10000
-        float off_track = occ_map_.query(x_n, y_n);
-        bool done = (off_track >= 0.5f);
-        double track_cost = static_cast<double>(off_track) * 10000.0;
+        // Dual occupancy map queries
+        float off_imag = occ_map_.query(x_n, y_n);       // imaginary boundary
+        float off_real = occ_map_real_.query(x_n, y_n);   // real wall
+        bool done_off_track = (off_real >= 0.5f);
 
-        // Speed cost: (v - v_ref_t)^2, with v_ref clamped to [3.0, 8.0]
+        // Speed cost: v_ref from window
         double v_ref_t;
         if (!v_ref_window_.empty()) {
             int idx = std::min(t, static_cast<int>(v_ref_window_.size()) - 1);
@@ -354,28 +457,83 @@ class F1TenthSimulator : public Simulator {
         } else {
             v_ref_t = cost_.v_ref;
         }
-        v_ref_t = std::max(3.5, std::min(8.0, v_ref_t));
-        // double speed_cost = (v_n - v_ref_t) * (v_n - v_ref_t);
-        double speed_cost = -(v_n);
 
-        double speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
-        double speed_cap_cost_min = 10000.0 * (std::abs(v_n) < 1.0 ? 1.0 : 0.0);
-
-        // Slip cost: alpha^2 + 10000 * I(|alpha| > threshold)
+        // Slip angle
         double v_x = v_n * std::cos(beta_n);
         double v_y = v_n * std::sin(beta_n);
         double alpha_slip = -std::atan2(v_y, std::abs(v_x) + 1e-8);
-        double slip_cost = alpha_slip * alpha_slip
-                         + 10000.0 * (std::abs(alpha_slip) > cost_.alpha_threshold
-                                      ? 1.0 : 0.0);
+        bool done_slip = (std::abs(alpha_slip) > cost_.alpha_threshold);
 
-        // Reward = negated cost (MCTS maximizes)
-        double reward = -(track_cost + cost_.speed_weight * speed_cost + slip_cost + speed_cap_cost_max + speed_cap_cost_min);
+        double track_cost, speed_cost, slip_cost, speed_cap_cost_max, speed_cap_cost_min;
+
+        if (cost_.normalize_reward) {
+            // All components normalized to ~[0, 1]
+            double v_max_sq = vp_.v_max * vp_.v_max;
+            // double imag_cost = static_cast<double>(off_imag);                     // {0, 1}
+            double real_cost = static_cast<double>(off_real);                     // {0, 1}
+            track_cost = real_cost;
+            speed_cost = -(cost_.speed_weight * v_n * v_n / v_max_sq);            // [-sw, 0]
+            slip_cost = (alpha_slip * alpha_slip)
+                        / (cost_.alpha_threshold * cost_.alpha_threshold)
+                      + (done_slip ? 1.0 : 0.0);                                 // [0, ~2]
+            speed_cap_cost_max = (std::abs(v_n) > 12.0 ? 1.0 : 0.0);              // {0, 1}
+            speed_cap_cost_min = (v_n < 1.5 ? 1.0 : 0.0);                        // {0, 1}
+        } else {
+            // double imag_cost = static_cast<double>(off_imag) * 10000.0;    // soft penalty
+            double real_cost = static_cast<double>(off_real) * 1000000.0;  // hard penalty
+            track_cost = real_cost;
+            speed_cost = -(cost_.speed_weight * v_n );
+            slip_cost = alpha_slip * alpha_slip
+                      + 10000.0 * (done_slip ? 1.0 : 0.0);
+            speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
+            speed_cap_cost_min = 10000.0 * (v_n < 1.5 ? 1.0 : 0.0);
+        }
+
+        // Facing-backward check: if car heading differs from track by > 90°, terminate.
+        bool done_backward = false;
+        if (!cx_.empty()) {
+            double ref_heading = nearest_heading(x_n, y_n);
+            double hdiff = std::abs(psi_n - ref_heading);
+            if (hdiff > M_PI) hdiff = TWO_PI - hdiff;
+            if (hdiff > M_PI / 2.0) {
+                done_backward = true;
+                track_cost += cost_.normalize_reward ? 1.0 : 1000000.0;
+            }
+        }
+
+        bool done = done_off_track || done_backward;
+        double reward = -(track_cost + speed_cost + slip_cost + speed_cap_cost_max);
 
         return {state_, reward, done};
     }
 
     std::vector<double> sample_action() override {
+        double v = state_[3];
+        // At low speed: uniform positive accel, GP prior for steering with 50% clamp
+        if (v < 2.0) {
+            std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
+            double sv_limit = std::max(0.5, (v / 2.0)) * vp_.sv_max;
+            double sv;
+            if (use_action_prior_) {
+                std::normal_distribution<double> steer_dist(
+                    action_mean_[1], action_std_[1]);
+                sv = std::max(-sv_limit, std::min(sv_limit, steer_dist(rng_)));
+            } else {
+                std::uniform_real_distribution<double> steer_dist(
+                    -sv_limit, sv_limit);
+                sv = steer_dist(rng_);
+            }
+            return {accel_dist(rng_), sv};
+        }
+        if (use_action_prior_) {
+            // Sample from Gaussian prior N(mean, std), clamp to action limits
+            std::normal_distribution<double> accel_dist(action_mean_[0], action_std_[0]);
+            std::normal_distribution<double> steer_dist(action_mean_[1], action_std_[1]);
+            double accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
+            double sv = std::max(vp_.sv_min, std::min(vp_.sv_max, steer_dist(rng_)));
+            return {accel, sv};
+        }
+        // Fallback: uniform sampling
         std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
         std::uniform_real_distribution<double> steer_dist(vp_.sv_min, vp_.sv_max);
         return {accel_dist(rng_), steer_dist(rng_)};
@@ -384,10 +542,17 @@ class F1TenthSimulator : public Simulator {
     std::unique_ptr<Simulator> clone() const override {
         // PI-SVGP params are shared — all clones see latent updates via set_hp_mu()
         auto copy = std::make_unique<F1TenthSimulator>(
-            vp_, occ_map_, cost_, pi_svgp_, base_timestep_);
+            vp_, occ_map_, occ_map_real_, cost_, pi_svgp_, base_timestep_);
         copy->state_ = state_;
         copy->step_count_ = step_count_;
         copy->v_ref_window_ = v_ref_window_;
+        copy->v_ref_min_ = v_ref_min_;
+        copy->action_mean_ = action_mean_;
+        copy->action_std_ = action_std_;
+        copy->use_action_prior_ = use_action_prior_;
+        copy->cx_ = cx_;
+        copy->cy_ = cy_;
+        copy->cheading_ = cheading_;
         copy->rng_ = rng_;
         return copy;
     }
