@@ -1,15 +1,16 @@
 """
-MCTS DPW controller + SVGP dynamics + action prior — C++ accelerated.
+MCTS DPW controller + Krasser SVGP (C_alpha input) dynamics + action prior — C++ accelerated.
 
-Uses Extended Kinematic base model with SVGP residual corrections for
+Uses Extended Kinematic base model with Krasser SVGP residual corrections for
 omega (yaw rate) and beta (slip angle), all running in C++.
+The Krasser SVGP uses an ARD RBF kernel with 7D input:
+  [delta, v, omega, beta, accl, sv, C_alpha]
 
 Extends with SVGP/SGPR action prior for guided action sampling, dual
 occupancy boundaries (imaginary + real), curvature-based dynamic horizon,
 cornering stiffness estimation, and backward-progress check.
 """
 
-import json
 import logging
 import math
 import os
@@ -20,18 +21,17 @@ from typing import Optional
 import numpy as np
 import torch
 import gpytorch
-from sklearn.preprocessing import StandardScaler
 
 from src.idl_messages import ControlCmdMsg, VehicleStateMsg, WaypointsMsg
 from src.params import ControllerConfig, MapConfig, SimulationConfig, VehicleParams
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_f1tenth_svgp_cpp import F1TenthDPWSvgp as F1TenthDPW
+    from mcts_f1tenth_svgp_calpha_cpp import F1TenthDPWSvgpCAlpha as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_f1tenth_svgp_cpp C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp/"
+        "mcts_f1tenth_svgp_calpha_cpp C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_calpha_model/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model
@@ -41,71 +41,64 @@ from train_krasserm import load_model as load_model_krasserm
 
 log = logging.getLogger(__name__)
 
-# Task index → friction mapping (for logging)
-TASK_FRICTION_MAP = {0: 1.0489, 1: 0.8642, 2: 0.4947}
-
 _EPSILON = 1e-8
 _C_ALPHA_NOMINAL = 104.89
 
 
 # ---------------------------------------------------------------------------
-# Helper: load SVGP dynamics model from .npz
+# Helper: load Krasser SVGP dynamics model from .npz
 # ---------------------------------------------------------------------------
 
-def _load_model_and_scalers_npz(path: str):
-    """Load SVGP model, scalers from a .npz file."""
-    data = np.load(path, allow_pickle=False)
-    model_json = json.loads(str(data["model_json"]))
+def _load_krasser_model(path: str):
+    """Load Krasser SVGP model from a .npz file.
 
-    model = dict(model_json)
-    for key in data.files:
-        if key.startswith("model__"):
-            k = key.split("__", 1)[1]
-            model[k] = data[key]
-
-    def unpack_scaler(prefix):
-        s = StandardScaler(
-            with_mean=bool(data[f"{prefix}__with_mean"]),
-            with_std=bool(data[f"{prefix}__with_std"]),
-        )
-        s.mean_ = data[f"{prefix}__mean"]
-        s.scale_ = data[f"{prefix}__scale"]
-        if f"{prefix}__var" in data.files:
-            s.var_ = data[f"{prefix}__var"]
-        s.n_features_in_ = int(data[f"{prefix}__n_features_in"])
-        return s
-
-    xscaler = unpack_scaler("xscaler")
-    yscaler = unpack_scaler("yscaler")
-    return model, xscaler, yscaler
-
-
-def _pack_svgp_data(model_dict, xscaler, yscaler, hp_mu, M, D_input, D_hidden):
-    """Pack all SVGP parameters into a flat float64 array for C++.
-
-    Layout: theta(D_aug+1) | alpha(M) | Z_aug(M*D_aug) |
-            xmean(D_input) | xscale(D_input) | ymean(1) | yscale(1) |
-            hp_mu(D_hidden)
+    Expected keys:
+      model__theta(2), model__X_m(M,D), model__mu_m(M,1), model__K_mm_inv(M,M),
+      xscaler__mean(D), xscaler__scale(D), yscaler__mean(1), yscaler__scale(1)
     """
-    theta = np.array(model_dict['theta_opt'], dtype=np.float64)
-    K_mm_inv = np.array(model_dict['K_mm_inv'], dtype=np.float64)
-    mu_m = np.array(model_dict['mu_m_opt'], dtype=np.float64)
-    alpha = (K_mm_inv @ mu_m).ravel()
+    d = np.load(path, allow_pickle=True)
+    return {
+        "theta": np.array(d["model__theta"], dtype=np.float64),       # (D+1,): [l_1,...,l_D, signal_std]
+        "X_m": np.array(d["model__X_m"], dtype=np.float64),           # (M, D_input)
+        "mu_m": np.array(d["model__mu_m"], dtype=np.float64),         # (M, 1)
+        "K_mm_inv": np.array(d["model__K_mm_inv"], dtype=np.float64), # (M, M)
+        "x_mean": np.array(d["xscaler__mean"], dtype=np.float64),     # (D_input,)
+        "x_scale": np.array(d["xscaler__scale"], dtype=np.float64),   # (D_input,)
+        "y_mean": np.array(d["yscaler__mean"], dtype=np.float64),     # (1,)
+        "y_scale": np.array(d["yscaler__scale"], dtype=np.float64),   # (1,)
+    }
 
-    Zx = np.array(model_dict['Zx_opt'], dtype=np.float64)
-    Zh = np.array(model_dict['Zh_opt'], dtype=np.float64)
-    Z_aug = np.concatenate([Zx, Zh], axis=1).ravel()
 
-    xmean = np.array(xscaler.mean_, dtype=np.float64)
-    xscale = np.array(xscaler.scale_, dtype=np.float64)
-    ymean_val = float(np.asarray(yscaler.mean_).ravel()[0])
-    yscale_val = float(np.asarray(yscaler.scale_).ravel()[0])
-    hp = np.array(hp_mu, dtype=np.float64)
+def _pack_krasser_svgp_data(model):
+    """Pack Krasser SVGP parameters into a flat float64 array for C++.
+
+    Layout (matches KrasserSVGPParams::from_flat):
+      lengthscales(D_input) | sigma_f | alpha(M) | X_m(M*D_input) |
+      xmean(D_input) | xscale(D_input) | ymean | yscale
+
+    theta format: [l_1, ..., l_D, sigma_f] (D_input+1 values for ARD)
+    """
+    theta = model["theta"]
+    D_input = model["X_m"].shape[1]
+    lengthscales = theta[:D_input].astype(np.float64)
+    sigma_f = float(theta[D_input])
+
+    alpha = (model["K_mm_inv"] @ model["mu_m"]).ravel()
+    X_m_flat = model["X_m"].ravel()
+
+    xmean = model["x_mean"].ravel()
+    xscale = model["x_scale"].ravel()
+    ymean_val = float(model["y_mean"].ravel()[0])
+    yscale_val = float(model["y_scale"].ravel()[0])
 
     return np.concatenate([
-        theta, alpha, Z_aug, xmean, xscale,
+        lengthscales,
+        np.array([sigma_f], dtype=np.float64),
+        alpha,
+        X_m_flat,
+        xmean,
+        xscale,
         np.array([ymean_val, yscale_val], dtype=np.float64),
-        hp,
     ])
 
 
@@ -141,7 +134,7 @@ def _compute_cornering_stiffness(
 
 
 class MCTSDPWSvgpCppController:
-    """MCTS DPW controller with SVGP dynamics + action prior (C++ accelerated)."""
+    """MCTS DPW controller with Krasser SVGP (C_alpha input) dynamics + action prior (C++ accelerated)."""
 
     def __init__(
         self,
@@ -209,39 +202,31 @@ class MCTSDPWSvgpCppController:
             except Exception as e:
                 log.warning("Could not load reference trajectory: %s", e)
 
-        # --- Load SVGP dynamics models ---
+        # --- Load Krasser SVGP dynamics models ---
         project_root = Path(__file__).resolve().parents[3]
-        task_index = getattr(config, 'svgp_task_index', 0)
 
         omega_path = str(project_root / config.svgp_omega_model_path)
         beta_path = str(project_root / config.svgp_beta_model_path)
 
-        log.info("Loading omega SVGP from: %s", omega_path)
-        omega_dict, omega_xs, omega_ys = _load_model_and_scalers_npz(omega_path)
+        log.info("Loading Krasser omega SVGP from: %s", omega_path)
+        omega_model = _load_krasser_model(omega_path)
 
-        log.info("Loading beta SVGP from: %s", beta_path)
-        beta_dict, beta_xs, beta_ys = _load_model_and_scalers_npz(beta_path)
+        log.info("Loading Krasser beta SVGP from: %s", beta_path)
+        beta_model = _load_krasser_model(beta_path)
 
-        M = omega_dict['Zx_opt'].shape[0]
-        D_input = omega_dict['Zx_opt'].shape[1]
-        D_hidden = omega_dict['Zh_opt'].shape[1]
-        self._svgp_M = M
+        M_omega = omega_model['X_m'].shape[0]
+        M_beta = beta_model['X_m'].shape[0]
+        D_input = omega_model['X_m'].shape[1]
+        self._svgp_M_omega = M_omega
+        self._svgp_M_beta = M_beta
         self._svgp_D_input = D_input
-        self._svgp_D_hidden = D_hidden
 
-        omega_hp_mu = np.array(omega_dict['h_mu_opt'][task_index], dtype=np.float64)
-        beta_hp_mu = np.array(beta_dict['h_mu_opt'][task_index], dtype=np.float64)
-
-        self._omega_data = _pack_svgp_data(
-            omega_dict, omega_xs, omega_ys, omega_hp_mu, M, D_input, D_hidden,
-        )
-        self._beta_data = _pack_svgp_data(
-            beta_dict, beta_xs, beta_ys, beta_hp_mu, M, D_input, D_hidden,
-        )
+        self._omega_data = _pack_krasser_svgp_data(omega_model)
+        self._beta_data = _pack_krasser_svgp_data(beta_model)
 
         log.info(
-            "SVGP dynamics loaded: M=%d D_input=%d D_hidden=%d task=%d (mu≈%.4f)",
-            M, D_input, D_hidden, task_index, TASK_FRICTION_MAP.get(task_index, -1),
+            "Krasser SVGP dynamics loaded: M_omega=%d M_beta=%d D_input=%d (ARD RBF, C_alpha as 7th input)",
+            M_omega, M_beta, D_input,
         )
 
         # --- Load action prior model ---
@@ -294,7 +279,7 @@ class MCTSDPWSvgpCppController:
         self._local_heading = np.zeros(106)
 
         log.info(
-            "MCTS DPW SVGP + Action Prior ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
+            "MCTS DPW Krasser SVGP + Action Prior ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
             "discount=%.2f rollout_horizon=%d",
             self.n_simulations, self.K, self.alpha, self.beta,
             self.discount, self.rollout_horizon,
@@ -440,7 +425,7 @@ class MCTSDPWSvgpCppController:
     # --- Tree creation ---
 
     def _make_tree(self, state_np, v_ref_window):
-        """Create a fresh C++ DPW tree with SVGP dynamics."""
+        """Create a fresh C++ DPW tree with Krasser SVGP dynamics."""
         p = self._vehicle_params
         return F1TenthDPW(
             initial_obs=state_np,
@@ -466,12 +451,12 @@ class MCTSDPWSvgpCppController:
             rollout_horizon=self.rollout_horizon,
             discount=self.discount, dt=self.dt,
             normalize_reward=self.normalize_reward,
-            # SVGP dynamics params
+            # Krasser SVGP dynamics params (ARD kernel, no D_hidden)
             omega_data=self._omega_data,
             beta_data=self._beta_data,
-            svgp_M=self._svgp_M,
+            svgp_M_omega=self._svgp_M_omega,
+            svgp_M_beta=self._svgp_M_beta,
             svgp_D_input=self._svgp_D_input,
-            svgp_D_hidden=self._svgp_D_hidden,
             base_timestep=self.base_timestep,
             seed=self.seed,
         )
@@ -517,12 +502,14 @@ class MCTSDPWSvgpCppController:
                 self._tree.forward(self._last_action, state_np)
                 self._tree.set_state(state_np)
                 self._tree.set_v_ref_window(v_ref_window)
+                self._tree.set_c_alpha(c_alpha)
             except RuntimeError:
                 self._tree = None
 
         if self._tree is None:
             self._tree = self._make_tree(state_np, v_ref_window)
             self._tree.set_v_ref_window(v_ref_window)
+            self._tree.set_c_alpha(c_alpha)
 
         # 5. Push action prior, dynamic horizon, and local centerline to C++
         self._tree.set_action_prior(action_mean, action_std)

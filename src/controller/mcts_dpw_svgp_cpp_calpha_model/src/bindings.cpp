@@ -28,12 +28,12 @@ inline std::vector<float> to_float_vec(py::array_t<float> arr) {
 
 // Wrapper class that owns both the simulator and the DPW tree.
 // Exposed to Python as a single object with a clean API.
-class F1TenthDPWSvgp {
+class F1TenthDPWSvgpCAlpha {
     std::unique_ptr<F1TenthSimulator> sim_;
     std::unique_ptr<DPWNative> model_;
 
   public:
-    F1TenthDPWSvgp(py::array_t<double> initial_obs,
+    F1TenthDPWSvgpCAlpha(py::array_t<double> initial_obs,
                double alpha, double beta, double K,
                // Vehicle params
                double mu, double C_Sf, double C_Sr,
@@ -55,10 +55,11 @@ class F1TenthDPWSvgp {
                double v_ref, int rollout_horizon,
                double discount, double dt,
                bool normalize_reward,
-               // SVGP params
+               // Krasser SVGP params (two flat arrays: omega + beta)
                py::array_t<double> omega_data,
                py::array_t<double> beta_data,
-               int svgp_M, int svgp_D_input, int svgp_D_hidden,
+               int svgp_M_omega, int svgp_M_beta,
+               int svgp_D_input,
                double base_timestep,
                unsigned seed = 0) {
 
@@ -110,15 +111,15 @@ class F1TenthDPWSvgp {
         cost.dt                = dt;
         cost.normalize_reward  = normalize_reward;
 
-        // Build SVGP params from flat arrays packed in Python
+        // Build Krasser SVGP params from flat arrays packed in Python
         auto omega_buf = omega_data.request();
         auto beta_buf  = beta_data.request();
-        auto omega_svgp = std::make_shared<SVGPParams>(
-            SVGPParams::from_flat(static_cast<double*>(omega_buf.ptr),
-                                  svgp_M, svgp_D_input, svgp_D_hidden));
-        auto beta_svgp = std::make_shared<SVGPParams>(
-            SVGPParams::from_flat(static_cast<double*>(beta_buf.ptr),
-                                  svgp_M, svgp_D_input, svgp_D_hidden));
+        auto omega_svgp = std::make_shared<KrasserSVGPParams>(
+            KrasserSVGPParams::from_flat(static_cast<double*>(omega_buf.ptr),
+                                         svgp_M_omega, svgp_D_input));
+        auto beta_svgp = std::make_shared<KrasserSVGPParams>(
+            KrasserSVGPParams::from_flat(static_cast<double*>(beta_buf.ptr),
+                                         svgp_M_beta, svgp_D_input));
 
         sim_ = std::make_unique<F1TenthSimulator>(
             vp, occ, occ_real, cost,
@@ -143,6 +144,8 @@ class F1TenthDPWSvgp {
                         py::array_t<double> heading) {
         sim_->set_centerline(to_vec(cx), to_vec(cy), to_vec(heading));
     }
+
+    void set_c_alpha(double c_alpha) { sim_->set_c_alpha(c_alpha); }
 
     void learn(int Nsim) { model_->learn(Nsim); }
 
@@ -193,10 +196,10 @@ class F1TenthDPWSvgp {
     }
 };
 
-PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
-    m.doc() = "C++ MCTS DPW + SVGP dynamics for F1TENTH racing";
+PYBIND11_MODULE(mcts_f1tenth_svgp_calpha_cpp, m) {
+    m.doc() = "C++ MCTS DPW + Krasser SVGP (C_alpha input) dynamics for F1TENTH racing";
 
-    py::class_<F1TenthDPWSvgp>(m, "F1TenthDPWSvgp")
+    py::class_<F1TenthDPWSvgpCAlpha>(m, "F1TenthDPWSvgpCAlpha")
         .def(py::init<py::array_t<double>,
                        double, double, double,
                        // Vehicle params (18)
@@ -216,7 +219,7 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
                        // Cost params
                        double, double, double, int, double, double,
                        bool,
-                       // SVGP params
+                       // Krasser SVGP params
                        py::array_t<double>, py::array_t<double>,
                        int, int, int, double,
                        unsigned>(),
@@ -242,26 +245,29 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_cpp, m) {
              py::arg("v_ref"), py::arg("rollout_horizon"),
              py::arg("discount"), py::arg("dt"),
              py::arg("normalize_reward") = false,
-             // SVGP params
+             // Krasser SVGP params
              py::arg("omega_data"), py::arg("beta_data"),
-             py::arg("svgp_M"), py::arg("svgp_D_input"), py::arg("svgp_D_hidden"),
+             py::arg("svgp_M_omega"), py::arg("svgp_M_beta"),
+             py::arg("svgp_D_input"),
              py::arg("base_timestep"),
              py::arg("seed") = 0)
-        .def("set_v_ref_window", &F1TenthDPWSvgp::set_v_ref_window,
+        .def("set_v_ref_window", &F1TenthDPWSvgpCAlpha::set_v_ref_window,
              py::arg("window"))
-        .def("set_action_prior", &F1TenthDPWSvgp::set_action_prior,
+        .def("set_action_prior", &F1TenthDPWSvgpCAlpha::set_action_prior,
              py::arg("mean"), py::arg("std"))
-        .def("set_rollout_horizon", &F1TenthDPWSvgp::set_rollout_horizon,
+        .def("set_rollout_horizon", &F1TenthDPWSvgpCAlpha::set_rollout_horizon,
              py::arg("horizon"))
-        .def("set_centerline", &F1TenthDPWSvgp::set_centerline,
+        .def("set_centerline", &F1TenthDPWSvgpCAlpha::set_centerline,
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
-        .def("learn", &F1TenthDPWSvgp::learn, py::arg("Nsim"))
-        .def("learn_timed", &F1TenthDPWSvgp::learn_timed, py::arg("budget_s"))
-        .def("best_action", &F1TenthDPWSvgp::best_action)
-        .def("forward", &F1TenthDPWSvgp::forward,
+        .def("set_c_alpha", &F1TenthDPWSvgpCAlpha::set_c_alpha,
+             py::arg("c_alpha"))
+        .def("learn", &F1TenthDPWSvgpCAlpha::learn, py::arg("Nsim"))
+        .def("learn_timed", &F1TenthDPWSvgpCAlpha::learn_timed, py::arg("budget_s"))
+        .def("best_action", &F1TenthDPWSvgpCAlpha::best_action)
+        .def("forward", &F1TenthDPWSvgpCAlpha::forward,
              py::arg("action"), py::arg("new_state"))
-        .def("set_state", &F1TenthDPWSvgp::set_state, py::arg("state"))
-        .def("get_root_actions", &F1TenthDPWSvgp::get_root_actions)
-        .def("get_best_trajectory", &F1TenthDPWSvgp::get_best_trajectory,
+        .def("set_state", &F1TenthDPWSvgpCAlpha::set_state, py::arg("state"))
+        .def("get_root_actions", &F1TenthDPWSvgpCAlpha::get_root_actions)
+        .def("get_best_trajectory", &F1TenthDPWSvgpCAlpha::get_best_trajectory,
              py::arg("max_depth") = 50);
 }

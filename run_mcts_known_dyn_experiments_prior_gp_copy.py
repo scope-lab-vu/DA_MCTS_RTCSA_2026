@@ -41,36 +41,36 @@ logging.basicConfig(
 )
 log = logging.getLogger("mcts_known_dyn_experiments")
 
-TRACKS = ["Sepang", "Shanghai", "YasMarina"]
-# TRACKS = ["YasMarina"]
-# TRACKS = ["Sepang", "YasMarina" ]
-
-
-# (mu, task_index) — task_index is always 0; the CS controller adapts online.
-MU_CONFIGS = [
-    (1.0, 0),
-    (0.9, 0),
-    (0.8, 0),
-    (0.7, 0),
-    (0.6, 0),
-    (0.5, 0),
-    (0.4, 0),
-    (0.3, 0),
-    # (0.2, 0),
-    # (0.1, 0),
+# Only re-run the experiments that CRASHED (segfault) in the previous run.
+# Format: (track, mu, lane_width)
+RETRY_EXPERIMENTS = [
+    # # Sepang crashes
+    # ("Sepang", 1.0, 0.5),
+    # ("Sepang", 1.0, 1.4),
+    # ("Sepang", 1.0, 1.5),
+    ("Sepang", 0.7, 0.7),
+    # ("Sepang", 0.7, 1.5),
+    # ("Sepang", 0.4, 1.0),
+    # ("Sepang", 0.3, 1.2),
+    # # Shanghai crashes
+    # ("Shanghai", 0.9, 0.6),
+    # ("Shanghai", 0.8, 0.9),
+    # ("Shanghai", 0.8, 1.0),
+    # ("Shanghai", 0.8, 1.5),
+    # ("Shanghai", 0.6, 0.7),
+    # ("Shanghai", 0.5, 1.1),
+    # ("Shanghai", 0.3, 0.6),
+    # ("Shanghai", 0.3, 1.0),
+    # # YasMarina crashes
+    # ("YasMarina", 1.0, 1.2),
+    # ("YasMarina", 0.9, 0.5),
+    # ("YasMarina", 0.7, 1.5),
+    # ("YasMarina", 0.6, 1.4),
+    # ("YasMarina", 0.5, 1.5),
+    # ("YasMarina", 0.4, 0.5),
+    ("YasMarina", 0.4, 1.3),
+    # ("YasMarina", 0.3, 1.3),
 ]
-
-# LANE_WIDTHS = [  0.5 ]
-LANE_WIDTHS = [ 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
-# LANE_WIDTHS = [ 0.5, 1.0,  1.5]
-# LANE_WIDTHS = [ 1.0]
-
-#   mu=0.7000  task_index=0  trial=1  seed=42  lane_width=1.1
-
-
-
-# LANE_WIDTHS = [0.5]
-# LANE_WIDTHS = [1.5]
 
 
 
@@ -466,24 +466,23 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     results = []
-    total = len(TRACKS) * len(MU_CONFIGS) * len(LANE_WIDTHS) * args.num_trials
+    total = len(RETRY_EXPERIMENTS) * args.num_trials
     idx = 0
+    task_index = 0  # always 0
 
-    for track in TRACKS:
-        for mu, task_index in MU_CONFIGS:
-            for lane_width in LANE_WIDTHS:
-                for trial in range(1, args.num_trials + 1):
-                    idx += 1
-                    seed = args.base_seed + trial - 1
-                    log.info(
-                        "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  task=%d  trial=%d  seed=%d",
-                        idx, total, track, mu, lane_width, task_index, trial, seed,
-                    )
-                    result = run_experiment_in_subprocess(
-                        track, mu, task_index, seed, trial, args.max_steps, args.render,
-                        lane_width=lane_width,
-                    )
-                    results.append(result)
+    for track, mu, lane_width in RETRY_EXPERIMENTS:
+        for trial in range(1, args.num_trials + 1):
+            idx += 1
+            seed = args.base_seed + trial - 1
+            log.info(
+                "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  task=%d  trial=%d  seed=%d",
+                idx, total, track, mu, lane_width, task_index, trial, seed,
+            )
+            result = run_experiment_in_subprocess(
+                track, mu, task_index, seed, trial, args.max_steps, args.render,
+                lane_width=lane_width,
+            )
+            results.append(result)
 
     # ── Summary table ─────────────────────────────────────────────────
     w = 130

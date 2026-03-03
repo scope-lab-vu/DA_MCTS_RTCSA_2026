@@ -59,89 +59,85 @@ struct CostParams {
 };
 
 // ---------------------------------------------------------------------------
-// SVGP (Sparse Variational Gaussian Process) parameters for one GP.
-// Holds all data needed for kernel evaluation and prediction.
+// Krasser SVGP parameters for one GP (single-output, ARD RBF kernel).
+// Uses C_alpha as direct 7th input feature — no hidden/task parameters.
+// ARD kernel: k(x,x') = sigma_f^2 * exp(-0.5 * sum_d((x_d - x'_d)^2 / l_d^2))
 // ---------------------------------------------------------------------------
-struct SVGPParams {
-    int M;          // number of inducing points (e.g. 50)
-    int D_input;    // raw input dimension (6)
-    int D_hidden;   // hidden/task dimension (2)
-    int D_aug;      // D_input + D_hidden (8)
+struct KrasserSVGPParams {
+    int M;          // number of inducing points (e.g. 53)
+    int D_input;    // input dimension (7: delta, v, omega, beta, accl, sv, c_alpha)
 
-    std::vector<double> theta;    // (D_aug + 1): [lengthscale_0..D_aug-1, sigma]
+    std::vector<double> lengthscales;  // (D_input): per-dimension ARD lengthscales
+    double sigma_f;                    // signal standard deviation
+
     std::vector<double> alpha;    // (M): precomputed K_mm_inv @ mu_m, squeezed
-    std::vector<double> Z_aug;    // (M * D_aug): augmented inducing points, row-major
+    std::vector<double> X_m;     // (M * D_input): inducing points in normalized space, row-major
     std::vector<double> xmean;    // (D_input): input scaler mean
     std::vector<double> xscale;   // (D_input): input scaler std
     double ymean;                 // output scaler mean (scalar)
     double yscale;                // output scaler std (scalar)
-    std::vector<double> hp_mu;    // (D_hidden): task-specific hidden parameters
 
     // Construct from a flat double array packed in Python.
-    // Layout: theta | alpha | Z_aug | xmean | xscale | ymean | yscale | hp_mu
-    static SVGPParams from_flat(const double* data, int M_, int D_input_, int D_hidden_) {
-        SVGPParams p;
+    // Layout: lengthscales(D_input) | sigma_f | alpha(M) | X_m(M*D_input) |
+    //         xmean(D_input) | xscale(D_input) | ymean | yscale
+    static KrasserSVGPParams from_flat(const double* data, int M_, int D_input_) {
+        KrasserSVGPParams p;
         p.M = M_;
         p.D_input = D_input_;
-        p.D_hidden = D_hidden_;
-        p.D_aug = D_input_ + D_hidden_;
 
         int off = 0;
-        p.theta.assign(data + off, data + off + p.D_aug + 1); off += p.D_aug + 1;
+        p.lengthscales.assign(data + off, data + off + D_input_); off += D_input_;
+        p.sigma_f     = data[off++];
         p.alpha.assign(data + off, data + off + M_);           off += M_;
-        p.Z_aug.assign(data + off, data + off + M_ * p.D_aug); off += M_ * p.D_aug;
+        p.X_m.assign(data + off, data + off + M_ * D_input_);  off += M_ * D_input_;
         p.xmean.assign(data + off, data + off + D_input_);     off += D_input_;
         p.xscale.assign(data + off, data + off + D_input_);    off += D_input_;
         p.ymean = data[off++];
         p.yscale = data[off++];
-        p.hp_mu.assign(data + off, data + off + D_hidden_);    off += D_hidden_;
         return p;
     }
 };
 
 // ---------------------------------------------------------------------------
-// SVGP single-sample prediction: normalize → augment → RBF ARD kernel → predict → denormalize
+// Krasser SVGP single-point prediction:
+//   normalize → ARD RBF kernel → predict → denormalize
 // ---------------------------------------------------------------------------
-inline double svgp_predict_single(
-    const double* gp_input,   // (D_input) raw GP input: [delta, v, omega, beta, accl, sv]
-    const SVGPParams& gp
+inline double krasser_predict_single(
+    const double* gp_input,   // (D_input=7) raw: [delta, v, omega, beta, accl, sv, c_alpha]
+    const KrasserSVGPParams& gp
 ) {
-    // Stack-allocate augmented input (max D_aug = 8)
-    double x_aug[8];
+    // Stack-allocate normalized input (max D_input = 7)
+    double x_norm[7];
 
     // 1. Normalize raw inputs
     for (int d = 0; d < gp.D_input; ++d) {
-        x_aug[d] = (gp_input[d] - gp.xmean[d]) / gp.xscale[d];
-    }
-    // 2. Append task-specific hidden parameters
-    for (int d = 0; d < gp.D_hidden; ++d) {
-        x_aug[gp.D_input + d] = gp.hp_mu[d];
+        x_norm[d] = (gp_input[d] - gp.xmean[d]) / gp.xscale[d];
     }
 
-    // 3. RBF ARD kernel evaluation + dot product with alpha (fused)
-    const double sigma = gp.theta[gp.D_aug];   // last element of theta
-    const double sigma_sq = sigma * sigma;
+    // 2. ARD RBF kernel + dot product with alpha (fused)
+    const double sigma_f_sq = gp.sigma_f * gp.sigma_f;
     double f_mean = 0.0;
 
     for (int j = 0; j < gp.M; ++j) {
-        double dist = 0.0;
-        const int base = j * gp.D_aug;
-        for (int d = 0; d < gp.D_aug; ++d) {
-            double diff = (x_aug[d] - gp.Z_aug[base + d]) / gp.theta[d];
-            dist += diff * diff;
+        double sqdist = 0.0;
+        const int base = j * gp.D_input;
+        for (int d = 0; d < gp.D_input; ++d) {
+            double diff = (x_norm[d] - gp.X_m[base + d]) / gp.lengthscales[d];
+            sqdist += diff * diff;
         }
-        double k_j = sigma_sq * std::exp(-0.5 * dist);
+        double k_j = sigma_f_sq * std::exp(-0.5 * sqdist);
         f_mean += k_j * gp.alpha[j];
     }
 
-    // 4. Denormalize
+    // 3. Denormalize
     return f_mean * gp.yscale + gp.ymean;
 }
 
 // ---------------------------------------------------------------------------
 // F1TENTH simulator for MCTS rollouts.
-// Uses Extended Kinematic (Ekin) base model + SVGP residual corrections
+// Uses Extended Kinematic (Ekin) base model + Krasser SVGP residual corrections
 // for omega (yaw rate) and beta (slip angle).
+// C_alpha is passed as a direct 7th input feature to the SVGP models.
 // ---------------------------------------------------------------------------
 class F1TenthSimulator : public Simulator {
   private:
@@ -150,9 +146,9 @@ class F1TenthSimulator : public Simulator {
     OccupancyMapData occ_map_real_;  // real track boundary (hard penalty, done=true)
     CostParams cost_;
 
-    // SVGP models (shared across clones for efficiency)
-    std::shared_ptr<const SVGPParams> omega_svgp_;
-    std::shared_ptr<const SVGPParams> beta_svgp_;
+    // Krasser SVGP models (shared across clones for efficiency)
+    std::shared_ptr<const KrasserSVGPParams> omega_svgp_;
+    std::shared_ptr<const KrasserSVGPParams> beta_svgp_;
     double base_timestep_;
     int n_substeps_;
 
@@ -172,6 +168,9 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> cy_;
     std::vector<double> cheading_;
 
+    // C_alpha (cornering stiffness) — passed as 7th GP input
+    double c_alpha_value_ = 104.89;
+
     std::mt19937 rng_;
 
     static constexpr double TWO_PI = 2.0 * M_PI;
@@ -181,8 +180,8 @@ class F1TenthSimulator : public Simulator {
                      const OccupancyMapData& occ_map,
                      const OccupancyMapData& occ_map_real,
                      const CostParams& cost,
-                     std::shared_ptr<const SVGPParams> omega_svgp,
-                     std::shared_ptr<const SVGPParams> beta_svgp,
+                     std::shared_ptr<const KrasserSVGPParams> omega_svgp,
+                     std::shared_ptr<const KrasserSVGPParams> beta_svgp,
                      double base_timestep,
                      unsigned seed = std::random_device{}())
         : vp_(vp), occ_map_(occ_map), occ_map_real_(occ_map_real), cost_(cost),
@@ -227,6 +226,8 @@ class F1TenthSimulator : public Simulator {
         cy_ = cy;
         cheading_ = heading;
     }
+
+    void set_c_alpha(double c_alpha) { c_alpha_value_ = c_alpha; }
 
     // Returns index of nearest centerline point (used for backward-progress check)
     int nearest_index(double x, double y) const {
@@ -277,7 +278,7 @@ class F1TenthSimulator : public Simulator {
         }
         accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
 
-        // --- Substep loop: Ekin base + SVGP residuals ---
+        // --- Substep loop: Ekin base + Krasser SVGP residuals ---
         const double L = vp_.lf + vp_.lr;
         const double sub_dt = (n_substeps_ > 1) ? base_timestep_ : cost_.dt;
 
@@ -307,10 +308,11 @@ class F1TenthSimulator : public Simulator {
             double next_omega = omega + sub_dt * omega_dot;
             double next_beta  = beta  + sub_dt * beta_dot;
 
-            // SVGP residual corrections (mean only)
-            double gp_input[6] = {delta, v, omega, beta, accl, sv};
-            double err_omega = svgp_predict_single(gp_input, *omega_svgp_);
-            double err_beta  = svgp_predict_single(gp_input, *beta_svgp_);
+            // Krasser SVGP residual corrections (mean only)
+            // 7D input: [delta, v, omega, beta, accl, sv, c_alpha]
+            double gp_input[7] = {delta, v, omega, beta, accl, sv, c_alpha_value_};
+            double err_omega = krasser_predict_single(gp_input, *omega_svgp_);
+            double err_beta  = krasser_predict_single(gp_input, *beta_svgp_);
             next_omega += err_omega;
             next_beta  += err_beta;
 
@@ -357,7 +359,7 @@ class F1TenthSimulator : public Simulator {
             slip_cost = (alpha_slip * alpha_slip)
                         / (cost_.alpha_threshold * cost_.alpha_threshold)
                       + (done_slip ? 1.0 : 0.0);
-            speed_cap_cost_max = (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
+            speed_cap_cost_max = (std::abs(v_n) > 10.0 ? 1.0 : 0.0);
             speed_cap_cost_min = (v_n < 1.5 ? 1.0 : 0.0);
         } else {
             double real_cost = static_cast<double>(off_real) * 1000000.0;
@@ -365,7 +367,7 @@ class F1TenthSimulator : public Simulator {
             speed_cost = -(cost_.speed_weight * v_n);
             slip_cost = alpha_slip * alpha_slip
                       + 10000.0 * (done_slip ? 1.0 : 0.0);
-            speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
+            speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 10.0 ? 1.0 : 0.0);
             speed_cap_cost_min = 10000.0 * (v_n < 1.5 ? 1.0 : 0.0);
         }
 
@@ -434,6 +436,7 @@ class F1TenthSimulator : public Simulator {
         copy->cx_ = cx_;
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;
+        copy->c_alpha_value_ = c_alpha_value_;
         copy->rng_ = rng_;
         return copy;
     }

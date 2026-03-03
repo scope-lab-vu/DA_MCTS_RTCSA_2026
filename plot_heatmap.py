@@ -378,7 +378,7 @@ fig.legend(handles=legend_elements, loc="lower center", ncol=3, fontsize=10,
 
 fig.suptitle("MCTS + GP Action Prior: Avg Lap Time vs Real Track Width & Friction\n"
              "(lane_width=0.5, heading backward check enabled, no soft penalty)",
-             fontsize=13, fontweight="bold", y=1.02)
+             fontsize=13, fontweight="bold", y=1.06)
 
 plt.savefig("heatmap_results.png", dpi=150, bbox_inches="tight")
 plt.savefig("heatmap_results.pdf", bbox_inches="tight")
