@@ -12,8 +12,16 @@ Usage:
     python run_experiments.py --max-steps 2000      # limit episode length
 """
 
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
+
 import argparse
 import logging
+import math
 import os
 import random
 import tempfile
@@ -36,17 +44,20 @@ log = logging.getLogger("experiments")
 
 # ── Experiment grid ──────────────────────────────────────────────────────────
 
-# TRACKS = ["Shanghai", "Sepang", "YasMarina"]
-TRACKS = ["Shanghai", "Sepang"]# "YasMarina"]
+# TRACKS = ["YasMarina", "Sepang"]
+TRACKS = ["YasMarina"]
 
 MU_CONFIGS = [
     # (mu, task_index)  — task_index selects the GP friction head
-    (0.8642, 1),
     (1.0489, 0),
+    # (0.8642, 1),
+    # (0.4947, 2),
 ]
 
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
-DEFAULT_ALGO_CONFIG = Path("params/config_mcts_dpw_pi_svgp_cpp_new_model.yaml")
+# DEFAULT_ALGO_CONFIG = Path("params/config_mcts_dpw_pi_svgp_cpp.yaml")
+DEFAULT_ALGO_CONFIG = Path("params/config_mppi_pi_svgp.yaml")
+
 RESULTS_DIR = Path("results")
 
 
@@ -64,12 +75,39 @@ def set_seed(seed: int) -> None:
         torch.backends.cudnn.benchmark = False
 
 
-def _make_config_with_task_index(base_path: Path, task_index: int, seed: int = 42) -> Path:
-    """Load base YAML, override svgp_task_index and seed, return temp file path."""
+def _predict_single_step(dynamics, state, cmd) -> tuple:
+    """Predict next (vx, vy, omega) using batched_dynamics. Returns (nan,nan,nan) on failure."""
+    try:
+        dt = getattr(dynamics, "_dt_torch", None)
+        device = getattr(dynamics, "_device", None)
+        dtype = getattr(dynamics, "_dtype", None)
+        if dt is None or device is None or dtype is None:
+            return float("nan"), float("nan"), float("nan")
+        s = torch.tensor(
+            [state.x, state.y, state.delta, state.v, state.psi, state.omega, state.beta],
+            device=device, dtype=dtype,
+        ).unsqueeze(0)  # (1, 7)
+        a = torch.tensor(
+            [cmd.acceleration, cmd.steering_vel],
+            device=device, dtype=dtype,
+        ).unsqueeze(0)  # (1, 2)
+        with torch.no_grad():
+            next_s = dynamics.batched_dynamics(s, a, 0)[0]  # (7,)
+        pred_v = float(next_s[3])
+        pred_beta = float(next_s[6])
+        pred_vx = pred_v * math.cos(pred_beta)
+        pred_vy = pred_v * math.sin(pred_beta)
+        pred_omega = float(next_s[5])
+        return pred_vx, pred_vy, pred_omega
+    except Exception:
+        return float("nan"), float("nan"), float("nan")
+
+
+def _make_config_with_task_index(base_path: Path, task_index: int) -> Path:
+    """Load base YAML, override svgp_task_index, return temp file path."""
     with open(base_path) as f:
         cfg = yaml.safe_load(f)
     cfg["controller"]["svgp_task_index"] = task_index
-    cfg["simulation"]["seed"] = seed
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False, prefix="exp_",
     )
@@ -110,7 +148,7 @@ def run_experiment(
              track, mu, task_index, trial, seed)
     log.info("=" * 60)
 
-    config_path = _make_config_with_task_index(algo_config, task_index, seed)
+    config_path = _make_config_with_task_index(algo_config, task_index)
     try:
         api = F1TenthAPI(VEHICLE_PARAMS, config_path, map_config_path, mu_override=mu)
         waypoints = api.load_waypoints()
@@ -125,13 +163,27 @@ def run_experiment(
         episode_logger = api.create_episode_logger()
         dt_s = api.algo_config.simulation.dt_s
 
+        # Ensure dynamics model is set up for single-step RMSE prediction.
+        dynamics = api._dynamics
+        if hasattr(dynamics, "setup_torch") and getattr(dynamics, "_dt_torch", None) is None:
+            dynamics.setup_torch(dt_s, "cpu", torch.float32)
+
         step = 0
         reason = "max_steps"
         step_times = []
         start_progress = None
         prev_progress = 0.0
         laps_completed = 0
+        prev_laps = 0
+        lap_step_start = 0
+        lap_times_list: list = []
         accumulated_progress = 0.0
+
+        # RMSE accumulators for dynamics prediction quality
+        rmse_vx_sq = 0.0
+        rmse_vy_sq = 0.0
+        rmse_omega_sq = 0.0
+        rmse_n = 0
 
         try:
             while step < max_steps:
@@ -139,8 +191,24 @@ def run_experiment(
 
                 state = api.get_state()
                 cmd = api.compute_action(state, waypoints)
-                episode_logger.log_step(state, cmd)
+
+                # Predict next state BEFORE stepping the simulator
+                pred_vx, pred_vy, pred_omega = _predict_single_step(dynamics, state, cmd)
+
+                episode_logger.log_step(state, cmd, pred_vx, pred_vy, pred_omega)
                 done = api.apply_action(cmd)
+
+                # Actual next state (already updated inside apply_action)
+                next_state = api.get_state()
+                actual_vx = next_state.v * math.cos(next_state.beta)
+                actual_vy = next_state.v * math.sin(next_state.beta)
+                actual_omega = next_state.omega
+
+                if not math.isnan(pred_vx):
+                    rmse_vx_sq += (pred_vx - actual_vx) ** 2
+                    rmse_vy_sq += (pred_vy - actual_vy) ** 2
+                    rmse_omega_sq += (pred_omega - actual_omega) ** 2
+                    rmse_n += 1
 
                 if render:
                     api.render()
@@ -166,6 +234,14 @@ def run_experiment(
 
                 laps_completed = int(accumulated_progress / track_obj.total_length)
 
+                # Record per-lap times when a new lap is completed
+                if laps_completed > prev_laps:
+                    for _ in range(laps_completed - prev_laps):
+                        lap_time_s = (step - lap_step_start) * dt_s
+                        lap_times_list.append(round(lap_time_s, 3))
+                        lap_step_start = step
+                    prev_laps = laps_completed
+
                 if step % 100 == 0:
                     pct = (accumulated_progress / track_obj.total_length) * 100
                     log.info(
@@ -187,9 +263,44 @@ def run_experiment(
             reason = "interrupted"
             log.info("[%s mu=%.4f t%d] Interrupted at step %d", track, mu, trial, step)
 
-        # Save trajectory.
+        # Compute RMSE
+        rmse_vx = math.sqrt(rmse_vx_sq / rmse_n) if rmse_n > 0 else float("nan")
+        rmse_vy = math.sqrt(rmse_vy_sq / rmse_n) if rmse_n > 0 else float("nan")
+        rmse_omega = math.sqrt(rmse_omega_sq / rmse_n) if rmse_n > 0 else float("nan")
+
+        # Post-loop: reconcile against gym's authoritative lap count.
+        # The gym terminates when the car enters its finish zone (dist <= 0.1 m
+        # from start), which can be slightly before accumulated_progress crosses
+        # N * total_length (e.g. 199.9% → int = 1 even though 2 laps are done).
+        if reason == "done":
+            try:
+                gym_env = api._vehicle._env
+                gym_laps = int(gym_env.lap_counts[gym_env.ego_idx])
+            except AttributeError:
+                gym_laps = laps_completed + 1
+            while len(lap_times_list) < gym_laps:
+                lap_time_s = (step - lap_step_start) * dt_s
+                lap_times_list.append(round(lap_time_s, 3))
+                lap_step_start = step
+            laps_completed = max(laps_completed, gym_laps)
+
+        # Save trajectory (filename: traj_{config}_{track}_{mu_id}_{timestamp}.csv)
         output_dir = str(RESULTS_DIR / f"{track}_{mu_id}")
-        csv_path = api.save_episode(episode_logger, output_dir=output_dir, reason=reason)
+        config_name = algo_config.stem
+        extra_meta = {
+            "rmse_vx": f"{rmse_vx:.6f}",
+            "rmse_vy": f"{rmse_vy:.6f}",
+            "rmse_omega": f"{rmse_omega:.6f}",
+            "lap_times_s": lap_times_list,
+            "collision": reason == "collision",
+        }
+        csv_path = api.save_episode(
+            episode_logger,
+            output_dir=output_dir,
+            reason=reason,
+            config_name=config_name,
+            extra_metadata=extra_meta,
+        )
 
         avg_dt = np.mean(step_times) if step_times else 0.0
         progress_pct = (accumulated_progress / track_obj.total_length) * 100
@@ -207,6 +318,10 @@ def run_experiment(
             "progress_pct": progress_pct,
             "track_length": track_obj.total_length,
             "avg_step_ms": avg_dt * 1000,
+            "rmse_vx": rmse_vx,
+            "rmse_vy": rmse_vy,
+            "rmse_omega": rmse_omega,
+            "lap_times": lap_times_list,
             "csv": csv_path,
             "status": "OK",
         }
@@ -218,7 +333,7 @@ def main():
     parser = argparse.ArgumentParser(description="MCTS DPW batch experiments")
     parser.add_argument("--algo-config", type=Path, default=DEFAULT_ALGO_CONFIG, help="Algorithm config YAML")
     parser.add_argument("--max-steps", type=int, default=10000, help="Max steps per episode")
-    parser.add_argument("--num-trials", type=int, default=5, help="Trials per (track, mu) combo")
+    parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu) combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed (trial i uses base_seed + i)")
     parser.add_argument("--render", action="store_true", help="Enable visualisation")
     args = parser.parse_args()
@@ -242,13 +357,14 @@ def main():
                 results.append(result)
 
     # ── Per-trial table ──────────────────────────────────────────────────
-    w = 110
+    w = 140
     print("\n" + "=" * w)
     print("PER-TRIAL RESULTS")
     print("=" * w)
     print(
         f"{'Track':<12} {'mu':>7} {'Trial':>6} {'Seed':>6} {'Steps':>7} "
-        f"{'Collision':<10} {'Laps':>5} {'Progress':>9} {'Reason':<12} {'ms/step':>9}"
+        f"{'Collision':<10} {'Laps':>5} {'Progress':>9} {'Reason':<12} {'ms/step':>9} "
+        f"{'RMSE_vx':>9} {'RMSE_vy':>9} {'RMSE_w':>9} {'Lap times (s)'}"
     )
     print("-" * w)
 
@@ -256,15 +372,21 @@ def main():
         if r["status"] == "SKIPPED":
             print(
                 f"{r['track']:<12} {r['mu']:>7.4f} {r['trial']:>6d} {r['seed']:>6d} "
-                f"{'---':>7} {'---':<10} {'---':>5} {'---':>9} {r.get('reason',''):<12} {'---':>9}"
+                f"{'---':>7} {'---':<10} {'---':>5} {'---':>9} {r.get('reason',''):<12} {'---':>9} "
+                f"{'---':>9} {'---':>9} {'---':>9}"
             )
             continue
 
         col_str = "YES" if r["collision"] else "No"
+        rmse_vx = r.get("rmse_vx", float("nan"))
+        rmse_vy = r.get("rmse_vy", float("nan"))
+        rmse_w = r.get("rmse_omega", float("nan"))
+        lap_str = "  ".join(f"{t:.1f}s" for t in r.get("lap_times", []))
         print(
             f"{r['track']:<12} {r['mu']:>7.4f} {r['trial']:>6d} {r['seed']:>6d} "
             f"{r['steps']:>7d} {col_str:<10} {r['laps']:>5d} "
-            f"{r['progress_pct']:>8.1f}% {r['reason']:<12} {r['avg_step_ms']:>8.2f}ms"
+            f"{r['progress_pct']:>8.1f}% {r['reason']:<12} {r['avg_step_ms']:>8.2f}ms "
+            f"{rmse_vx:>9.4f} {rmse_vy:>9.4f} {rmse_w:>9.4f}  [{lap_str}]"
         )
 
     # ── Aggregate table ──────────────────────────────────────────────────
@@ -279,7 +401,7 @@ def main():
     print(
         f"{'Track':<12} {'mu':>7} {'Trials':>7} {'Collisions':>11} "
         f"{'Col Rate':>9} {'Avg Laps':>9} {'Avg Prog':>9} {'Min Prog':>9} "
-        f"{'Max Prog':>9} {'Avg ms':>9}"
+        f"{'Max Prog':>9} {'Avg ms':>9} {'RMSE_vx':>9} {'RMSE_vy':>9} {'RMSE_w':>9}"
     )
     print("-" * w)
 
@@ -303,13 +425,21 @@ def main():
             max_prog = np.max([t["progress_pct"] for t in trials])
             avg_ms = np.mean([t["avg_step_ms"] for t in trials])
 
+            rmse_vx_vals = [t["rmse_vx"] for t in trials if not math.isnan(t.get("rmse_vx", float("nan")))]
+            rmse_vy_vals = [t["rmse_vy"] for t in trials if not math.isnan(t.get("rmse_vy", float("nan")))]
+            rmse_w_vals  = [t["rmse_omega"] for t in trials if not math.isnan(t.get("rmse_omega", float("nan")))]
+            avg_rmse_vx = float(np.mean(rmse_vx_vals)) if rmse_vx_vals else float("nan")
+            avg_rmse_vy = float(np.mean(rmse_vy_vals)) if rmse_vy_vals else float("nan")
+            avg_rmse_w  = float(np.mean(rmse_w_vals))  if rmse_w_vals  else float("nan")
+
             total_trials += n
             total_collisions += n_col
 
             print(
                 f"{track:<12} {mu:>7.4f} {n:>7d} {n_col:>11d} "
                 f"{col_rate:>8.0f}% {avg_laps:>9.1f} {avg_prog:>8.1f}% "
-                f"{min_prog:>8.1f}% {max_prog:>8.1f}% {avg_ms:>8.2f}ms"
+                f"{min_prog:>8.1f}% {max_prog:>8.1f}% {avg_ms:>8.2f}ms "
+                f"{avg_rmse_vx:>9.4f} {avg_rmse_vy:>9.4f} {avg_rmse_w:>9.4f}"
             )
 
     print("=" * w)

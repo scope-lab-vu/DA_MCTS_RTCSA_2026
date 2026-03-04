@@ -7,6 +7,13 @@ Usage:
     python run_pi_svgp_experiments.py --max-steps 5000  # limit episode length
 """
 
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
+
 import argparse
 import logging
 import os

@@ -1,5 +1,9 @@
 """Generate heatmaps from MCTS + Ekin + HiP-MDP SVGP experiment results."""
 
+from pathlib import Path as _Path
+_DIR = _Path(__file__).resolve().parent
+_REPO = _DIR.parent
+
 import re
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,7 +11,7 @@ from matplotlib.patches import Patch
 
 # ── Parse the results table from the nohup log ──────────────────────────────
 
-LOG_PATH = "nohup_run_exp_svgp_ekin_3_mu_2_map_hip_mdp_svgp.txt"
+LOG_PATH = _REPO / "run_Nohup_results" / "hip_mdp_svgp" / "nohup_run_exp_svgp_ekin_3_mu_2_map_hip_mdp_svgp.txt"
 
 lines = open(LOG_PATH).readlines()
 
@@ -142,6 +146,6 @@ fig.suptitle(
     "(lane_width=0.5, heading backward check enabled, n_simulations=1000, 2 laps)",
     fontsize=13, fontweight="bold", y=1.10)
 
-plt.savefig("heatmap_hip_mdp_results.png", dpi=150, bbox_inches="tight")
-plt.savefig("heatmap_hip_mdp_results.pdf", bbox_inches="tight")
-print("Saved heatmap_hip_mdp_results.png and heatmap_hip_mdp_results.pdf")
+plt.savefig(_DIR / "heatmap_hip_mdp_results.png", dpi=150, bbox_inches="tight")
+plt.savefig(_DIR / "heatmap_hip_mdp_results.pdf", bbox_inches="tight")
+print(f"Saved {_DIR / 'heatmap_hip_mdp_results.png'} and {_DIR / 'heatmap_hip_mdp_results.pdf'}")
