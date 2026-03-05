@@ -1,20 +1,24 @@
 """
-Run MCTS DPW + PI-SVGP + Cornering Stiffness experiments for all track/friction
+Run MPPI + PI-SVGP + Cornering Stiffness experiments for all track/friction
 combinations.
 
-The MCTSPiSvgpCppCsController estimates rear cornering stiffness on-the-fly
-from consecutive state observations, uses it to update the PI-SVGP task latents
-via rolling-window interpolation, and adapts the MCTS speed reference
-accordingly.  All MCTS rollouts run in C++.
-
-Race line: always 1.0489 (high-grip) for every experiment.
-Friction:  varied via mu_override in the gym (the only thing that changes).
+The MPPICorneringStiffnessController estimates rear cornering stiffness
+on-the-fly from consecutive state observations, uses it to update the
+PI-SVGP task latents via rolling-window interpolation, and adapts the
+MPPI speed reference accordingly.
 
 Usage:
-    python run_mcts_pi_svgp_cs_experiments.py                  # all combos, no render
-    python run_mcts_pi_svgp_cs_experiments.py --render          # with visualisation
-    python run_mcts_pi_svgp_cs_experiments.py --max-steps 5000  # limit episode length
+    python run_pi_svgp_cs_experiments.py                  # 9 combos, no render
+    python run_pi_svgp_cs_experiments.py --render          # with visualisation
+    python run_pi_svgp_cs_experiments.py --max-steps 5000  # limit episode length
 """
+
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
 
 import argparse
 import logging
@@ -36,27 +40,23 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
-log = logging.getLogger("mcts_pi_svgp_cs_experiments")
+log = logging.getLogger("pi_svgp_cs_experiments")
 
-# TRACKS = ["Sepang", "Shanghai", "YasMarina"]
-TRACKS = ["YasMarina"]
+TRACKS = ["Sepang", "YasMarina", ]
+# TRACKS = ["YasMarina", ]
 
-
-# (mu, task_index) — task_index is always 0; the CS controller adapts online.
 MU_CONFIGS = [
     (1.0, 0),
-    # (0.9, 0),
-    # (0.8, 0),
-    # (0.7, 0),
-    # (0.6, 0),
-    # (0.5, 0),
-    # (0.4, 0),
-    # (0.3, 0),
-    # (0.2, 0),
-    # (0.1, 0),
+    (0.9, 0),
+    (0.8, 0),
+    (0.7, 0),
+    (0.6, 0),
+    (0.5, 0),
+    (0.4, 0),
+    (0.3, 0),
 ]
 
-BASE_CONFIG = Path("params/config_mcts_dpw_pi_svgp_cpp_cs.yaml")
+BASE_CONFIG = Path("params/config_mppi_pinn_cs.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 
@@ -73,6 +73,47 @@ def set_seed(seed: int) -> None:
         torch.cuda.manual_seed_all(seed)
 
 
+def _predict_single_step(dynamics, state, cmd) -> tuple:
+    """Predict next (vx, vy, omega) using batched_dynamics. Returns (nan,nan,nan) on failure."""
+    try:
+        dt = getattr(dynamics, "_dt_torch", None)
+        device = getattr(dynamics, "_device", None)
+        dtype = getattr(dynamics, "_dtype", None)
+        if dt is None or device is None or dtype is None:
+            return float("nan"), float("nan"), float("nan")
+        s = torch.tensor(
+            [state.x, state.y, state.delta, state.v, state.psi, state.omega, state.beta],
+            device=device, dtype=dtype,
+        ).unsqueeze(0)  # (1, 7)
+        a = torch.tensor(
+            [cmd.acceleration, cmd.steering_vel],
+            device=device, dtype=dtype,
+        ).unsqueeze(0)  # (1, 2)
+        with torch.no_grad():
+            next_s = dynamics.batched_dynamics(s, a, 0)[0]  # (7,)
+        pred_v = float(next_s[3])
+        pred_beta = float(next_s[6])
+        pred_vx = pred_v * math.cos(pred_beta)
+        pred_vy = pred_v * math.sin(pred_beta)
+        pred_omega = float(next_s[5])
+        return pred_vx, pred_vy, pred_omega
+    except Exception:
+        return float("nan"), float("nan"), float("nan")
+
+
+def make_config_with_task_index(base_path: Path, task_index: int) -> Path:
+    """Load base YAML, override task_index in dynamics, return temp file path."""
+    with open(base_path) as f:
+        cfg = yaml.safe_load(f)
+    cfg["dynamics"]["task_index"] = task_index
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yaml", delete=False, prefix="pi_svgp_cs_",
+    )
+    yaml.dump(cfg, tmp)
+    tmp.close()
+    return Path(tmp.name)
+
+
 def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
     """Return a temp map config YAML with ALL file paths hardcoded to mu=1.0489.
 
@@ -87,6 +128,7 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
     """
     with open(map_config_path) as f:
         cfg = yaml.safe_load(f)
+    # Replace all path fields with literals — no {mu_id}/{mu} templates.
     cfg["map_path"] = f"./{track}_10489/{track}_map"
     cfg["centerline_path"] = f"./{track}_10489/{track}_centerline.csv"
     cfg["wpt_path"] = (
@@ -98,7 +140,7 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
         suffix=".yaml",
         delete=False,
         prefix=f"map_cs_{track}_",
-        dir=str(map_config_path.parent),
+        dir=str(map_config_path.parent),  # keep in maps/ so relative paths resolve
     )
     yaml.dump(cfg, tmp)
     tmp.close()
@@ -115,6 +157,7 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
         return {"track": track, "mu": mu, "trial": trial, "seed": seed,
                 "status": "SKIPPED", "reason": "no map config"}
 
+    # All file paths use the 1.0489 directory — check that one, not mu-specific.
     track_dir_10489 = Path(f"maps/{track}_10489")
     if not track_dir_10489.exists():
         log.warning("Track directory not found: %s — skipping", track_dir_10489)
@@ -130,12 +173,13 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
     )
     log.info("=" * 60)
 
+    config_path = make_config_with_task_index(BASE_CONFIG, task_index)
     # All map/centerline/raceline files come from the 1.0489 directory.
     # mu_override in F1TenthAPI still sets vehicle physics to the desired mu.
     fixed_map_config_path = make_map_config_all_10489_files(map_config_path, track)
 
     try:
-        api = F1TenthAPI(VEHICLE_PARAMS, BASE_CONFIG, fixed_map_config_path, mu_override=mu)
+        api = F1TenthAPI(VEHICLE_PARAMS, config_path, fixed_map_config_path, mu_override=mu)
         waypoints = api.load_waypoints()
 
         centerline_path = api.map_config.centerline_path
@@ -147,6 +191,12 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
         episode_logger = api.create_episode_logger()
         dt_s = api.algo_config.simulation.dt_s
 
+        # Ensure dynamics model is set up for single-step RMSE prediction.
+        # (MPPI controller already calls setup_torch, but guard for safety.)
+        dynamics = api._dynamics
+        if hasattr(dynamics, "setup_torch") and getattr(dynamics, "_dt_torch", None) is None:
+            dynamics.setup_torch(dt_s, "cpu", torch.float32)
+
         step = 0
         reason = "max_steps"
         step_times = []
@@ -155,6 +205,12 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
         prev_laps = 0
         lap_step_start = 0
         lap_times_list: list = []
+
+        # RMSE accumulators for dynamics prediction quality
+        rmse_vx_sq = 0.0
+        rmse_vy_sq = 0.0
+        rmse_omega_sq = 0.0
+        rmse_n = 0
 
         # Access controller to log CS values periodically
         controller = api._controller
@@ -166,24 +222,23 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                 state = api.get_state()
                 cmd = api.compute_action(state, waypoints)
 
-                # MCTS dynamics are internal to C++ — no RMSE prediction available.
-                cs_raw = (
-                    controller.get_cornering_stiffness()
-                    if hasattr(controller, "get_cornering_stiffness")
-                    else float("nan")
-                )
-                cs_smooth = (
-                    controller.get_smoothed_calpha()
-                    if hasattr(controller, "get_smoothed_calpha")
-                    else float("nan")
-                )
-                episode_logger.log_step(
-                    state, cmd,
-                    float("nan"), float("nan"), float("nan"),
-                    c_alpha=cs_raw,
-                    c_alpha_smooth=cs_smooth,
-                )
+                # Predict next state BEFORE stepping the simulator
+                pred_vx, pred_vy, pred_omega = _predict_single_step(dynamics, state, cmd)
+
+                episode_logger.log_step(state, cmd, pred_vx, pred_vy, pred_omega)
                 done = api.apply_action(cmd)
+
+                # Actual next state (already updated inside apply_action)
+                next_state = api.get_state()
+                actual_vx = next_state.v * math.cos(next_state.beta)
+                actual_vy = next_state.v * math.sin(next_state.beta)
+                actual_omega = next_state.omega
+
+                if not math.isnan(pred_vx):
+                    rmse_vx_sq += (pred_vx - actual_vx) ** 2
+                    rmse_vy_sq += (pred_vy - actual_vy) ** 2
+                    rmse_omega_sq += (pred_omega - actual_omega) ** 2
+                    rmse_n += 1
 
                 if render:
                     api.render()
@@ -208,6 +263,7 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
 
                 laps_completed = int(accumulated_progress / track_obj.total_length)
 
+                # Record per-lap times when a new lap is completed
                 if laps_completed > prev_laps:
                     for _ in range(laps_completed - prev_laps):
                         lap_time_s = (step - lap_step_start) * dt_s
@@ -215,7 +271,7 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                         lap_step_start = step
                     prev_laps = laps_completed
 
-                if step % 1 == 0:
+                if step % 100 == 0:
                     pct = (accumulated_progress / track_obj.total_length) * 100
                     cs = (
                         controller.get_cornering_stiffness()
@@ -248,9 +304,17 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
             reason = "interrupted"
             log.info("[%s mu=%.4f] Interrupted at step %d", track, mu, step)
 
+        # Compute RMSE
+        rmse_vx = math.sqrt(rmse_vx_sq / rmse_n) if rmse_n > 0 else float("nan")
+        rmse_vy = math.sqrt(rmse_vy_sq / rmse_n) if rmse_n > 0 else float("nan")
+        rmse_omega = math.sqrt(rmse_omega_sq / rmse_n) if rmse_n > 0 else float("nan")
+
         laps = int(accumulated_progress / track_obj.total_length)
 
         # Post-loop: reconcile against gym's authoritative lap count.
+        # The gym terminates when the car enters its finish zone (dist <= 0.1 m
+        # from start), which can be slightly before accumulated_progress crosses
+        # N * total_length (e.g. 199.9% → int = 1 even though 2 laps are done).
         if reason == "done":
             try:
                 gym_env = api._vehicle._env
@@ -263,11 +327,15 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                 lap_step_start = step
             laps = max(laps, gym_laps)
 
-        output_dir = str(RESULTS_DIR / f"mcts_pi_svgp_cs_{track}_{mu_id}")
+        # Save trajectory (filename: traj_{config}_t{trial}_s{seed}_{track}_{mu_id}_{timestamp}.csv)
+        output_dir = str(RESULTS_DIR / f"pi_svgp_cs_{track}_{mu_id}")
         config_name = f"{BASE_CONFIG.stem}_t{trial}_s{seed}"
         extra_meta = {
             "trial": trial,
             "seed": seed,
+            "rmse_vx": f"{rmse_vx:.6f}",
+            "rmse_vy": f"{rmse_vy:.6f}",
+            "rmse_omega": f"{rmse_omega:.6f}",
             "lap_times_s": lap_times_list,
             "collision": reason == "collision",
         }
@@ -294,17 +362,21 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
             "laps": laps,
             "progress_pct": progress_pct,
             "avg_step_ms": avg_dt * 1000,
+            "rmse_vx": rmse_vx,
+            "rmse_vy": rmse_vy,
+            "rmse_omega": rmse_omega,
             "lap_times": lap_times_list,
             "csv": csv_path,
             "status": "OK",
         }
     finally:
+        os.unlink(config_path)
         os.unlink(fixed_map_config_path)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="MCTS DPW + PI-SVGP + Cornering Stiffness batch experiments"
+        description="MPPI + PI-SVGP + Cornering Stiffness batch experiments"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
     parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu) combo")
@@ -334,14 +406,14 @@ def main():
                 results.append(result)
 
     # ── Summary table ─────────────────────────────────────────────────
-    w = 120
+    w = 140
     print("\n" + "=" * w)
-    print("MCTS + PI-SVGP + CORNERING STIFFNESS EXPERIMENT RESULTS")
+    print("PI-SVGP + CORNERING STIFFNESS EXPERIMENT RESULTS")
     print("=" * w)
     print(
         f"{'Track':<12} {'mu':>7} {'Task':>5} {'Trial':>6} {'Seed':>6} {'Steps':>7} "
         f"{'Collision':<10} {'Laps':>5} {'Progress':>9} {'Reason':<12} {'ms/step':>9} "
-        f"{'Lap times (s)'}"
+        f"{'RMSE_vx':>9} {'RMSE_vy':>9} {'RMSE_w':>9} {'Lap times (s)'}"
     )
     print("-" * w)
 
@@ -360,13 +432,16 @@ def main():
             total_collisions += 1
 
         col_str = "YES" if r["collision"] else "No"
+        rmse_vx = r.get("rmse_vx", float("nan"))
+        rmse_vy = r.get("rmse_vy", float("nan"))
+        rmse_w  = r.get("rmse_omega", float("nan"))
         lap_str = "  ".join(f"{t:.1f}s" for t in r.get("lap_times", []))
         print(
             f"{r['track']:<12} {r['mu']:>7.4f} {r['task_index']:>5d} "
             f"{r.get('trial', 1):>6d} {r.get('seed', 0):>6d} {r['steps']:>7d} "
             f"{col_str:<10} {r['laps']:>5d} {r['progress_pct']:>8.1f}% "
             f"{r['reason']:<12} {r['avg_step_ms']:>8.2f}ms "
-            f" [{lap_str}]"
+            f"{rmse_vx:>9.4f} {rmse_vy:>9.4f} {rmse_w:>9.4f}  [{lap_str}]"
         )
 
     print("=" * w)

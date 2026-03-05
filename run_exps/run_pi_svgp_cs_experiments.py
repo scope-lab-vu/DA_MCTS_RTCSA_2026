@@ -13,6 +13,13 @@ Usage:
     python run_pi_svgp_cs_experiments.py --max-steps 5000  # limit episode length
 """
 
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
+
 import argparse
 import logging
 import math
@@ -48,7 +55,7 @@ MU_CONFIGS = [
     (0.3, 0),
 ]
 
-BASE_CONFIG = Path("params/config_mppi_pinn_cs.yaml")
+BASE_CONFIG = Path("params/config_mppi_pi_svgp_cs.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 
@@ -263,7 +270,7 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render) -> dic
                         lap_step_start = step
                     prev_laps = laps_completed
 
-                if step % 100 == 0:
+                if step % 1000 == 0:
                     pct = (accumulated_progress / track_obj.total_length) * 100
                     cs = (
                         controller.get_cornering_stiffness()

@@ -16,6 +16,13 @@ Usage:
     python run_mcts_pi_svgp_cs_experiments.py --max-steps 5000  # limit episode length
 """
 
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
+
 import argparse
 import json
 import logging
@@ -41,37 +48,27 @@ logging.basicConfig(
 )
 log = logging.getLogger("mcts_known_dyn_experiments")
 
-# TRACKS = ["Sepang", "Shanghai", "YasMarina"]
-TRACKS = ["YasMarina"]
-
+TRACKS = ["Sepang", "YasMarina"]
 
 # (mu, task_index) — task_index is always 0; the CS controller adapts online.
 MU_CONFIGS = [
-    (1.0, 0),
-    (0.3, 0),
+    # (1.0, 0),
     # (0.9, 0),
-    (0.8, 0),
+    # (0.8, 0),
     # (0.7, 0),
     # (0.6, 0),
-    (0.5, 0),
-    (0.4, 0),
-    # (0.2, 0),
-    # (0.1, 0),
+    # (0.5, 0),
+    # (0.4, 0),
+    # (0.3, 0),
+    (0.2, 0),
+    (0.1, 0),
 ]
 
-# LANE_WIDTHS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
-LANE_WIDTHS = [0.5, 0.8, 1.0, 1.1, 1.4, 1.5, 1.7]
-
-#LANE_WIDTHS = [1.4]
-# LANE_WIDTHS = [1.0, 1.4]
-# LANE_WIDTHS = [0.5]
-
-
-# LANE_WIDTHS = [1.5]
+LANE_WIDTHS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
 
 
-BASE_CONFIG = Path("params/config_mcts_dpw_cpp_known_dyn.yaml")
+BASE_CONFIG = Path("params/config_mcts_known_dyn_action_prior_cpp.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 
@@ -121,10 +118,10 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
 
 
 def make_config_with_lane_width(lane_width: float) -> Path:
-    """Return a temp algo config YAML with the given lane_width."""
+    """Return a temp algo config YAML with the given real_track_width."""
     with open(BASE_CONFIG) as f:
         cfg = yaml.safe_load(f)
-    cfg["controller"]["lane_width"] = lane_width
+    cfg["controller"]["real_track_width"] = lane_width
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False,
         prefix=f"config_lw{lane_width}_",
@@ -228,6 +225,13 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
                 done = api.apply_action(cmd)
 
                 if render:
+                    # Extract MCTS planned trajectory for visualization
+                    traj_steps = getattr(controller, 'get_best_trajectory', lambda: [])()
+                    if traj_steps:
+                        xy = np.array([[s['state'][0], s['state'][1]]
+                                       for s in traj_steps if len(s['state']) >= 2])
+                        if len(xy) > 0:
+                            api.set_planned_trajectory(xy)
                     api.render()
 
                 elapsed = time.monotonic() - t0
@@ -451,17 +455,24 @@ def main():
     parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu) combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed (trial i uses base_seed + i - 1)")
     parser.add_argument("--render", action="store_true")
+    parser.add_argument("--track", type=str, nargs="+", default=None, help="Filter by track name(s)")
+    parser.add_argument("--mu", type=float, nargs="+", default=None, help="Filter by mu value(s)")
+    parser.add_argument("--lane-width", type=float, nargs="+", default=None, dest="filter_lw", help="Filter by lane width(s)")
     args = parser.parse_args()
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
+    tracks = args.track if args.track else TRACKS
+    mus = [(m, 0) for m in args.mu] if args.mu else MU_CONFIGS
+    lws = args.filter_lw if args.filter_lw else LANE_WIDTHS
+
     results = []
-    total = len(TRACKS) * len(MU_CONFIGS) * len(LANE_WIDTHS) * args.num_trials
+    total = len(tracks) * len(mus) * len(lws) * args.num_trials
     idx = 0
 
-    for track in TRACKS:
-        for mu, task_index in MU_CONFIGS:
-            for lane_width in LANE_WIDTHS:
+    for track in tracks:
+        for mu, task_index in mus:
+            for lane_width in lws:
                 for trial in range(1, args.num_trials + 1):
                     idx += 1
                     seed = args.base_seed + trial - 1

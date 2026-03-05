@@ -11,12 +11,12 @@ controller:
   noise_sigma_accel: 2.29
   noise_sigma_steer: 3.98
   v_ref: 5.0
-  device: cpu
+  device: cuda
   use_occupancy_map: true
   lane_width: 1.1
   # --- Cost function tuning ---
-  v_max_cost: 8.0
-  alpha_threshold: 0.5
+  v_max_cost: 11.15
+  alpha_threshold: 1.2
   speed_weight: 5.0
 
 dynamics:
@@ -24,7 +24,7 @@ dynamics:
   model_path: models/pinn/weights/epoch_388.pth
   model_cfg_path: models/pinn/deep_pacejka_f1tenth_multi_fric_best_param.yaml
   scaler_path: models/pinn/weights/scaler_safe.npz
-  inference_device: cpu
+  inference_device: cuda
 
 safety:
   type: noop

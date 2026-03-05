@@ -11,17 +11,17 @@
 controller:
   type: mppi_cs
   # --- MPPI-specific ---
-  horizon: 15
+  horizon: 30
   num_samples: 5000
   lambda_: 2.93
   noise_sigma_accel: 2.29
   noise_sigma_steer: 3.98
   v_ref: 5.0
-  device: cpu
+  device: cuda
   use_occupancy_map: true
   lane_width: 1.1
   # --- Cost function tuning ---
-  v_max_cost: 8.0
+  v_max_cost: 11.0
   alpha_threshold: 1.2
   speed_weight: 5.0
   # --- Cornering stiffness adaptive velocity ---
@@ -29,22 +29,25 @@ controller:
   # delta_C_alpha = max(0, C_alpha_th - cornering_stiffness)
   cs_w1: 1.0
   cs_w2: 0.25
-  cs_w3: 0.0
+  cs_w3: 0
   C_alpha_th: 104.89
   calpha_window_size: 10
 
 dynamics:
   type: pinn
-  model_path: models/pinn/weights/epoch_388.pth
+  # model_path: models/pinn/weights/epoch_388.pth
+  # scaler_path: models/pinn/weights/scaler_safe.npz
+  model_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/epoch_386.pth  
   model_cfg_path: models/pinn/deep_pacejka_f1tenth_multi_fric_best_param.yaml
-  scaler_path: models/pinn/weights/scaler_safe.npz
-  inference_device: cpu
+  scaler_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/scaler_safe.npz
+
+  inference_device: cuda
 
 safety:
   type: noop
 
 simulation:
   vehicle_interface: gym
-  dt_s: 0.04
+  dt_s: 0.02
   log_every_n_steps: 200
   seed: 42

@@ -1,20 +1,29 @@
 """
-Run MCTS DPW + PI-SVGP + Cornering Stiffness experiments for all track/friction
-combinations.
+Run MCTS DPW + SVGP dynamics (Ekin + HiP-MDP residuals) + action prior experiments
+for all track/friction/lane_width combinations.
 
-The MCTSPiSvgpCppCsController estimates rear cornering stiffness on-the-fly
-from consecutive state observations, uses it to update the PI-SVGP task latents
-via rolling-window interpolation, and adapts the MCTS speed reference
-accordingly.  All MCTS rollouts run in C++.
+The dynamics model uses Extended Kinematic + SVGP residual corrections.
+Action sampling uses a learned Gaussian prior from a separate SVGP model.
+SVGP task index is set per friction value (known mapping):
+    mu=1.0489 → task_index=0
+    mu=0.8642 → task_index=1
+    mu=0.4947 → task_index=2
 
 Race line: always 1.0489 (high-grip) for every experiment.
-Friction:  varied via mu_override in the gym (the only thing that changes).
+Friction:  varied via mu_override in the gym.
 
 Usage:
-    python run_mcts_pi_svgp_cs_experiments.py                  # all combos, no render
-    python run_mcts_pi_svgp_cs_experiments.py --render          # with visualisation
-    python run_mcts_pi_svgp_cs_experiments.py --max-steps 5000  # limit episode length
+    python run_mcts_svgp_dyn_experiments.py                   # all combos, no render
+    python run_mcts_svgp_dyn_experiments.py --render           # with visualisation
+    python run_mcts_svgp_dyn_experiments.py --max-steps 5000   # limit episode length
 """
+
+
+# ── Repo-root setup (run from any directory) ─────────────────────────────
+import os as _os, sys as _sys; from pathlib import Path as _Path  # noqa: E702
+_REPO = _Path(__file__).resolve().parent.parent
+_os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
+# ─────────────────────────────────────────────────────────────────────────
 
 import argparse
 import json
@@ -39,42 +48,24 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
-log = logging.getLogger("mcts_known_dyn_experiments")
+log = logging.getLogger("mcts_svgp_dyn_experiments")
 
-# Only re-run the experiments that CRASHED (segfault) in the previous run.
-# Format: (track, mu, lane_width)
-RETRY_EXPERIMENTS = [
-    # # Sepang crashes
-    # ("Sepang", 1.0, 0.5),
-    # ("Sepang", 1.0, 1.4),
-    # ("Sepang", 1.0, 1.5),
-    ("Sepang", 0.7, 0.7),
-    # ("Sepang", 0.7, 1.5),
-    # ("Sepang", 0.4, 1.0),
-    # ("Sepang", 0.3, 1.2),
-    # # Shanghai crashes
-    # ("Shanghai", 0.9, 0.6),
-    # ("Shanghai", 0.8, 0.9),
-    # ("Shanghai", 0.8, 1.0),
-    # ("Shanghai", 0.8, 1.5),
-    # ("Shanghai", 0.6, 0.7),
-    # ("Shanghai", 0.5, 1.1),
-    # ("Shanghai", 0.3, 0.6),
-    # ("Shanghai", 0.3, 1.0),
-    # # YasMarina crashes
-    # ("YasMarina", 1.0, 1.2),
-    # ("YasMarina", 0.9, 0.5),
-    # ("YasMarina", 0.7, 1.5),
-    # ("YasMarina", 0.6, 1.4),
-    # ("YasMarina", 0.5, 1.5),
-    # ("YasMarina", 0.4, 0.5),
-    ("YasMarina", 0.4, 1.3),
-    # ("YasMarina", 0.3, 1.3),
+# TRACKS = ["Sepang", "Shanghai", "YasMarina"]
+TRACKS = ["YasMarina", "Sepang", ]
+# TRACKS = ["YasMarina"]
+
+# (mu, task_index) — known mapping from HiP-MDP SVGP training
+MU_CONFIGS = [
+    (1.0489, 0),
+    (0.8642, 1),
+    (0.4947, 2),
 ]
 
+LANE_WIDTHS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
+# LANE_WIDTHS = [1.5]
 
 
-BASE_CONFIG = Path("params/config_mcts_known_dyn_action_prior_cpp.yaml")
+BASE_CONFIG = Path("params/config_mcts_dpw_svgp_action_prior_cpp.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 
@@ -95,13 +86,9 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
     """Return a temp map config YAML with ALL file paths hardcoded to mu=1.0489.
 
     map_path, centerline_path, and wpt_path all point to the {track}_10489
-    directory.  This means any friction value (including novel ones like 0.3
-    that have no dedicated map directory) can be tested: the track geometry
+    directory.  This means any friction value can be tested: the track geometry
     and raceline are always the 1.0489 variants, while the vehicle physics mu
     is set via mu_override in F1TenthAPI.
-
-    The temp file is written into the same directory as the original map config
-    so that the relative paths resolve correctly.
     """
     with open(map_config_path) as f:
         cfg = yaml.safe_load(f)
@@ -115,7 +102,7 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
         mode="w",
         suffix=".yaml",
         delete=False,
-        prefix=f"map_cs_{track}_",
+        prefix=f"map_svgp_{track}_",
         dir=str(map_config_path.parent),
     )
     yaml.dump(cfg, tmp)
@@ -123,14 +110,15 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
     return Path(tmp.name)
 
 
-def make_config_with_lane_width(lane_width: float) -> Path:
-    """Return a temp algo config YAML with the given real_track_width."""
+def make_config_override(lane_width: float, task_index: int) -> Path:
+    """Return a temp algo config YAML with the given lane_width and svgp_task_index."""
     with open(BASE_CONFIG) as f:
         cfg = yaml.safe_load(f)
     cfg["controller"]["real_track_width"] = lane_width
+    cfg["controller"]["svgp_task_index"] = task_index
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False,
-        prefix=f"config_lw{lane_width}_",
+        prefix=f"config_svgp_lw{lane_width}_t{task_index}_",
         dir=str(BASE_CONFIG.parent),
     )
     yaml.dump(cfg, tmp)
@@ -165,15 +153,12 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
     log.info("=" * 60)
 
     # All map/centerline/raceline files come from the 1.0489 directory.
-    # mu_override in F1TenthAPI still sets vehicle physics to the desired mu.
     fixed_map_config_path = make_map_config_all_10489_files(map_config_path, track)
 
-    # If lane_width is specified, create a temp algo config with that value.
-    algo_config_path = BASE_CONFIG
-    tmp_algo_config_path = None
-    if lane_width is not None:
-        tmp_algo_config_path = make_config_with_lane_width(lane_width)
-        algo_config_path = tmp_algo_config_path
+    # Create temp algo config with lane_width and task_index overrides.
+    lw = lane_width if lane_width is not None else 1.5
+    tmp_algo_config_path = make_config_override(lw, task_index)
+    algo_config_path = tmp_algo_config_path
 
     try:
         api = F1TenthAPI(VEHICLE_PARAMS, algo_config_path, fixed_map_config_path, mu_override=mu)
@@ -197,7 +182,6 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
         lap_step_start = 0
         lap_times_list: list = []
 
-        # Access controller to log CS values periodically
         controller = api._controller
 
         try:
@@ -207,15 +191,9 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
                 state = api.get_state()
                 cmd = api.compute_action(state, waypoints)
 
-                # MCTS dynamics are internal to C++ — no RMSE prediction available.
                 cs_raw = (
                     controller.get_cornering_stiffness()
                     if hasattr(controller, "get_cornering_stiffness")
-                    else float("nan")
-                )
-                cs_smooth = (
-                    controller.get_smoothed_calpha()
-                    if hasattr(controller, "get_smoothed_calpha")
                     else float("nan")
                 )
                 max_kappa = getattr(controller, "_max_kappa_lookahead", float("nan"))
@@ -224,14 +202,12 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
                     state, cmd,
                     float("nan"), float("nan"), float("nan"),
                     c_alpha=cs_raw,
-                    c_alpha_smooth=cs_smooth,
                     max_kappa=max_kappa,
                     avg_kappa=avg_kappa,
                 )
                 done = api.apply_action(cmd)
 
                 if render:
-                    # Extract MCTS planned trajectory for visualization
                     traj_steps = getattr(controller, 'get_best_trajectory', lambda: [])()
                     if traj_steps:
                         xy = np.array([[s['state'][0], s['state'][1]]
@@ -274,15 +250,10 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
                         if hasattr(controller, "get_cornering_stiffness")
                         else float("nan")
                     )
-                    c_alpha_smooth = (
-                        controller.get_smoothed_calpha()
-                        if hasattr(controller, "get_smoothed_calpha")
-                        else float("nan")
-                    )
                     log.info(
                         "[%s mu=%.4f] step=%d  v=%.2f  progress=%.1f%%  "
-                        "C_alpha=%.1f (smooth=%.1f)  dt=%.4fs",
-                        track, mu, step, state.v, pct, cs, c_alpha_smooth, elapsed,
+                        "C_alpha=%.1f  dt=%.4fs",
+                        track, mu, step, state.v, pct, cs, elapsed,
                     )
 
                 if done:
@@ -316,11 +287,12 @@ def run_experiment(track, mu, task_index, seed, trial, max_steps, render, lane_w
             laps = max(laps, gym_laps)
 
         lw_tag = f"_lw{lane_width}" if lane_width is not None else ""
-        output_dir = str(RESULTS_DIR / f"mcts_pi_svgp_cs_{track}_{mu_id}{lw_tag}")
+        output_dir = str(RESULTS_DIR / f"mcts_svgp_dyn_{track}_{mu_id}{lw_tag}")
         config_name = f"{BASE_CONFIG.stem}_t{trial}_s{seed}"
         extra_meta = {
             "trial": trial,
             "seed": seed,
+            "task_index": task_index,
             "lane_width": lane_width,
             "lap_times_s": lap_times_list,
             "collision": reason == "collision",
@@ -392,7 +364,6 @@ def run_experiment_in_subprocess(track, mu, task_index, seed, trial, max_steps, 
     except subprocess.TimeoutExpired:
         retcode = -99
 
-    # Try to read the result JSON written by the child.
     try:
         with open(result_path) as f:
             content = f.read().strip()
@@ -455,10 +426,10 @@ def _subprocess_main():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="MCTS DPW + PI-SVGP + Cornering Stiffness batch experiments"
+        description="MCTS DPW + SVGP dynamics + action prior batch experiments"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
-    parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu) combo")
+    parser.add_argument("--num-trials", type=int, default=1, help="Trials per (track, mu, lw) combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed (trial i uses base_seed + i - 1)")
     parser.add_argument("--render", action="store_true")
     args = parser.parse_args()
@@ -466,28 +437,29 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     results = []
-    total = len(RETRY_EXPERIMENTS) * args.num_trials
+    total = len(TRACKS) * len(MU_CONFIGS) * len(LANE_WIDTHS) * args.num_trials
     idx = 0
-    task_index = 0  # always 0
 
-    for track, mu, lane_width in RETRY_EXPERIMENTS:
-        for trial in range(1, args.num_trials + 1):
-            idx += 1
-            seed = args.base_seed + trial - 1
-            log.info(
-                "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  task=%d  trial=%d  seed=%d",
-                idx, total, track, mu, lane_width, task_index, trial, seed,
-            )
-            result = run_experiment_in_subprocess(
-                track, mu, task_index, seed, trial, args.max_steps, args.render,
-                lane_width=lane_width,
-            )
-            results.append(result)
+    for track in TRACKS:
+        for mu, task_index in MU_CONFIGS:
+            for lane_width in LANE_WIDTHS:
+                for trial in range(1, args.num_trials + 1):
+                    idx += 1
+                    seed = args.base_seed + trial - 1
+                    log.info(
+                        "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  task=%d  trial=%d  seed=%d",
+                        idx, total, track, mu, lane_width, task_index, trial, seed,
+                    )
+                    result = run_experiment_in_subprocess(
+                        track, mu, task_index, seed, trial, args.max_steps, args.render,
+                        lane_width=lane_width,
+                    )
+                    results.append(result)
 
     # ── Summary table ─────────────────────────────────────────────────
     w = 130
     print("\n" + "=" * w)
-    print("MCTS + PI-SVGP + CORNERING STIFFNESS EXPERIMENT RESULTS")
+    print("MCTS + SVGP DYNAMICS (Ekin + HiP-MDP) + ACTION PRIOR EXPERIMENT RESULTS")
     print("=" * w)
     print(
         f"{'Track':<12} {'mu':>7} {'LW':>5} {'Task':>5} {'Trial':>6} {'Seed':>6} {'Steps':>7} "
@@ -545,7 +517,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # Dispatch: subprocess mode runs a single isolated experiment.
     if "--_subprocess" in sys.argv:
         _subprocess_main()
     else:
