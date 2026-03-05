@@ -10,7 +10,7 @@
 controller:
   type: mcts_dpw_svgp_cpp_calpha_model
   # --- MCTS DPW hyperparameters ---
-  n_simulations: 2000
+  n_simulations: 3000
   exploration_constant: 1.0   # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
@@ -34,9 +34,9 @@ controller:
   action_prior_model_type: svgp   # "svgp" or "sgpr_krasserm"
   action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
   calpha_window_size: 10
-  # --- Krasser SVGP dynamics models (Ekin + ARD RBF residuals, C_alpha as 7th input) ---
-  svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel.npz
-  svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel.npz
+  # --- Krasser SVGP dynamics models (Ekin + ARD RBF residuals, C_alpha_smooth as 7th input) ---
+  svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth.npz
+  svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth.npz
 
 dynamics:
   type: f1tenth_dynamics

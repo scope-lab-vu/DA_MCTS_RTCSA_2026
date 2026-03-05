@@ -41,30 +41,22 @@ logging.basicConfig(
 )
 log = logging.getLogger("mcts_svgp_calpha_dyn_experiments")
 
-# Only re-run experiments that crashed or never ran (log truncated at run 168/176).
-# Format: (track, mu, lane_width)
-RETRY_EXPERIMENTS = [
-    # YasMarina crashes
-    ("YasMarina", 0.6, 0.7),   # segfault
-    ("YasMarina", 0.6, 0.8),   # crash (exit 1)
-    ("YasMarina", 0.5, 1.2),   # segfault
-    ("YasMarina", 0.3, 1.0),   # crash (exit 1)
-    # Sepang crashes
-    ("Sepang", 0.9, 0.5),      # crash (exit 1)
-    ("Sepang", 0.8, 1.4),      # segfault
-    ("Sepang", 0.7, 0.5),      # crash (exit 1)
-    ("Sepang", 0.4, 1.1),      # crash (exit 1)
-    # Sepang mu=0.3 — log truncated, never ran
-    ("Sepang", 0.3, 0.7),
-    ("Sepang", 0.3, 0.8),
-    ("Sepang", 0.3, 0.9),
-    ("Sepang", 0.3, 1.0),
-    ("Sepang", 0.3, 1.1),
-    ("Sepang", 0.3, 1.2),
-    ("Sepang", 0.3, 1.3),
-    ("Sepang", 0.3, 1.4),
-    ("Sepang", 0.3, 1.5),
+TRACKS = ["Sepang", "YasMarina"]
+
+MU_CONFIGS = [
+    1.0,
+    0.9,
+    0.8,
+    0.7,
+    0.6,
+    0.5,
+    0.4,
+    0.3,
+    0.2,
+    0.1,
 ]
+
+LANE_WIDTHS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]
 
 
 BASE_CONFIG = Path("params/config_mcts_dpw_svgp_calpha_action_prior_cpp.yaml")
@@ -434,22 +426,24 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     results = []
-    total = len(RETRY_EXPERIMENTS) * args.num_trials
+    total = len(TRACKS) * len(MU_CONFIGS) * len(LANE_WIDTHS) * args.num_trials
     idx = 0
 
-    for track, mu, lane_width in RETRY_EXPERIMENTS:
-        for trial in range(1, args.num_trials + 1):
-            idx += 1
-            seed = args.base_seed + trial - 1
-            log.info(
-                "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  trial=%d  seed=%d",
-                idx, total, track, mu, lane_width, trial, seed,
-            )
-            result = run_experiment_in_subprocess(
-                track, mu, seed, trial, args.max_steps, args.render,
-                lane_width=lane_width,
-            )
-            results.append(result)
+    for track in TRACKS:
+        for mu in MU_CONFIGS:
+            for lane_width in LANE_WIDTHS:
+                for trial in range(1, args.num_trials + 1):
+                    idx += 1
+                    seed = args.base_seed + trial - 1
+                    log.info(
+                        "\n>>> Run %d/%d: %s  mu=%.4f  lw=%.1f  trial=%d  seed=%d",
+                        idx, total, track, mu, lane_width, trial, seed,
+                    )
+                    result = run_experiment_in_subprocess(
+                        track, mu, seed, trial, args.max_steps, args.render,
+                        lane_width=lane_width,
+                    )
+                    results.append(result)
 
     # ── Summary table ─────────────────────────────────────────────────
     w = 120

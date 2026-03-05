@@ -6,6 +6,7 @@ Compare one-step prediction RMSE:
   4. PI-SVGP (Pacejka tire model from GP, dynamic bicycle model)
   5. Ekin + Krasser SVGP (C_alpha as direct feature, isotropic RBF kernel)
   6. Ekin + Krasser SVGP ARD (C_alpha as direct feature, ARD RBF kernel)
+  7. Ekin + Krasser SVGP ARD (C_alpha_smooth as direct feature, ARD RBF kernel)
 
 All evaluated on trajectory data at dt=0.02s.
 """
@@ -20,6 +21,7 @@ mu_friction = 1.0489; C_Sf = 4.718; C_Sr = 5.4562
 lf = 0.15875; lr = 0.17145; h = 0.074
 mass = 3.74; I_z = 0.04712
 G = 9.81; L = lf + lr
+C_ALPHA_NOMINAL = 104.89
 
 # ── HiP-MDP SVGP (Ekin + residual) ──────────────────────────────────────────
 
@@ -270,24 +272,31 @@ beta_model = load_svgp_model("models/svgp/hip_mdp_svgp_beta_YasMarina_VAR6_jax_T
 
 # Load Krasser SVGP models (C_alpha as direct feature)
 krasser_omega_model = load_krasser_model(
-    "/home/samir/Desktop/WORK/deep_pacejka_model_f1tenth/deep_dynamics/svgp_martin_krasser/gp/data/models/"
+    "/media/vanderbilt/home/sgupta/WORK/f1tenth_gym_ws/models/svgp/"
     "krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data.npz")
 krasser_beta_model = load_krasser_model(
-    "/home/samir/Desktop/WORK/deep_pacejka_model_f1tenth/deep_dynamics/svgp_martin_krasser/gp/data/models/"
+    "/media/vanderbilt/home/sgupta/WORK/f1tenth_gym_ws/models/svgp/" 
     "krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data.npz")
 
 # Load Krasser SVGP ARD models (per-dimension lengthscales)
 krasser_ard_omega_model = load_krasser_model(
-    "/home/samir/Desktop/WORK/deep_pacejka_model_f1tenth/deep_dynamics/svgp_martin_krasser/gp/data/models/"
+    "/media/vanderbilt/home/sgupta/WORK/f1tenth_gym_ws/models/svgp/"
     "krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel.npz")
 krasser_ard_beta_model = load_krasser_model(
-    "/home/samir/Desktop/WORK/deep_pacejka_model_f1tenth/deep_dynamics/svgp_martin_krasser/gp/data/models/"
+    "/media/vanderbilt/home/sgupta/WORK/f1tenth_gym_ws/models/svgp/"
     "krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel.npz")
 
-# Load PI-SVGP model
-pi_svgp_dir = os.path.join(os.path.dirname(__file__), "..", "deep_pacejka_model_f1tenth",
-                           "deep_dynamics", "output", "pi_svgp_no_hip", "run4_low_kl")
-pi_params = load_pi_svgp_model(pi_svgp_dir)
+# Load Krasser SVGP ARD C_alpha_smooth models (C_alpha_smooth = rolling mean of C_alpha)
+KRASSER_SMOOTH_WINDOW = 10
+krasser_smooth_omega_model = load_krasser_model(
+    "models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth.npz")
+krasser_smooth_beta_model = load_krasser_model(
+    "models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth.npz")
+
+# Load PI-SVGP model (commented out — model directory not available)
+# pi_svgp_dir = os.path.join(os.path.dirname(__file__), "..", "deep_pacejka_model_f1tenth",
+#                            "deep_dynamics", "output", "pi_svgp_no_hip", "run4_low_kl")
+# pi_params = load_pi_svgp_model(pi_svgp_dir)
 
 MPPI_DATA_DIR = "MCTS_SVGP_action_sampler/training_data"
 MCTS_RESULTS_DIR = "results"
@@ -322,9 +331,10 @@ print("  1) Ekin-only:          Extended Kinematic model (no correction)")
 print("  2) Ekin+SVGP (mean):   Ekin + HiP-MDP SVGP residual (mean only)")
 print(f"  3) Ekin+SVGP (sample): Ekin + HiP-MDP SVGP residual (sampled from posterior, {N_SAMPLE_RUNS} runs)")
 # print(f"  4) Ekin+SVGP (avg{N_AVG_SAMPLES}):  Ekin + HiP-MDP SVGP residual (mean of {N_AVG_SAMPLES} samples, {N_AVG_RUNS} runs)")
-print("  4) PI-SVGP:            Pacejka tire model from GP + dynamic bicycle model")
+# print("  4) PI-SVGP:            Pacejka tire model from GP + dynamic bicycle model")
 print("  5) Ekin+Krasser SVGP:  Ekin + Krasser SVGP residual (C_alpha as direct feature, isotropic RBF)")
 print("  6) Ekin+Krasser ARD:   Ekin + Krasser SVGP residual (C_alpha as direct feature, ARD RBF)")
+print("  7) Ekin+Krasser Smooth: Ekin + Krasser SVGP residual (C_alpha_smooth, ARD RBF)")
 print("=" * 120)
 
 for group_name, datasets in dataset_groups.items():
@@ -339,12 +349,21 @@ for group_name, datasets in dataset_groups.items():
         # Check if per-step C_alpha is available in CSV
         has_calpha_col = "C_alpha" in df.columns
 
+        # Compute C_alpha_smooth = rolling window mean of C_alpha (matches add_c_alpha.py)
+        if has_calpha_col:
+            df["C_alpha_smooth"] = (df["C_alpha"]
+                .fillna(C_ALPHA_NOMINAL)
+                .rolling(window=KRASSER_SMOOTH_WINDOW, min_periods=1).mean())
+        # else:
+        #     df["C_alpha_smooth"] = c_alpha_default
+
         errs = {k: [] for k in [
             "ekin_omega", "ekin_beta",
             "hip_mean_omega", "hip_mean_beta",
-            "pi_omega", "pi_beta",
+            # "pi_omega", "pi_beta",
             "krasser_omega", "krasser_beta",
             "krasser_ard_omega", "krasser_ard_beta",
+            "krasser_smooth_omega", "krasser_smooth_beta",
         ]}
         # For sampled: collect over multiple runs
         sampled_errs_omega = []  # shape will be (N_SAMPLE_RUNS, N)
@@ -372,8 +391,8 @@ for group_name, datasets in dataset_groups.items():
             hip[5] += svgp_predict(omega_model, gp_input, task_idx)[0]
             hip[6] += svgp_predict(beta_model, gp_input, task_idx)[0]
 
-            # 3. PI-SVGP (Pacejka)
-            pi = pi_svgp_step(state, accl, sv, pi_params, c_alpha, dt)
+            # 3. PI-SVGP (Pacejka) — commented out, model not available
+            # pi = pi_svgp_step(state, accl, sv, pi_params, c_alpha, dt)
 
             # 4. Ekin + Krasser SVGP (C_alpha as 7th input, isotropic RBF)
             kr = ekin.copy()
@@ -386,16 +405,25 @@ for group_name, datasets in dataset_groups.items():
             kr_ard[5] += krasser_ard_predict(krasser_ard_omega_model, gp_input_7d)[0]
             kr_ard[6] += krasser_ard_predict(krasser_ard_beta_model, gp_input_7d)[0]
 
+            # 6. Ekin + Krasser SVGP ARD C_alpha_smooth (smoothed C_alpha as 7th input)
+            kr_smooth = ekin.copy()
+            c_alpha_smooth_val = df["C_alpha_smooth"].iloc[i]
+            gp_input_7d_smooth = np.array([[state[2], state[3], state[5], state[6], accl, sv, c_alpha_smooth_val]])
+            kr_smooth[5] += krasser_ard_predict(krasser_smooth_omega_model, gp_input_7d_smooth)[0]
+            kr_smooth[6] += krasser_ard_predict(krasser_smooth_beta_model, gp_input_7d_smooth)[0]
+
             errs["ekin_omega"].append(abs(ekin[5] - gt.S_omega))
             errs["ekin_beta"].append(abs(ekin[6] - gt.S_beta))
             errs["hip_mean_omega"].append(abs(hip[5] - gt.S_omega))
             errs["hip_mean_beta"].append(abs(hip[6] - gt.S_beta))
-            errs["pi_omega"].append(abs(pi[5] - gt.S_omega))
-            errs["pi_beta"].append(abs(pi[6] - gt.S_beta))
+            # errs["pi_omega"].append(abs(pi[5] - gt.S_omega))
+            # errs["pi_beta"].append(abs(pi[6] - gt.S_beta))
             errs["krasser_omega"].append(abs(kr[5] - gt.S_omega))
             errs["krasser_beta"].append(abs(kr[6] - gt.S_beta))
             errs["krasser_ard_omega"].append(abs(kr_ard[5] - gt.S_omega))
             errs["krasser_ard_beta"].append(abs(kr_ard[6] - gt.S_beta))
+            errs["krasser_smooth_omega"].append(abs(kr_smooth[5] - gt.S_omega))
+            errs["krasser_smooth_beta"].append(abs(kr_smooth[6] - gt.S_beta))
 
         # Run sampled predictions N_SAMPLE_RUNS times
         for run in range(N_SAMPLE_RUNS):
@@ -443,7 +471,7 @@ for group_name, datasets in dataset_groups.items():
                                      ("Ekin+SVGP mean ", f"hip_mean_{var}"),
                                      ("Ekin+Krasser   ", f"krasser_{var}"),
                                      ("Ekin+KrasserARD", f"krasser_ard_{var}"),
-                                     ("PI-SVGP        ", f"pi_{var}")]:
+                                     ("Ekin+KrSmooth  ", f"krasser_smooth_{var}")]:
                 e = errs[key]
                 print(f"    {model_name}:  {np.sqrt(np.mean(e**2)):12.6f}  {np.mean(e):12.6f}  {np.max(e):12.6f}")
 
