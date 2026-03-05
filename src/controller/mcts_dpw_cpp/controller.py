@@ -208,8 +208,9 @@ class MCTSDPWCppController:
             self._tree = self._make_tree(state_np, v_ref_window)
             self._tree.set_v_ref_window(v_ref_window)
 
-        # Set dynamic rollout horizon based on curvature.
+        # Set dynamic rollout horizon and curve flag based on curvature.
         self._tree.set_rollout_horizon(self._dynamic_horizon)
+        self._tree.set_is_curve(self._max_kappa_lookahead >= self.kappa_threshold)
 
         # Run MCTS: fixed count for determinism, time budget for real-time.
         if self.mcts_time_budget > 0:

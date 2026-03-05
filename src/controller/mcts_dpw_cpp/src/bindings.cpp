@@ -121,6 +121,10 @@ class F1TenthDPW {
         sim_->set_rollout_horizon(h);
     }
 
+    void set_is_curve(bool is_curve) {
+        sim_->set_is_curve(is_curve);
+    }
+
     void set_centerline(py::array_t<double> cx, py::array_t<double> cy,
                         py::array_t<double> heading) {
         sim_->set_centerline(to_vec(cx), to_vec(cy), to_vec(heading));
@@ -228,6 +232,8 @@ PYBIND11_MODULE(mcts_f1tenth_cpp, m) {
              py::arg("mean"), py::arg("std"))
         .def("set_rollout_horizon", &F1TenthDPW::set_rollout_horizon,
              py::arg("horizon"))
+        .def("set_is_curve", &F1TenthDPW::set_is_curve,
+             py::arg("is_curve"))
         .def("set_centerline", &F1TenthDPW::set_centerline,
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
         .def("learn", &F1TenthDPW::learn, py::arg("Nsim"))

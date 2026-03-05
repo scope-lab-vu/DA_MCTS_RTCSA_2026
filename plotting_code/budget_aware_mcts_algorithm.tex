@@ -1,0 +1,142 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\definecolor{commentgreen}{RGB}{34,139,34}
+
+\algrenewcommand\algorithmicrequire{\textbf{Input:}}
+\algrenewcommand\algorithmicensure{\textbf{Output:}}
+
+\begin{document}
+
+\begin{minipage}{0.85\textwidth}
+
+\begin{algorithm}[H]
+\caption{Budget-Aware MCTS with Adaptive Action Sampling}
+\label{alg:budget-mcts}
+\begin{algorithmic}[1]
+
+\Require Time budget $T$, tree root $x_0$, progressive widening exponent $\alpha$
+
+\Ensure Best action $a^*$
+
+\Statex
+\Statex \textcolor{commentgreen}{\textit{\% Hyperparameters:
+$W_{\text{low}} = 15$, $W_{\text{high}} = 50$, $N_w = 100$, $N_r = 200$}}
+
+\Statex
+\Statex \textcolor{commentgreen}{\textit{\% Initialize with equal sampling (no bias at episode start)}}
+\State $\mathbf{p} \gets (p_{\text{agg}},\; p_{\text{slow}},\; p_{\text{feas}}) = \left(\tfrac{1}{3},\; \tfrac{1}{3},\; \tfrac{1}{3}\right)$
+\State $t_{\text{start}} \gets \textsc{Clock}()$;\quad $t_{\text{deadline}} \gets t_{\text{start}} + T$;\quad $n \gets 0$
+
+\Statex
+\Statex \textcolor{commentgreen}{\textit{\% Phase 1: Warmup --- measure iteration rate with equal sampling}}
+\While{$n < N_w$ \textbf{and} $\textsc{Clock}() < t_{\text{deadline}}$}
+    \State \Call{GrowTree}{$x_0, \mathbf{p}$};\quad $n \gets n + 1$
+\EndWhile
+
+\Statex
+\Statex \textcolor{commentgreen}{\textit{\% Phase 2: Estimate budget and adapt sampling weights}}
+\State $\bar{t}_{\text{iter}} \gets (\textsc{Clock}() - t_{\text{start}}) \;/\; n$ \hfill $\triangleright$ avg time per iteration
+\State $N_{\text{total}} \gets n + \lfloor(t_{\text{deadline}} - \textsc{Clock}()) \;/\; \bar{t}_{\text{iter}}\rfloor$ \hfill $\triangleright$ estimated total iterations
+\State $\hat{W} \gets N_{\text{total}}^{\;\alpha}$ \hfill $\triangleright$ expected root width
+\State $\mathbf{p} \gets \Call{ComputeWeights}{\hat{W}}$
+
+\Statex
+\Statex \textcolor{commentgreen}{\textit{\% Phase 3: Adaptive search with periodic re-calibration}}
+\While{$\textsc{Clock}() < t_{\text{deadline}}$}
+    \State \Call{GrowTree}{$x_0, \mathbf{p}$};\quad $n \gets n + 1$
+    \If{$n \bmod N_r = 0$} \hfill $\triangleright$ re-calibrate
+        \State $\bar{t}_{\text{iter}} \gets (\textsc{Clock}() - t_{\text{start}}) \;/\; n$
+        \State $N_{\text{total}} \gets n + \lfloor(t_{\text{deadline}} - \textsc{Clock}()) \;/\; \bar{t}_{\text{iter}}\rfloor$
+        \State $\hat{W} \gets N_{\text{total}}^{\;\alpha}$;\quad $\mathbf{p} \gets \Call{ComputeWeights}{\hat{W}}$
+    \EndIf
+\EndWhile
+
+\Statex
+\State \Return $a^* \gets \arg\max_{a \in \text{children}(x_0)} \text{visits}(a)$
+
+\Statex
+\Statex \hrulefill
+
+\Statex
+\Function{ComputeWeights}{$\hat{W}$}
+    \State $\tau \gets \text{clamp}\!\left(\dfrac{\hat{W} - W_{\text{low}}}{W_{\text{high}} - W_{\text{low}}},\; 0,\; 1\right) = \text{clamp}\!\left(\dfrac{\hat{W} - 15}{35},\; 0,\; 1\right)$
+    \hfill $\triangleright$ budget interpolant
+    \Statex
+    \Statex \hspace{2em}\textcolor{commentgreen}{\textit{\% Tight budget ($\tau \!\to\! 0$): favor braking for safety}}
+    \Statex \hspace{2em}\textcolor{commentgreen}{\textit{\% Ample budget ($\tau \!\to\! 1$): favor GP prior + aggressive for speed}}
+    \Statex
+    \State $p_{\text{slow}} \gets 0.70 - 0.60 \cdot \tau$ \hfill $\triangleright$ $0.70 \to 0.10$
+    \State $p_{\text{feas}} \gets 0.20 + 0.35 \cdot \tau$ \hfill $\triangleright$ $0.20 \to 0.55$
+    \State $p_{\text{agg}} \gets 1 - p_{\text{slow}} - p_{\text{feas}}$ \hfill $\triangleright$ $0.10 \to 0.35$
+    \State \Return $(p_{\text{agg}},\; p_{\text{slow}},\; p_{\text{feas}})$
+\EndFunction
+
+\Statex
+\Statex \hrulefill
+
+\Statex
+\Function{SampleAction}{$\mathbf{p}$} \hfill $\triangleright$ used inside \textsc{GrowTree} on curves
+    \State Draw $u \sim \text{Uniform}(0, 1)$
+    \If{$u < p_{\text{agg}}$}
+        \State $a_{\text{accel}} \sim \text{Uniform}(0,\; a_{\max})$ \hfill $\triangleright$ aggressive (accelerate)
+    \ElsIf{$u < p_{\text{agg}} + p_{\text{slow}}$}
+        \State $a_{\text{accel}} \sim \text{Uniform}(-a_{\max},\; 0)$ \hfill $\triangleright$ slow (brake)
+    \Else
+        \State $a_{\text{accel}} \sim \mathcal{N}(\mu_{\text{GP}},\; \sigma_{\text{GP}}^2)$ \hfill $\triangleright$ feasible (GP prior)
+    \EndIf
+    \State $a_{\text{steer}} \sim \mathcal{N}(\mu_{\text{GP}}^{sv},\; \sigma_{\text{GP}}^{sv\,2})$ \hfill $\triangleright$ steering always from GP prior
+    \State \Return $(a_{\text{accel}},\; a_{\text{steer}})$
+\EndFunction
+
+\end{algorithmic}
+\end{algorithm}
+
+\vspace{1.5em}
+
+\noindent\textbf{Hyperparameters:}
+
+\vspace{0.5em}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Symbol} & \textbf{Value} & \textbf{Description} \\
+\midrule
+$T$ & 35\,ms & MCTS time budget per planning step \\
+$\alpha$ & 0.5 & Action progressive widening exponent \\
+$W_{\text{low}}$ & 15 & Root width below which budget is ``tight'' \\
+$W_{\text{high}}$ & 50 & Root width above which budget is ``ample'' \\
+$N_w$ & 100 & Warmup iterations (equal $\frac{1}{3}$ sampling) \\
+$N_r$ & 200 & Re-calibration interval \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1em}
+
+\noindent\textbf{Endpoint sampling distributions:}
+
+\vspace{0.5em}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{l c c c l}
+\toprule
+\textbf{Budget regime} & $p_{\text{agg}}$ & $p_{\text{slow}}$ & $p_{\text{feas}}$ & \textbf{Behavior} \\
+\midrule
+Tight\; ($\hat{W} \leq 15$) & 0.10 & 0.70 & 0.20 & Mostly braking $\to$ safety \\
+Ample\; ($\hat{W} \geq 50$) & 0.35 & 0.10 & 0.55 & GP prior + accel $\to$ speed \\
+Episode start & $\tfrac{1}{3}$ & $\tfrac{1}{3}$ & $\tfrac{1}{3}$ & Equal (before calibration) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\end{minipage}
+
+\end{document}

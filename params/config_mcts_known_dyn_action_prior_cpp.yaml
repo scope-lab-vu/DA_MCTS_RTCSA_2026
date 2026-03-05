@@ -4,7 +4,7 @@
 controller:
   type: mcts_known_dyn_action_prior_cpp
   # --- MCTS DPW hyperparameters ---
-  n_simulations: 1000
+  n_simulations: 3000
   exploration_constant: 1.0   # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
   beta_dpw: 0.5                # outcome progressive widening exponent
@@ -21,8 +21,8 @@ controller:
   curvature_lookahead: 30
   mcts_time_budget: 0
   use_occupancy_map: true
-  lane_width: 0.5
-  real_track_width: 1.5
+  lane_width: 1.5
+  real_track_width: 2.0
   normalize_reward: false
   # --- Action prior ---
   action_prior_model_type: svgp   # "svgp" or "sgpr_krasserm"
@@ -38,7 +38,7 @@ safety:
 simulation:
   vehicle_interface: gym
   dt_s: 0.04
-  log_every_n_steps: 1
+  log_every_n_steps: 1000
   seed: 42
 
 

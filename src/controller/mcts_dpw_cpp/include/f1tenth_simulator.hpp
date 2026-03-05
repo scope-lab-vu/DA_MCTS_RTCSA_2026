@@ -76,6 +76,7 @@ class F1TenthSimulator : public Simulator {
     std::vector<double> action_mean_;  // size 2
     std::vector<double> action_std_;   // size 2
     bool use_action_prior_ = false;
+    bool is_curve_ = false;
     // Centerline for heading lookup: cx_[i], cy_[i], cheading_[i]
     std::vector<double> cx_;
     std::vector<double> cy_;
@@ -121,6 +122,8 @@ class F1TenthSimulator : public Simulator {
     }
 
     void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
+
+    void set_is_curve(bool is_curve) { is_curve_ = is_curve; }
 
     void set_centerline(const std::vector<double>& cx,
                         const std::vector<double>& cy,
@@ -283,9 +286,9 @@ class F1TenthSimulator : public Simulator {
             speed_cap_cost_max = (std::abs(v_n) > 12.0 ? 1.0 : 0.0);             // {0, 1}
             speed_cap_cost_min = (v_n < 1.5 ? 1.0 : 0.0);                        // {0, 1}
         } else {
-            // double imag_cost = static_cast<double>(off_imag) * 10000.0;    // soft penalty
+            double imag_cost = static_cast<double>(off_imag) * 100000.0;    // soft penalty
             double real_cost = static_cast<double>(off_real) * 1000000.0;  // hard penalty
-            track_cost = real_cost;
+            track_cost = real_cost + imag_cost;
             speed_cost = -(cost_.speed_weight * v_n );
             slip_cost = alpha_slip * alpha_slip
                       + 10000.0 * (done_slip ? 1.0 : 0.0);
@@ -339,34 +342,58 @@ class F1TenthSimulator : public Simulator {
             }
             return {accel_dist(rng_), sv};
         }
-        // // Overspeed heuristic: if v > min(v_ref_window), only sample braking
-        // if (v > v_ref_min_) {
-        //     std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
-        //     double sv;
-        //     if (use_action_prior_) {
-        //         std::normal_distribution<double> steer_dist(
-        //             action_mean_[1], action_std_[1]);
-        //         sv = std::max(vp_.sv_min,
-        //                       std::min(vp_.sv_max, steer_dist(rng_)));
-        //     } else {
-        //         std::uniform_real_distribution<double> steer_dist(
-        //             vp_.sv_min, vp_.sv_max);
-        //         sv = steer_dist(rng_);
-        //     }
-        //     return {accel_dist(rng_), sv};
-        // }
+        // Steering: GP prior when available, uniform fallback
+        double sv;
         if (use_action_prior_) {
-            // Sample from Gaussian prior N(mean, std), clamp to action limits
-            std::normal_distribution<double> accel_dist(action_mean_[0], action_std_[0]);
-            std::normal_distribution<double> steer_dist(action_mean_[1], action_std_[1]);
-            double accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
-            double sv = std::max(vp_.sv_min, std::min(vp_.sv_max, steer_dist(rng_)));
-            return {accel, sv};
+            std::normal_distribution<double> steer_dist(
+                action_mean_[1], action_std_[1]);
+            sv = std::max(vp_.sv_min, std::min(vp_.sv_max, steer_dist(rng_)));
+        } else {
+            std::uniform_real_distribution<double> steer_dist(
+                vp_.sv_min, vp_.sv_max);
+            sv = steer_dist(rng_);
         }
-        // Fallback: uniform sampling
-        std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
-        std::uniform_real_distribution<double> steer_dist(vp_.sv_min, vp_.sv_max);
-        return {accel_dist(rng_), steer_dist(rng_)};
+
+        // Acceleration:
+        //   Straight: 100% GP prior
+        //   Curve:    33% Aggressive + 33% Slow + 34% Feasible (GP prior)
+        double accel;
+        if (!is_curve_) {
+            // Straight: GP prior only
+            if (use_action_prior_) {
+                std::normal_distribution<double> accel_dist(
+                    action_mean_[0], action_std_[0]);
+                accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
+            } else {
+                std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
+                accel = accel_dist(rng_);
+            }
+        } else {
+            // Curve: equal three-way split
+            std::uniform_real_distribution<double> selector(0.0, 1.0);
+            double roll = selector(rng_);
+            if (roll < 0.33) {
+                // Aggressive: Uniform(0, a_max)
+                std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
+                accel = accel_dist(rng_);
+            } else if (roll < 0.66) {
+                // Slow: Uniform(-a_max, 0)
+                std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
+                accel = accel_dist(rng_);
+            } else {
+                // Feasible: GP prior
+                if (use_action_prior_) {
+                    std::normal_distribution<double> accel_dist(
+                        action_mean_[0], action_std_[0]);
+                    accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
+                } else {
+                    std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
+                    accel = accel_dist(rng_);
+                }
+            }
+        }
+
+        return {accel, sv};
     }
 
     std::unique_ptr<Simulator> clone() const override {
@@ -378,6 +405,7 @@ class F1TenthSimulator : public Simulator {
         copy->action_mean_ = action_mean_;
         copy->action_std_ = action_std_;
         copy->use_action_prior_ = use_action_prior_;
+        copy->is_curve_ = is_curve_;
         copy->cx_ = cx_;
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;
