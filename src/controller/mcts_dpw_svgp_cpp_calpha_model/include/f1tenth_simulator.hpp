@@ -483,11 +483,11 @@ class F1TenthSimulator : public Simulator {
             // Curve: equal three-way split
             std::uniform_real_distribution<double> selector(0.0, 1.0);
             double roll = selector(rng_);
-            if (roll < 0.33) {
+            if (roll < 0.35) {
                 // Aggressive: Uniform(0, a_max)
                 std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
                 accel = accel_dist(rng_);
-            } else if (roll < 0.66) {
+            } else if (roll < 0.45) {
                 // Slow: Uniform(-a_max, 0)
                 std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
                 accel = accel_dist(rng_);
