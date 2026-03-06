@@ -1,11 +1,11 @@
 #pragma once
 
+#include "types.hpp"
 #include <memory>
-#include <vector>
 
 // Step result: (observation, reward, done)
 struct StepResult {
-    std::vector<double> observation;
+    State7 observation;
     double reward;
     bool done;
 };
@@ -19,9 +19,9 @@ class Simulator {
     virtual bool is_state_discrete() const = 0;
     virtual int n_actions() const { return 0; }
 
-    virtual StepResult step(const std::vector<double>& action) = 0;
-    virtual std::vector<double> sample_action() = 0;
-    virtual void set_state(const std::vector<double>& state) = 0;
+    virtual StepResult step(const Action2& action) = 0;
+    virtual Action2 sample_action() = 0;
+    virtual void set_state(const State7& state) = 0;
     virtual std::unique_ptr<Simulator> clone() const = 0;
 
     // Optional: rollout parameters (used by MCTS evaluate)

@@ -7,16 +7,39 @@
 
 namespace py = pybind11;
 
-// Numpy array -> std::vector<double>
+// Numpy array -> State7
+inline State7 to_state7(py::array_t<double> arr) {
+    State7 s;
+    auto buf = arr.request();
+    double* ptr = static_cast<double*>(buf.ptr);
+    std::copy(ptr, ptr + STATE_DIM, s.begin());
+    return s;
+}
+
+// Numpy array -> Action2
+inline Action2 to_action2(py::array_t<double> arr) {
+    Action2 a;
+    auto buf = arr.request();
+    double* ptr = static_cast<double*>(buf.ptr);
+    std::copy(ptr, ptr + ACTION_DIM, a.begin());
+    return a;
+}
+
+// State7 -> numpy array
+inline py::array_t<double> to_numpy_state(const State7& s) {
+    return py::array_t<double>(STATE_DIM, s.data());
+}
+
+// Action2 -> numpy array
+inline py::array_t<double> to_numpy_action(const Action2& a) {
+    return py::array_t<double>(ACTION_DIM, a.data());
+}
+
+// Numpy array -> std::vector<double> (for variable-length data)
 inline std::vector<double> to_vec(py::array_t<double> arr) {
     auto buf = arr.request();
     double* ptr = static_cast<double*>(buf.ptr);
     return std::vector<double>(ptr, ptr + buf.size);
-}
-
-// std::vector<double> -> numpy array
-inline py::array_t<double> to_numpy(const std::vector<double>& vec) {
-    return py::array_t<double>(static_cast<py::ssize_t>(vec.size()), vec.data());
 }
 
 // Numpy float32 array -> std::vector<float>
@@ -63,7 +86,7 @@ class F1TenthDPWSvgpCAlpha {
                double base_timestep,
                unsigned seed = 0) {
 
-        auto obs = to_vec(initial_obs);
+        auto obs = to_state7(initial_obs);
 
         VehicleParamsCpp vp;
         vp.mu       = mu;
@@ -140,6 +163,10 @@ class F1TenthDPWSvgpCAlpha {
         sim_->set_rollout_horizon(h);
     }
 
+    void set_is_curve(bool is_curve) {
+        sim_->set_is_curve(is_curve);
+    }
+
     void set_centerline(py::array_t<double> cx, py::array_t<double> cy,
                         py::array_t<double> heading) {
         sim_->set_centerline(to_vec(cx), to_vec(cy), to_vec(heading));
@@ -152,17 +179,17 @@ class F1TenthDPWSvgpCAlpha {
     int learn_timed(double budget_s) { return model_->learn_timed(budget_s); }
 
     py::array_t<double> best_action() {
-        return to_numpy(model_->best_action_vec());
+        return to_numpy_action(model_->best_action_vec());
     }
 
     void forward(py::array_t<double> action, py::array_t<double> new_state) {
-        model_->forward(to_vec(action), to_vec(new_state));
+        model_->forward(to_action2(action), to_state7(new_state));
         // Reset simulator to the new root state
-        sim_->set_state(to_vec(new_state));
+        sim_->set_state(to_state7(new_state));
     }
 
     void set_state(py::array_t<double> state) {
-        sim_->set_state(to_vec(state));
+        sim_->set_state(to_state7(state));
     }
 
     // Return root actions as list of dicts: [{action, visits, avg_reward}, ...]
@@ -171,7 +198,7 @@ class F1TenthDPWSvgpCAlpha {
         py::list result;
         for (auto& info : infos) {
             py::dict d;
-            d["action"] = to_numpy(info.action);
+            d["action"] = to_numpy_action(info.action);
             d["visits"] = info.visits;
             d["avg_reward"] = info.avg_reward;
             result.append(d);
@@ -186,8 +213,8 @@ class F1TenthDPWSvgpCAlpha {
         py::list result;
         for (auto& step : steps) {
             py::dict d;
-            d["state"] = to_numpy(step.state);
-            d["action"] = to_numpy(step.action);
+            d["state"] = to_numpy_state(step.state);
+            d["action"] = to_numpy_action(step.action);
             d["avg_reward"] = step.avg_reward;
             d["visits"] = step.visits;
             result.append(d);
@@ -257,6 +284,8 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_calpha_cpp, m) {
              py::arg("mean"), py::arg("std"))
         .def("set_rollout_horizon", &F1TenthDPWSvgpCAlpha::set_rollout_horizon,
              py::arg("horizon"))
+        .def("set_is_curve", &F1TenthDPWSvgpCAlpha::set_is_curve,
+             py::arg("is_curve"))
         .def("set_centerline", &F1TenthDPWSvgpCAlpha::set_centerline,
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
         .def("set_c_alpha", &F1TenthDPWSvgpCAlpha::set_c_alpha,

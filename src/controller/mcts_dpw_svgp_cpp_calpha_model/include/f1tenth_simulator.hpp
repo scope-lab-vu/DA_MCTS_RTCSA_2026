@@ -2,10 +2,17 @@
 
 #include "simulator.hpp"
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <algorithm>
 #include <vector>
 #include <memory>
+
+// Fast exp() using single-precision expf. 2-3x faster than std::exp (double)
+// via SSE, with ~7 digits of precision — more than sufficient for GP kernels.
+inline double fast_exp(double x) {
+    return static_cast<double>(expf(static_cast<float>(x)));
+}
 
 // Vehicle parameters — mirrors src/params.py VehicleParams
 struct VehicleParamsCpp {
@@ -77,6 +84,37 @@ struct KrasserSVGPParams {
     double ymean;                 // output scaler mean (scalar)
     double yscale;                // output scaler std (scalar)
 
+    // --- Precomputed for fast prediction ---
+    std::vector<double> inv_xscale_times_inv_l;  // (D_input): 1/(xscale[d]*lengthscales[d])
+    std::vector<double> xmean_scaled;             // (D_input): xmean[d] * inv_xscale_times_inv_l[d]
+    std::vector<double> X_m_scaled;  // (M*D_input): X_m[j*D+d] / lengthscales[d]
+    std::vector<double> alpha_scaled; // (M): sigma_f^2 * alpha[j] * yscale
+
+    // Call after from_flat() to precompute fast-prediction arrays.
+    void precompute() {
+        double sigma_f_sq = sigma_f * sigma_f;
+
+        inv_xscale_times_inv_l.resize(D_input);
+        xmean_scaled.resize(D_input);
+        for (int d = 0; d < D_input; ++d) {
+            inv_xscale_times_inv_l[d] = 1.0 / (xscale[d] * lengthscales[d]);
+            xmean_scaled[d] = xmean[d] * inv_xscale_times_inv_l[d];
+        }
+
+        X_m_scaled.resize(M * D_input);
+        for (int j = 0; j < M; ++j) {
+            const int base = j * D_input;
+            for (int d = 0; d < D_input; ++d) {
+                X_m_scaled[base + d] = X_m[base + d] / lengthscales[d];
+            }
+        }
+
+        alpha_scaled.resize(M);
+        for (int j = 0; j < M; ++j) {
+            alpha_scaled[j] = sigma_f_sq * alpha[j] * yscale;
+        }
+    }
+
     // Construct from a flat double array packed in Python.
     // Layout: lengthscales(D_input) | sigma_f | alpha(M) | X_m(M*D_input) |
     //         xmean(D_input) | xscale(D_input) | ymean | yscale
@@ -94,6 +132,7 @@ struct KrasserSVGPParams {
         p.xscale.assign(data + off, data + off + D_input_);    off += D_input_;
         p.ymean = data[off++];
         p.yscale = data[off++];
+        p.precompute();
         return p;
     }
 };
@@ -106,31 +145,31 @@ inline double krasser_predict_single(
     const double* gp_input,   // (D_input=7) raw: [delta, v, omega, beta, accl, sv, c_alpha]
     const KrasserSVGPParams& gp
 ) {
-    // Stack-allocate normalized input (max D_input = 7)
-    double x_norm[7];
-
-    // 1. Normalize raw inputs
+    // 1. Normalize + scale by inverse lengthscale in one pass (no divisions)
+    //    x_scaled[d] = (input[d] - xmean[d]) / (xscale[d] * lengthscales[d])
+    //                = input[d] * inv_xscale_times_inv_l[d] - xmean_scaled[d]
+    double x_scaled[7];
     for (int d = 0; d < gp.D_input; ++d) {
-        x_norm[d] = (gp_input[d] - gp.xmean[d]) / gp.xscale[d];
+        x_scaled[d] = gp_input[d] * gp.inv_xscale_times_inv_l[d] - gp.xmean_scaled[d];
     }
 
-    // 2. ARD RBF kernel + dot product with alpha (fused)
-    const double sigma_f_sq = gp.sigma_f * gp.sigma_f;
+    // 2. ARD RBF kernel + dot product with alpha_scaled (fused)
+    //    alpha_scaled[j] = sigma_f^2 * alpha[j] * yscale  (absorbs denorm)
+    //    X_m_scaled[j*D+d] = X_m[j*D+d] / lengthscales[d]
     double f_mean = 0.0;
 
     for (int j = 0; j < gp.M; ++j) {
         double sqdist = 0.0;
         const int base = j * gp.D_input;
         for (int d = 0; d < gp.D_input; ++d) {
-            double diff = (x_norm[d] - gp.X_m[base + d]) / gp.lengthscales[d];
+            double diff = x_scaled[d] - gp.X_m_scaled[base + d];
             sqdist += diff * diff;
         }
-        double k_j = sigma_f_sq * std::exp(-0.5 * sqdist);
-        f_mean += k_j * gp.alpha[j];
+        f_mean += gp.alpha_scaled[j] * fast_exp(-0.5 * sqdist);
     }
 
-    // 3. Denormalize
-    return f_mean * gp.yscale + gp.ymean;
+    // 3. Denormalize (yscale already absorbed into alpha_scaled)
+    return f_mean + gp.ymean;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,15 +192,16 @@ class F1TenthSimulator : public Simulator {
     int n_substeps_;
 
     // State: [x, y, delta, v, psi, omega, beta]
-    std::vector<double> state_;
+    State7 state_;
     int step_count_ = 0;
     std::vector<double> v_ref_window_;
     double v_ref_min_ = 1e9;  // min of v_ref_window, precomputed
 
     // Gaussian action prior from SVGP: [accel_mean, sv_mean], [accel_std, sv_std]
-    std::vector<double> action_mean_;  // size 2
-    std::vector<double> action_std_;   // size 2
+    Action2 action_mean_{};
+    Action2 action_std_{};
     bool use_action_prior_ = false;
+    bool is_curve_ = false;
 
     // Centerline for heading lookup: cx_[i], cy_[i], cheading_[i]
     std::vector<double> cx_;
@@ -189,7 +229,7 @@ class F1TenthSimulator : public Simulator {
           beta_svgp_(std::move(beta_svgp)),
           base_timestep_(base_timestep),
           n_substeps_(std::max(1, static_cast<int>(std::round(cost.dt / base_timestep)))),
-          state_(7, 0.0), rng_(seed) {}
+          state_{}, rng_(seed) {}
 
     // --- Simulator interface ---
 
@@ -198,7 +238,7 @@ class F1TenthSimulator : public Simulator {
     int rollout_horizon() const override { return cost_.rollout_horizon; }
     double discount() const override { return cost_.discount_factor; }
 
-    void set_state(const std::vector<double>& state) override {
+    void set_state(const State7& state) override {
         state_ = state;
         step_count_ = 0;
     }
@@ -212,12 +252,18 @@ class F1TenthSimulator : public Simulator {
 
     void set_action_prior(const std::vector<double>& mean,
                           const std::vector<double>& std) {
-        action_mean_ = mean;
-        action_std_ = std;
-        use_action_prior_ = (mean.size() == 2 && std.size() == 2);
+        if (mean.size() == 2 && std.size() == 2) {
+            action_mean_[0] = mean[0]; action_mean_[1] = mean[1];
+            action_std_[0] = std[0];   action_std_[1] = std[1];
+            use_action_prior_ = true;
+        } else {
+            use_action_prior_ = false;
+        }
     }
 
     void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
+
+    void set_is_curve(bool is_curve) { is_curve_ = is_curve; }
 
     void set_centerline(const std::vector<double>& cx,
                         const std::vector<double>& cy,
@@ -238,10 +284,7 @@ class F1TenthSimulator : public Simulator {
             double dx = x - cx_[i];
             double dy = y - cy_[i];
             double d2 = dx * dx + dy * dy;
-            if (d2 < best_d2) {
-                best_d2 = d2;
-                best_idx = i;
-            }
+            if (d2 < best_d2) { best_d2 = d2; best_idx = i; }
         }
         return best_idx;
     }
@@ -250,7 +293,7 @@ class F1TenthSimulator : public Simulator {
         return cheading_[nearest_index(x, y)];
     }
 
-    StepResult step(const std::vector<double>& action) override {
+    StepResult step(const Action2& action) override {
         double accl = action[0];
         double sv   = action[1];
 
@@ -316,7 +359,9 @@ class F1TenthSimulator : public Simulator {
             next_omega += err_omega;
             next_beta  += err_beta;
 
-            state_ = {next_x, next_y, next_delta, next_v, next_psi, next_omega, next_beta};
+            state_[0] = next_x;     state_[1] = next_y;      state_[2] = next_delta;
+            state_[3] = next_v;     state_[4] = next_psi;    state_[5] = next_omega;
+            state_[6] = next_beta;
         }
 
         // Normalize heading to [0, 2*pi)
@@ -362,12 +407,13 @@ class F1TenthSimulator : public Simulator {
             speed_cap_cost_max = (std::abs(v_n) > 10.0 ? 1.0 : 0.0);
             speed_cap_cost_min = (v_n < 1.5 ? 1.0 : 0.0);
         } else {
-            double real_cost = static_cast<double>(off_real) * 1000000.0;
-            track_cost = real_cost;
+            double imag_cost = static_cast<double>(off_imag) * 100000.0;    // soft penalty
+            double real_cost = static_cast<double>(off_real) * 1000000.0;  // hard penalty
+            track_cost = real_cost + imag_cost;
             speed_cost = -(cost_.speed_weight * v_n);
             slip_cost = alpha_slip * alpha_slip
                       + 10000.0 * (done_slip ? 1.0 : 0.0);
-            speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 10.0 ? 1.0 : 0.0);
+            speed_cap_cost_max = 10000.0 * (std::abs(v_n) > 12.0 ? 1.0 : 0.0);
             speed_cap_cost_min = 10000.0 * (v_n < 1.5 ? 1.0 : 0.0);
         }
 
@@ -389,12 +435,12 @@ class F1TenthSimulator : public Simulator {
         return {state_, reward, done};
     }
 
-    std::vector<double> sample_action() override {
+    Action2 sample_action() override {
         double v = state_[3];
         // At low speed: uniform positive accel, GP prior for steering with 50% clamp
-        if (v < 2.0) {
+        if (v < 2.5) {
             std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
-            double sv_limit = std::max(0.5, (v / 2.0)) * vp_.sv_max;
+            double sv_limit = std::max(0.5, (v / 2.5)) * vp_.sv_max;
             double sv;
             if (use_action_prior_) {
                 std::normal_distribution<double> steer_dist(
@@ -405,20 +451,60 @@ class F1TenthSimulator : public Simulator {
                     -sv_limit, sv_limit);
                 sv = steer_dist(rng_);
             }
-            return {accel_dist(rng_), sv};
+            return Action2{accel_dist(rng_), sv};
         }
+        // Steering: GP prior when available, uniform fallback
+        double sv;
         if (use_action_prior_) {
-            // Sample from Gaussian prior N(mean, std), clamp to action limits
-            std::normal_distribution<double> accel_dist(action_mean_[0], action_std_[0]);
-            std::normal_distribution<double> steer_dist(action_mean_[1], action_std_[1]);
-            double accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
-            double sv = std::max(vp_.sv_min, std::min(vp_.sv_max, steer_dist(rng_)));
-            return {accel, sv};
+            std::normal_distribution<double> steer_dist(
+                action_mean_[1], action_std_[1]);
+            sv = std::max(vp_.sv_min, std::min(vp_.sv_max, steer_dist(rng_)));
+        } else {
+            std::uniform_real_distribution<double> steer_dist(
+                vp_.sv_min, vp_.sv_max);
+            sv = steer_dist(rng_);
         }
-        // Fallback: uniform sampling
-        std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
-        std::uniform_real_distribution<double> steer_dist(vp_.sv_min, vp_.sv_max);
-        return {accel_dist(rng_), steer_dist(rng_)};
+
+        // Acceleration:
+        //   Straight: 100% GP prior
+        //   Curve:    33% Aggressive + 33% Slow + 34% Feasible (GP prior)
+        double accel;
+        if (!is_curve_) {
+            // Straight: GP prior only
+            if (use_action_prior_) {
+                std::normal_distribution<double> accel_dist(
+                    action_mean_[0], action_std_[0]);
+                accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
+            } else {
+                std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
+                accel = accel_dist(rng_);
+            }
+        } else {
+            // Curve: equal three-way split
+            std::uniform_real_distribution<double> selector(0.0, 1.0);
+            double roll = selector(rng_);
+            if (roll < 0.33) {
+                // Aggressive: Uniform(0, a_max)
+                std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
+                accel = accel_dist(rng_);
+            } else if (roll < 0.66) {
+                // Slow: Uniform(-a_max, 0)
+                std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
+                accel = accel_dist(rng_);
+            } else {
+                // Feasible: GP prior
+                if (use_action_prior_) {
+                    std::normal_distribution<double> accel_dist(
+                        action_mean_[0], action_std_[0]);
+                    accel = std::max(-vp_.a_max, std::min(vp_.a_max, accel_dist(rng_)));
+                } else {
+                    std::uniform_real_distribution<double> accel_dist(-vp_.a_max, vp_.a_max);
+                    accel = accel_dist(rng_);
+                }
+            }
+        }
+
+        return Action2{accel, sv};
     }
 
     std::unique_ptr<Simulator> clone() const override {
@@ -433,6 +519,7 @@ class F1TenthSimulator : public Simulator {
         copy->action_mean_ = action_mean_;
         copy->action_std_ = action_std_;
         copy->use_action_prior_ = use_action_prior_;
+        copy->is_curve_ = is_curve_;
         copy->cx_ = cx_;
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;

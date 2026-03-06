@@ -20,7 +20,7 @@ class MCTSNative {
     std::mt19937 rng_;
 
   public:
-    MCTSNative(Simulator* sim, const std::vector<double>& initial_obs, double K,
+    MCTSNative(Simulator* sim, const State7& initial_obs, double K,
                unsigned seed = 0)
         : sim_(sim), K_(K), rng_(seed) {
         root_ = std::make_shared<DecisionNode>(initial_obs, true);
@@ -89,16 +89,16 @@ class MCTSNative {
     select_outcome(RandomNode* random_node) {
         auto result = sim_->step(random_node->action);
         auto node = std::make_shared<DecisionNode>(
-            std::move(result.observation), false, result.done, random_node);
+            result.observation, false, result.done, random_node);
         return {node, result.reward};
     }
 
-    virtual std::vector<double> select(DecisionNode* x) {
+    virtual Action2 select(DecisionNode* x) {
         return ucb_select(x);
     }
 
-    std::vector<double> ucb_select(DecisionNode* x) {
-        std::vector<double> best_action;
+    Action2 ucb_select(DecisionNode* x) {
+        const Action2* best_action_ptr = nullptr;
         double best_score = -std::numeric_limits<double>::infinity();
         double log_visits = std::log(static_cast<double>(x->visits));
 
@@ -112,15 +112,15 @@ class MCTSNative {
             }
             if (score > best_score) {
                 best_score = score;
-                best_action = action;
+                best_action_ptr = &action;
             }
         }
-        return best_action;
+        return *best_action_ptr;
     }
 
-    std::vector<double> best_action_vec() {
+    Action2 best_action_vec() {
         int max_visits = -1;
-        std::vector<double> best;
+        Action2 best{};
         for (auto& [action, child] : root_->children) {
             if (child->visits > max_visits) {
                 max_visits = child->visits;
@@ -151,7 +151,7 @@ class MCTSNative {
 
     // Return root children: list of {action, visits, avg_reward}
     struct ActionInfo {
-        std::vector<double> action;
+        Action2 action;
         int visits;
         double avg_reward;
     };
@@ -170,8 +170,8 @@ class MCTSNative {
     // Walk the tree following most-visited actions/outcomes to extract
     // the best trajectory MCTS has found.
     struct TrajectoryStep {
-        std::vector<double> state;
-        std::vector<double> action;
+        State7 state;
+        Action2 action;
         double avg_reward;
         int visits;
     };
@@ -186,7 +186,7 @@ class MCTSNative {
             // Find most-visited action (RandomNode)
             int best_visits = -1;
             const RandomNode* best_rnd = nullptr;
-            std::vector<double> best_action;
+            Action2 best_action{};
             for (auto& [action, rnd] : dn->children) {
                 if (rnd->visits > best_visits) {
                     best_visits = rnd->visits;
@@ -214,13 +214,13 @@ class MCTSNative {
         }
         // Add final state
         if (dn && !traj.empty()) {
-            traj.push_back({dn->state, {}, 0.0, dn->visits});
+            traj.push_back({dn->state, Action2{}, 0.0, dn->visits});
         }
         return traj;
     }
 
-    void forward(const std::vector<double>& action,
-                 const std::vector<double>& new_state) {
+    void forward(const Action2& action,
+                 const State7& new_state) {
         auto it = root_->children.find(action);
         if (it != root_->children.end()) {
             auto& rnd_node = it->second;
@@ -229,7 +229,7 @@ class MCTSNative {
             } else if (!rnd_node->children.empty()) {
                 auto& next = rnd_node->children.begin()->second;
                 double dist = 0.0;
-                for (size_t i = 0; i < next->state.size(); ++i) {
+                for (size_t i = 0; i < STATE_DIM; ++i) {
                     double d = next->state[i] - new_state[i];
                     dist += d * d;
                 }
@@ -257,11 +257,11 @@ class SPWNative : public MCTSNative {
     double alpha_;
 
   public:
-    SPWNative(Simulator* sim, const std::vector<double>& initial_obs,
+    SPWNative(Simulator* sim, const State7& initial_obs,
               double alpha, double K, unsigned seed = 0)
         : MCTSNative(sim, initial_obs, K, seed), alpha_(alpha) {}
 
-    std::vector<double> select(DecisionNode* x) override {
+    Action2 select(DecisionNode* x) override {
         if (std::pow(static_cast<double>(x->visits), alpha_) >=
             static_cast<double>(x->children.size())) {
             return sim_->sample_action();
@@ -278,7 +278,7 @@ class DPWNative : public SPWNative {
     double beta_;
 
   public:
-    DPWNative(Simulator* sim, const std::vector<double>& initial_obs,
+    DPWNative(Simulator* sim, const State7& initial_obs,
               double alpha, double beta, double K, unsigned seed = 0)
         : SPWNative(sim, initial_obs, alpha, K, seed), beta_(beta) {}
 
@@ -288,7 +288,7 @@ class DPWNative : public SPWNative {
             static_cast<double>(random_node->children.size())) {
             auto result = sim_->step(random_node->action);
             auto node = std::make_shared<DecisionNode>(
-                std::move(result.observation), false, result.done,
+                result.observation, false, result.done,
                 random_node);
             return {node, result.reward};
         } else {
