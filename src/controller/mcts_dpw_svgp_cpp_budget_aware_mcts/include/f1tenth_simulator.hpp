@@ -203,6 +203,11 @@ class F1TenthSimulator : public Simulator {
     bool use_action_prior_ = false;
     bool is_curve_ = false;
 
+    // Budget-aware action sampling weights (set by MCTS learn_timed)
+    double p_agg_ = 1.0 / 3.0;
+    double p_slow_ = 1.0 / 3.0;
+    double p_feas_ = 1.0 / 3.0;
+
     // Centerline for heading lookup: cx_[i], cy_[i], cheading_[i]
     std::vector<double> cx_;
     std::vector<double> cy_;
@@ -264,6 +269,12 @@ class F1TenthSimulator : public Simulator {
     void set_rollout_horizon(int h) override { cost_.rollout_horizon = h; }
 
     void set_is_curve(bool is_curve) { is_curve_ = is_curve; }
+
+    void set_action_weights(double p_agg, double p_slow, double p_feas) override {
+        p_agg_ = p_agg;
+        p_slow_ = p_slow;
+        p_feas_ = p_feas;
+    }
 
     void set_centerline(const std::vector<double>& cx,
                         const std::vector<double>& cy,
@@ -480,14 +491,14 @@ class F1TenthSimulator : public Simulator {
                 accel = accel_dist(rng_);
             }
         } else {
-            // Curve: equal three-way split
+            // Curve: budget-aware three-way split (weights set by MCTS)
             std::uniform_real_distribution<double> selector(0.0, 1.0);
             double roll = selector(rng_);
-            if (roll < 0.35) {
+            if (roll < p_agg_) {
                 // Aggressive: Uniform(0, a_max)
                 std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
                 accel = accel_dist(rng_);
-            } else if (roll < 0.45) {
+            } else if (roll < p_agg_ + p_slow_) {
                 // Slow: Uniform(-a_max, 0)
                 std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
                 accel = accel_dist(rng_);
@@ -520,6 +531,9 @@ class F1TenthSimulator : public Simulator {
         copy->action_std_ = action_std_;
         copy->use_action_prior_ = use_action_prior_;
         copy->is_curve_ = is_curve_;
+        copy->p_agg_ = p_agg_;
+        copy->p_slow_ = p_slow_;
+        copy->p_feas_ = p_feas_;
         copy->cx_ = cx_;
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;

@@ -105,6 +105,11 @@ class ControllerConfig:
     cs_w3: float = 0.0
     C_alpha_th: float = 104.89
     calpha_window_size: int = 10
+    # Budget-aware MCTS adaptive action sampling
+    budget_w_low: float = 15.0
+    budget_w_high: float = 50.0
+    budget_n_warmup: int = 100
+    budget_n_recalibrate: int = 100
 
 
 @dataclass(frozen=True)

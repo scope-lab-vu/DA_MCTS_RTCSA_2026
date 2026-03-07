@@ -30,4 +30,7 @@ class Simulator {
 
     // Dynamically change rollout horizon (e.g. based on curvature)
     virtual void set_rollout_horizon(int /*h*/) {}
+
+    // Budget-aware action sampling weights (p_agg, p_slow, p_feas)
+    virtual void set_action_weights(double /*p_agg*/, double /*p_slow*/, double /*p_feas*/) {}
 };

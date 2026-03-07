@@ -174,9 +174,15 @@ class F1TenthDPWSvgpCAlpha {
 
     void set_c_alpha(double c_alpha) { sim_->set_c_alpha(c_alpha); }
 
+    void set_budget_params(double W_low, double W_high, int N_w, int N_r) {
+        model_->set_budget_params(W_low, W_high, N_w, N_r);
+    }
+
     void learn(int Nsim) { model_->learn(Nsim); }
 
     int learn_timed(double budget_s) { return model_->learn_timed(budget_s); }
+
+    double get_last_tau() { return model_->get_last_tau(); }
 
     py::array_t<double> best_action() {
         return to_numpy_action(model_->best_action_vec());
@@ -290,8 +296,11 @@ PYBIND11_MODULE(mcts_f1tenth_svgp_calpha_cpp, m) {
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
         .def("set_c_alpha", &F1TenthDPWSvgpCAlpha::set_c_alpha,
              py::arg("c_alpha"))
+        .def("set_budget_params", &F1TenthDPWSvgpCAlpha::set_budget_params,
+             py::arg("W_low"), py::arg("W_high"), py::arg("N_w"), py::arg("N_r"))
         .def("learn", &F1TenthDPWSvgpCAlpha::learn, py::arg("Nsim"))
         .def("learn_timed", &F1TenthDPWSvgpCAlpha::learn_timed, py::arg("budget_s"))
+        .def("get_last_tau", &F1TenthDPWSvgpCAlpha::get_last_tau)
         .def("best_action", &F1TenthDPWSvgpCAlpha::best_action)
         .def("forward", &F1TenthDPWSvgpCAlpha::forward,
              py::arg("action"), py::arg("new_state"))
