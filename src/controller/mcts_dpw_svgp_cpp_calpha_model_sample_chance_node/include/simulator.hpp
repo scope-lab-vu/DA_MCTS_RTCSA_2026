@@ -10,6 +10,16 @@ struct StepResult {
     bool done;
 };
 
+// Step result with GP posterior variance for omega and beta residuals.
+// omega_var and beta_var are in the original (denormalized) output scale.
+struct StepWithVarianceResult {
+    State7 mean_observation;  // deterministic (mean) transition — same as StepResult
+    double omega_var;         // GP posterior variance for omega correction
+    double beta_var;          // GP posterior variance for beta correction
+    double reward;
+    bool done;
+};
+
 // Abstract C++ simulator interface
 class Simulator {
   public:
@@ -23,6 +33,13 @@ class Simulator {
     virtual Action2 sample_action() = 0;
     virtual void set_state(const State7& state) = 0;
     virtual std::unique_ptr<Simulator> clone() const = 0;
+
+    // step_with_variance: deterministic step + GP posterior variance for sampling
+    // Default falls back to step() with zero variance (deterministic simulators).
+    virtual StepWithVarianceResult step_with_variance(const Action2& action) {
+        auto r = step(action);
+        return {r.observation, 0.0, 0.0, r.reward, r.done};
+    }
 
     // Optional: rollout parameters (used by MCTS evaluate)
     virtual int rollout_horizon() const { return 100; }

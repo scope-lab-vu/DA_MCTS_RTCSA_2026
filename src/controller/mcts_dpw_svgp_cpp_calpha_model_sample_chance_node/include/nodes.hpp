@@ -35,6 +35,12 @@ struct RandomNode {
     int visits = 0;
     DecisionNode* father = nullptr;
 
+    // GP variance cache — computed once on first expansion, reused for subsequent samples.
+    // Stores the posterior variance of omega[5] and beta[6] at this (state, action) point.
+    bool gp_computed = false;
+    double omega_var = 0.0;
+    double beta_var = 0.0;
+
     RandomNode() : action{} {}
 
     RandomNode(Action2 action, DecisionNode* father = nullptr)

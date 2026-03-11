@@ -83,16 +83,22 @@ struct KrasserSVGPParams {
     std::vector<double> xscale;   // (D_input): input scaler std
     double ymean;                 // output scaler mean (scalar)
     double yscale;                // output scaler std (scalar)
+    // B_m = K_mm_inv @ A_m @ K_mm_inv - K_mm_inv  (M*M, precomputed in Python)
+    // Used in variance: var = sigma_f^2 + K_sm @ B_m @ K_ms
+    std::vector<double> B_m;
 
     // --- Precomputed for fast prediction ---
     std::vector<double> inv_xscale_times_inv_l;  // (D_input): 1/(xscale[d]*lengthscales[d])
     std::vector<double> xmean_scaled;             // (D_input): xmean[d] * inv_xscale_times_inv_l[d]
     std::vector<double> X_m_scaled;  // (M*D_input): X_m[j*D+d] / lengthscales[d]
     std::vector<double> alpha_scaled; // (M): sigma_f^2 * alpha[j] * yscale
+    double sigma_f_sq_yscale_sq;     // sigma_f^2 * yscale^2 — K_ss in original output scale
+    std::vector<double> B_m_full;    // sigma_f^4 * yscale^2 * B_m — fused for variance
 
     // Call after from_flat() to precompute fast-prediction arrays.
     void precompute() {
         double sigma_f_sq = sigma_f * sigma_f;
+        sigma_f_sq_yscale_sq = sigma_f_sq * yscale * yscale;
 
         inv_xscale_times_inv_l.resize(D_input);
         xmean_scaled.resize(D_input);
@@ -113,11 +119,19 @@ struct KrasserSVGPParams {
         for (int j = 0; j < M; ++j) {
             alpha_scaled[j] = sigma_f_sq * alpha[j] * yscale;
         }
+
+        // B_m_full[i,j] = sigma_f^4 * yscale^2 * B_m[i,j]
+        // So: var_original = sigma_f_sq_yscale_sq + k_norm^T B_m_full k_norm
+        // where k_norm[j] = exp(-0.5 * sqdist)  (same values as used in mean prediction)
+        double sf4_yscale_sq = sigma_f_sq * sigma_f_sq * yscale * yscale;
+        B_m_full.resize(M * M);
+        for (int i = 0; i < M * M; ++i)
+            B_m_full[i] = sf4_yscale_sq * B_m[i];
     }
 
     // Construct from a flat double array packed in Python.
     // Layout: lengthscales(D_input) | sigma_f | alpha(M) | X_m(M*D_input) |
-    //         xmean(D_input) | xscale(D_input) | ymean | yscale
+    //         xmean(D_input) | xscale(D_input) | ymean | yscale | B_m(M*M)
     static KrasserSVGPParams from_flat(const double* data, int M_, int D_input_) {
         KrasserSVGPParams p;
         p.M = M_;
@@ -132,6 +146,7 @@ struct KrasserSVGPParams {
         p.xscale.assign(data + off, data + off + D_input_);    off += D_input_;
         p.ymean = data[off++];
         p.yscale = data[off++];
+        p.B_m.assign(data + off, data + off + M_ * M_);
         p.precompute();
         return p;
     }
@@ -140,24 +155,20 @@ struct KrasserSVGPParams {
 // ---------------------------------------------------------------------------
 // Krasser SVGP single-point prediction:
 //   normalize → ARD RBF kernel → predict → denormalize
+// Returns mean only (fast path, no variance).
 // ---------------------------------------------------------------------------
 inline double krasser_predict_single(
     const double* gp_input,   // (D_input=7) raw: [delta, v, omega, beta, accl, sv, c_alpha]
     const KrasserSVGPParams& gp
 ) {
     // 1. Normalize + scale by inverse lengthscale in one pass (no divisions)
-    //    x_scaled[d] = (input[d] - xmean[d]) / (xscale[d] * lengthscales[d])
-    //                = input[d] * inv_xscale_times_inv_l[d] - xmean_scaled[d]
     double x_scaled[7];
     for (int d = 0; d < gp.D_input; ++d) {
         x_scaled[d] = gp_input[d] * gp.inv_xscale_times_inv_l[d] - gp.xmean_scaled[d];
     }
 
     // 2. ARD RBF kernel + dot product with alpha_scaled (fused)
-    //    alpha_scaled[j] = sigma_f^2 * alpha[j] * yscale  (absorbs denorm)
-    //    X_m_scaled[j*D+d] = X_m[j*D+d] / lengthscales[d]
     double f_mean = 0.0;
-
     for (int j = 0; j < gp.M; ++j) {
         double sqdist = 0.0;
         const int base = j * gp.D_input;
@@ -170,6 +181,58 @@ inline double krasser_predict_single(
 
     // 3. Denormalize (yscale already absorbed into alpha_scaled)
     return f_mean + gp.ymean;
+}
+
+// ---------------------------------------------------------------------------
+// Krasser SVGP single-point prediction with posterior variance.
+// Returns {mean, variance} in original (denormalized) output scale.
+//
+// Variance formula (from the posterior predictive of sparse GP):
+//   var = K_ss + K_sm @ B_m @ K_ms
+// where K_ss = sigma_f^2 (kernel of x* with itself),
+//       K_sm[j] = sigma_f^2 * k_norm[j]  (kernel between x* and inducing point j),
+//       B_m = K_mm_inv @ A_m @ K_mm_inv - K_mm_inv  (precomputed in Python),
+//       k_norm[j] = exp(-0.5 * ||x*_scaled - X_m_scaled[j]||^2).
+//
+// With B_m_full = sigma_f^4 * yscale^2 * B_m this simplifies to:
+//   var_original = sigma_f_sq_yscale_sq + k_norm^T @ B_m_full @ k_norm
+// ---------------------------------------------------------------------------
+inline std::pair<double, double> krasser_predict_with_variance(
+    const double* gp_input,
+    const KrasserSVGPParams& gp
+) {
+    // 1. Normalize inputs
+    double x_scaled[7];
+    for (int d = 0; d < gp.D_input; ++d)
+        x_scaled[d] = gp_input[d] * gp.inv_xscale_times_inv_l[d] - gp.xmean_scaled[d];
+
+    // 2. Compute k_norm[j] = exp(-0.5 * sqdist) for all inducing points
+    //    Also accumulate mean using alpha_scaled (fused loop)
+    double k_norm[64];  // stack-allocated, M <= 64 in practice
+    double f_mean = 0.0;
+    for (int j = 0; j < gp.M; ++j) {
+        double sqdist = 0.0;
+        const int base = j * gp.D_input;
+        for (int d = 0; d < gp.D_input; ++d) {
+            double diff = x_scaled[d] - gp.X_m_scaled[base + d];
+            sqdist += diff * diff;
+        }
+        k_norm[j] = fast_exp(-0.5 * sqdist);
+        f_mean += gp.alpha_scaled[j] * k_norm[j];
+    }
+    double mean = f_mean + gp.ymean;
+
+    // 3. Variance: var = sigma_f_sq_yscale_sq + k_norm^T B_m_full k_norm
+    double f_var = gp.sigma_f_sq_yscale_sq;
+    for (int i = 0; i < gp.M; ++i) {
+        double Bk_i = 0.0;
+        const int row = i * gp.M;
+        for (int j = 0; j < gp.M; ++j)
+            Bk_i += gp.B_m_full[row + j] * k_norm[j];
+        f_var += k_norm[i] * Bk_i;
+    }
+
+    return {mean, std::max(0.0, f_var)};
 }
 
 // ---------------------------------------------------------------------------
@@ -435,6 +498,37 @@ class F1TenthSimulator : public Simulator {
         return {state_, reward, done};
     }
 
+    // step_with_variance: runs the deterministic step AND returns GP posterior
+    // variance for omega and beta at the initial state-action point.
+    // The variance captures how uncertain the GP dynamics model is at this point.
+    StepWithVarianceResult step_with_variance(const Action2& action) override {
+        // Compute GP variance at the INITIAL state (before substep integration).
+        // Apply the same action constraints as step() to get consistent gp_input.
+        double delta = state_[2], v = state_[3];
+        double omega = state_[5], beta_val = state_[6];
+
+        double sv = action[1];
+        if ((delta <= vp_.s_min && sv <= 0.0) || (delta >= vp_.s_max && sv >= 0.0))
+            sv = 0.0;
+        sv = std::max(vp_.sv_min, std::min(vp_.sv_max, sv));
+
+        double accl = action[0];
+        double pos_limit = (v > vp_.v_switch)
+            ? vp_.a_max * vp_.v_switch / (v + 1e-8) : vp_.a_max;
+        if ((v <= vp_.v_min && accl <= 0.0) || (v >= vp_.v_max && accl >= 0.0))
+            accl = 0.0;
+        accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
+
+        double gp_input[7] = {delta, v, omega, beta_val, accl, sv, c_alpha_value_};
+        auto [omega_mean, omega_var] = krasser_predict_with_variance(gp_input, *omega_svgp_);
+        auto [beta_mean, beta_var]  = krasser_predict_with_variance(gp_input, *beta_svgp_);
+        (void)omega_mean; (void)beta_mean;  // means unused here, step() re-integrates
+
+        // Run the normal deterministic step
+        auto result = step(action);
+        return {result.observation, omega_var, beta_var, result.reward, result.done};
+    }
+
     Action2 sample_action() override {
         double v = state_[3];
         // At low speed: uniform positive accel, GP prior for steering with 50% clamp
@@ -487,7 +581,7 @@ class F1TenthSimulator : public Simulator {
                 // Aggressive: Uniform(0, a_max)
                 std::uniform_real_distribution<double> accel_dist(0.0, vp_.a_max);
                 accel = accel_dist(rng_);
-            } else if (roll < 0.45) {
+            } else if (roll < 0.36) {
                 // Slow: Uniform(-a_max, 0)
                 std::uniform_real_distribution<double> accel_dist(-vp_.a_max, 0.0);
                 accel = accel_dist(rng_);

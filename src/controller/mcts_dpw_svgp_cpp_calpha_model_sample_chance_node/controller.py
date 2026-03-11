@@ -27,11 +27,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_f1tenth_svgp_calpha_cpp import F1TenthDPWSvgpCAlpha as F1TenthDPW
+    from mcts_dpw_svgp_cpp_calpha_model_sample_chance_node import F1TenthDPWSvgpCAlphaChanceNode as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_f1tenth_svgp_calpha_cpp C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_calpha_model/"
+        "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_calpha_model_sample_chance_node/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model
@@ -53,7 +53,8 @@ def _load_krasser_model(path: str):
     """Load Krasser SVGP model from a .npz file.
 
     Expected keys:
-      model__theta(2), model__X_m(M,D), model__mu_m(M,1), model__K_mm_inv(M,M),
+      model__theta(D+1), model__X_m(M,D), model__mu_m(M,1),
+      model__K_mm_inv(M,M), model__A_m(M,M),
       xscaler__mean(D), xscaler__scale(D), yscaler__mean(1), yscaler__scale(1)
     """
     d = np.load(path, allow_pickle=True)
@@ -62,6 +63,7 @@ def _load_krasser_model(path: str):
         "X_m": np.array(d["model__X_m"], dtype=np.float64),           # (M, D_input)
         "mu_m": np.array(d["model__mu_m"], dtype=np.float64),         # (M, 1)
         "K_mm_inv": np.array(d["model__K_mm_inv"], dtype=np.float64), # (M, M)
+        "A_m": np.array(d["model__A_m"], dtype=np.float64),           # (M, M)
         "x_mean": np.array(d["xscaler__mean"], dtype=np.float64),     # (D_input,)
         "x_scale": np.array(d["xscaler__scale"], dtype=np.float64),   # (D_input,)
         "y_mean": np.array(d["yscaler__mean"], dtype=np.float64),     # (1,)
@@ -74,8 +76,9 @@ def _pack_krasser_svgp_data(model):
 
     Layout (matches KrasserSVGPParams::from_flat):
       lengthscales(D_input) | sigma_f | alpha(M) | X_m(M*D_input) |
-      xmean(D_input) | xscale(D_input) | ymean | yscale
+      xmean(D_input) | xscale(D_input) | ymean | yscale | B_m(M*M)
 
+    B_m = K_mm_inv @ A_m @ K_mm_inv - K_mm_inv  (for GP posterior variance)
     theta format: [l_1, ..., l_D, sigma_f] (D_input+1 values for ARD)
     """
     theta = model["theta"]
@@ -83,13 +86,19 @@ def _pack_krasser_svgp_data(model):
     lengthscales = theta[:D_input].astype(np.float64)
     sigma_f = float(theta[D_input])
 
-    alpha = (model["K_mm_inv"] @ model["mu_m"]).ravel()
+    K_mm_inv = model["K_mm_inv"]
+    A_m = model["A_m"]
+    alpha = (K_mm_inv @ model["mu_m"]).ravel()
     X_m_flat = model["X_m"].ravel()
 
     xmean = model["x_mean"].ravel()
     xscale = model["x_scale"].ravel()
     ymean_val = float(model["y_mean"].ravel()[0])
     yscale_val = float(model["y_scale"].ravel()[0])
+
+    # B_m = K_mm_inv A_m K_mm_inv - K_mm_inv
+    # Used in C++ for: var = sigma_f^2 + K_sm @ B_m @ K_ms
+    B_m = (K_mm_inv @ A_m @ K_mm_inv - K_mm_inv).ravel()
 
     return np.concatenate([
         lengthscales,
@@ -99,6 +108,7 @@ def _pack_krasser_svgp_data(model):
         xmean,
         xscale,
         np.array([ymean_val, yscale_val], dtype=np.float64),
+        B_m,
     ])
 
 

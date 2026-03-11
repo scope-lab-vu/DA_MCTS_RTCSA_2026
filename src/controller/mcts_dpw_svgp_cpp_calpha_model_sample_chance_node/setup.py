@@ -4,7 +4,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 
 ext_modules = [
     Pybind11Extension(
-        "mcts_f1tenth_svgp_calpha_cpp",
+        "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node",
         ["src/bindings.cpp"],
         include_dirs=["include"],
         depends=glob.glob("include/*.hpp"),
@@ -14,9 +14,9 @@ ext_modules = [
 ]
 
 setup(
-    name="mcts_f1tenth_svgp_calpha_cpp",
+    name="mcts_dpw_svgp_cpp_calpha_model_sample_chance_node",
     version="0.1.0",
-    description="C++ MCTS DPW + Krasser SVGP (C_alpha input) dynamics for F1TENTH racing",
+    description="C++ MCTS DPW + Krasser SVGP (C_alpha input) + GP variance sampling at chance nodes",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     python_requires=">=3.8",

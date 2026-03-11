@@ -286,13 +286,35 @@ class DPWNative : public SPWNative {
     select_outcome(RandomNode* random_node) override {
         if (std::pow(static_cast<double>(random_node->visits), beta_) >=
             static_cast<double>(random_node->children.size())) {
-            auto result = sim_->step(random_node->action);
-            auto node = std::make_shared<DecisionNode>(
-                result.observation, false, result.done,
-                random_node);
-            return {node, result.reward};
+
+            if (!random_node->gp_computed) {
+                // First expansion: compute mean transition + cache GP variance.
+                // The mean state becomes the first (deterministic) child.
+                auto result = sim_->step_with_variance(random_node->action);
+                random_node->omega_var  = result.omega_var;
+                random_node->beta_var   = result.beta_var;
+                random_node->gp_computed = true;
+                auto node = std::make_shared<DecisionNode>(
+                    result.mean_observation, false, result.done, random_node);
+                return {node, result.reward};
+            } else {
+                // Subsequent expansions: deterministic step (advances simulator),
+                // then perturb omega[5] and beta[6] with cached GP std-dev to
+                // generate a distinct stochastic outcome.
+                auto result = sim_->step(random_node->action);
+                State7 sampled = result.observation;
+                std::normal_distribution<double> norm(0.0, 1.0);
+                if (random_node->omega_var > 0.0)
+                    sampled[5] += norm(rng_) * std::sqrt(random_node->omega_var);
+                if (random_node->beta_var > 0.0)
+                    sampled[6] += norm(rng_) * std::sqrt(random_node->beta_var);
+                auto node = std::make_shared<DecisionNode>(
+                    sampled, false, result.done, random_node);
+                return {node, result.reward};
+            }
+
         } else {
-            // Sample from existing outcomes proportional to visits
+            // Reuse an existing outcome, sampled proportional to visit counts.
             std::vector<double> weights;
             std::vector<std::shared_ptr<DecisionNode>> nodes;
             for (auto& [state, child] : random_node->children) {
@@ -314,6 +336,8 @@ class DPWNative : public SPWNative {
                 }
             }
             auto& chosen = nodes[idx];
+            // Sync simulator to the chosen outcome so evaluate() rolls out correctly.
+            sim_->set_state(chosen->state);
             return {chosen, chosen->reward};
         }
     }
