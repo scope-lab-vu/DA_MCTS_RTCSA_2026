@@ -1,0 +1,110 @@
+{
+  "map": "YasMarina_10489",
+  "mu": 1.0489,
+  "sampling_time": 0.02,
+  "seed": 0,
+  "horizon": 20,
+  "n_substeps": 1,
+  "scale": 0.875,
+  "total_steps": 500,
+  "warmup_steps": 10,
+  "unlimited": {
+    "mean_iters": 13.94,
+    "std_iters": 1.31,
+    "min_iters": 11,
+    "p50_iters": 14,
+    "p95_iters": 16,
+    "max_iters": 18,
+    "mean_solve_ms": 21.1743
+  },
+  "budgets": {
+    "1ms": {
+      "mean_iters": 0.0,
+      "std_iters": 0.0,
+      "min_iters": 0,
+      "p50_iters": 0,
+      "p95_iters": 0,
+      "max_iters": 0,
+      "mean_solve_ms": 2.1955,
+      "converged_pct": 0.0,
+      "normalized_iters_pct": 0.0
+    },
+    "2ms": {
+      "mean_iters": 1.0,
+      "std_iters": 0.0,
+      "min_iters": 1,
+      "p50_iters": 1,
+      "p95_iters": 1,
+      "max_iters": 1,
+      "mean_solve_ms": 3.6211,
+      "converged_pct": 0.0,
+      "normalized_iters_pct": 7.17
+    },
+    "5ms": {
+      "mean_iters": 3.0,
+      "std_iters": 0.0,
+      "min_iters": 3,
+      "p50_iters": 3,
+      "p95_iters": 3,
+      "max_iters": 3,
+      "mean_solve_ms": 6.3078,
+      "converged_pct": 0.0,
+      "normalized_iters_pct": 21.52
+    },
+    "10ms": {
+      "mean_iters": 6.98,
+      "std_iters": 0.15,
+      "min_iters": 6,
+      "p50_iters": 7,
+      "p95_iters": 7,
+      "max_iters": 7,
+      "mean_solve_ms": 11.6272,
+      "converged_pct": 0.0,
+      "normalized_iters_pct": 50.03
+    },
+    "15ms": {
+      "mean_iters": 10.6,
+      "std_iters": 0.49,
+      "min_iters": 10,
+      "p50_iters": 11,
+      "p95_iters": 11,
+      "max_iters": 11,
+      "mean_solve_ms": 16.3374,
+      "converged_pct": 0.2,
+      "normalized_iters_pct": 76.04
+    },
+    "20ms": {
+      "mean_iters": 13.47,
+      "std_iters": 0.73,
+      "min_iters": 11,
+      "p50_iters": 14,
+      "p95_iters": 14,
+      "max_iters": 15,
+      "mean_solve_ms": 20.1076,
+      "converged_pct": 71.22,
+      "normalized_iters_pct": 96.63
+    },
+    "30ms": {
+      "mean_iters": 13.94,
+      "std_iters": 1.31,
+      "min_iters": 11,
+      "p50_iters": 14,
+      "p95_iters": 16,
+      "max_iters": 18,
+      "mean_solve_ms": 20.5922,
+      "converged_pct": 100.0,
+      "normalized_iters_pct": 100.0
+    },
+    "40ms": {
+      "mean_iters": 13.94,
+      "std_iters": 1.31,
+      "min_iters": 11,
+      "p50_iters": 14,
+      "p95_iters": 16,
+      "max_iters": 18,
+      "mean_solve_ms": 20.5516,
+      "converged_pct": 100.0,
+      "normalized_iters_pct": 100.0
+    }
+  }
+}

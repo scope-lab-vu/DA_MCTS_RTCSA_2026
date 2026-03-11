@@ -42,17 +42,17 @@ logging.basicConfig(
 )
 log = logging.getLogger("pi_svgp_cs_experiments")
 
-TRACKS = ["Sepang", "YasMarina", ]
-# TRACKS = ["YasMarina", ]
+# TRACKS = ["Sepang", "YasMarina", ]
+TRACKS = ["YasMarina", ]
 
 MU_CONFIGS = [
     (1.0, 0),
-    (0.9, 0),
-    (0.8, 0),
-    (0.7, 0),
-    (0.6, 0),
+    # (0.9, 0),
+    # (0.8, 0),
+    # (0.7, 0),
+    # (0.6, 0),
     (0.5, 0),
-    (0.4, 0),
+    # (0.4, 0),
     (0.3, 0),
 ]
 

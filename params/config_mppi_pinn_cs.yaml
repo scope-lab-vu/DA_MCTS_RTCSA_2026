@@ -21,8 +21,8 @@ controller:
   use_occupancy_map: true
   lane_width: 1.1
   # --- Cost function tuning ---
-  v_max_cost: 11.0
-  alpha_threshold: 1.2
+  v_max_cost: 8.0
+  alpha_threshold: 1.5
   speed_weight: 5.0
   # --- Cornering stiffness adaptive velocity ---
   # v_ref_t -= cs_w1 * log(cs_w2 * delta_C_alpha + cs_w3)
@@ -35,11 +35,11 @@ controller:
 
 dynamics:
   type: pinn
-  # model_path: models/pinn/weights/epoch_388.pth
-  # scaler_path: models/pinn/weights/scaler_safe.npz
-  model_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/epoch_386.pth  
+  model_path: models/pinn/weights/epoch_388.pth
+  scaler_path: models/pinn/weights/scaler_safe.npz
+  # model_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/epoch_386.pth  
   model_cfg_path: models/pinn/deep_pacejka_f1tenth_multi_fric_best_param.yaml
-  scaler_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/scaler_safe.npz
+  # scaler_path: models/pinn/traj_MPPI_baseline_data_used_same_for_SVGP_ekin/weights/scaler_safe.npz
 
   inference_device: cuda
 
