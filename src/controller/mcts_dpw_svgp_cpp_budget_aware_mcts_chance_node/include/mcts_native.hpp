@@ -137,7 +137,7 @@ class MCTSNative {
         sim_->set_state(root_->state);
     }
 
-    int learn_timed(double budget_s) {
+    virtual int learn_timed(double budget_s) {
         auto start = std::chrono::steady_clock::now();
         auto deadline = start + std::chrono::duration<double>(budget_s);
         int count = 0;
@@ -277,10 +277,88 @@ class DPWNative : public SPWNative {
   protected:
     double beta_;
 
+    // Budget-aware MCTS parameters
+    double W_low_ = 15.0;
+    double W_high_ = 50.0;
+    int N_w_ = 100;
+    int N_r_ = 100;
+    double last_tau_ = 0.0;
+
   public:
     DPWNative(Simulator* sim, const State7& initial_obs,
               double alpha, double beta, double K, unsigned seed = 0)
         : SPWNative(sim, initial_obs, alpha, K, seed), beta_(beta) {}
+
+    void set_budget_params(double W_low, double W_high, int N_w, int N_r) {
+        W_low_ = W_low;
+        W_high_ = W_high;
+        N_w_ = N_w;
+        N_r_ = N_r;
+    }
+
+    struct ActionWeights {
+        double p_agg, p_slow, p_feas;
+    };
+
+    ActionWeights compute_weights(double W_hat) {
+        double tau = std::max(0.0, std::min(1.0,
+            (W_hat - W_low_) / (W_high_ - W_low_)));
+        last_tau_ = tau;
+        double p_slow = 0.90 - 0.89 * tau;
+        double p_feas = 0.05 + 0.57 * tau;
+        double p_agg = 1.0 - p_slow - p_feas;
+        return {p_agg, p_slow, p_feas};
+    }
+
+    // Budget-aware 3-phase learn_timed
+    int learn_timed(double budget_s) override {
+        auto start = std::chrono::steady_clock::now();
+        auto deadline = start + std::chrono::duration<double>(budget_s);
+        int n = 0;
+
+        // Phase 1: Warmup — equal sampling (1/3, 1/3, 1/3)
+        sim_->set_action_weights(1.0/3.0, 1.0/3.0, 1.0/3.0);
+        while (n < N_w_ && std::chrono::steady_clock::now() < deadline) {
+            grow_tree();
+            ++n;
+        }
+
+        if (n == 0 || std::chrono::steady_clock::now() >= deadline) {
+            sim_->set_state(root_->state);
+            return n;
+        }
+
+        // Phase 2: Estimate budget and adapt weights
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - start).count();
+        double t_iter = elapsed / n;
+        double remaining = std::chrono::duration<double>(deadline - now).count();
+        int N_total = n + static_cast<int>(remaining / t_iter);
+        double W_hat = std::pow(static_cast<double>(N_total), alpha_);
+        auto w = compute_weights(W_hat);
+        sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+
+        // Phase 3: Adaptive search with periodic re-calibration
+        while (std::chrono::steady_clock::now() < deadline) {
+            grow_tree();
+            ++n;
+            if (n % N_r_ == 0) {
+                now = std::chrono::steady_clock::now();
+                elapsed = std::chrono::duration<double>(now - start).count();
+                t_iter = elapsed / n;
+                remaining = std::chrono::duration<double>(deadline - now).count();
+                N_total = n + static_cast<int>(remaining / t_iter);
+                W_hat = std::pow(static_cast<double>(N_total), alpha_);
+                w = compute_weights(W_hat);
+                sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+            }
+        }
+
+        sim_->set_state(root_->state);
+        return n;
+    }
+
+    double get_last_tau() const { return last_tau_; }
 
     std::pair<std::shared_ptr<DecisionNode>, double>
     select_outcome(RandomNode* random_node) override {

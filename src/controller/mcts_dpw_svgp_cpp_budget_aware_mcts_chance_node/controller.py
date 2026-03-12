@@ -27,11 +27,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_dpw_svgp_cpp_calpha_model_sample_chance_node import F1TenthDPWSvgpCAlphaChanceNode as F1TenthDPW
+    from mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node import F1TenthDPWSvgpCAlphaBudgetChanceNode as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_calpha_model_sample_chance_node/"
+        "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model
@@ -179,6 +179,12 @@ class MCTSDPWSvgpCppController:
         self.mcts_time_budget = config.mcts_time_budget
         self.normalize_reward = getattr(config, 'normalize_reward', False)
 
+        # Budget-aware MCTS hyperparameters
+        self.budget_w_low = getattr(config, 'budget_w_low', 15.0)
+        self.budget_w_high = getattr(config, 'budget_w_high', 50.0)
+        self.budget_n_warmup = getattr(config, 'budget_n_warmup', 100)
+        self.budget_n_recalibrate = getattr(config, 'budget_n_recalibrate', 100)
+
         # Track
         if map_config.centerline_path is None:
             raise ValueError("MCTS controller requires centerline_path in map config.")
@@ -287,12 +293,16 @@ class MCTSDPWSvgpCppController:
         self._local_cx = np.zeros(106)
         self._local_cy = np.zeros(106)
         self._local_heading = np.zeros(106)
+        self._last_tau = 0.0
 
         log.info(
-            "MCTS DPW Krasser SVGP + Action Prior ready: n_sim=%d K=%.2f alpha=%.2f beta=%.2f "
-            "discount=%.2f rollout_horizon=%d",
+            "MCTS DPW Krasser SVGP + Action Prior + Budget-Aware + Chance Node ready: "
+            "n_sim=%d K=%.2f alpha=%.2f beta=%.2f discount=%.2f rollout_horizon=%d "
+            "W_low=%.1f W_high=%.1f N_warmup=%d N_recalibrate=%d",
             self.n_simulations, self.K, self.alpha, self.beta,
             self.discount, self.rollout_horizon,
+            self.budget_w_low, self.budget_w_high,
+            self.budget_n_warmup, self.budget_n_recalibrate,
         )
 
     # --- v_ref window with curvature solver ---
@@ -520,6 +530,10 @@ class MCTSDPWSvgpCppController:
             self._tree = self._make_tree(state_np, v_ref_window)
             self._tree.set_v_ref_window(v_ref_window)
             self._tree.set_c_alpha(c_alpha)
+            self._tree.set_budget_params(
+                self.budget_w_low, self.budget_w_high,
+                self.budget_n_warmup, self.budget_n_recalibrate,
+            )
 
         # 5. Push action prior, dynamic horizon, curve flag, and local centerline to C++
         self._tree.set_action_prior(action_mean, action_std)
@@ -533,7 +547,8 @@ class MCTSDPWSvgpCppController:
         else:
             self._tree.learn(self.n_simulations)
             n_sims = self.n_simulations
-        log.debug("MCTS ran %d simulations", n_sims)
+        self._last_tau = self._tree.get_last_tau() if self.mcts_time_budget > 0 else 0.0
+        log.debug("MCTS ran %d simulations (tau=%.3f)", n_sims, self._last_tau)
 
         # 7. Extract best trajectory from tree (for visualization)
         try:
@@ -576,6 +591,9 @@ class MCTSDPWSvgpCppController:
 
     def get_action_prior_std(self) -> np.ndarray:
         return self._last_action_std
+
+    def get_last_tau(self) -> float:
+        return self._last_tau
 
     def get_best_trajectory(self) -> list:
         """Return the MCTS best trajectory as list of dicts with state/action/reward."""
