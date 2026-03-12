@@ -48,35 +48,39 @@ logging.basicConfig(
 log = logging.getLogger("budget_aware_chance_node_experiments")
 
 # TRACKS = ["YasMarina", "Sepang"]
-TRACKS = ["Sepang", "YasMarina"]
-# TRACKS = ["YasMarina"]
+# TRACKS = ["Sepang", "YasMarina"]
+TRACKS = ["YasMarina"]
 
 MU_CONFIGS = [
-    # 1.0,
+    1.0,
     # 0.9,
     # 0.8,
     # 0.7,
     # 0.6,
-    0.5,
-    0.4,
-    0.3,
-    0.2,
-    0.1,
+    # 0.5,
+    # 0.4,
+    # 0.3,
+    # 0.2,
+    # 0.1,
 
 ]
 
 # Sweep over time budgets (seconds)
 TIME_BUDGETS = [
-    # 0.001,  # tight budget — will surely fail
-    # 0.003,
-    # 0.009,
-    # 0.012,
-    # 0.015,
-    # 0.018,
-    # 0.021,
-    # 0.024,
-    # 0.027,
+    0.001,  # tight budget — will surely fail
+    0.003,
+    0.006,
+    0.009,
+    0.012,
+    0.015,
+    0.018,
+    0.021,
+    0.024,
+    0.027,
     0.030,
+    0.033,
+    0.036,
+    0.039,
 ]
 
 BASE_CONFIG = Path("params/config_mcts_dpw_svgp_budget_aware_calpha_chance_node.yaml")
