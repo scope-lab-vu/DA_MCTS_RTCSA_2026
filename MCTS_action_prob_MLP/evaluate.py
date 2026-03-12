@@ -1,6 +1,8 @@
 """
 Evaluation script for the trained action-probability MLP.
 
+Loads architecture from best_hp.json and weights from model_best.pt.
+
 1. GPU evaluation  — MAE / MSE on ALL raw data files
 2. CPU benchmark   — single-sample inference time over 10,000 real data points
 """
@@ -12,10 +14,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 
 # ── Config ──────────────────────────────────────────────────────────────────
-MODEL_FILE  = Path("MCTS_action_prob_MLP/model_scripted.pt")
+MODEL_FILE  = Path("MCTS_action_prob_MLP/model_best.pt")
 SCALER_FILE = Path("MCTS_action_prob_MLP/scaler.json")
+HP_FILE     = Path("MCTS_action_prob_MLP/best_hp.json")
 DATA_DIR    = Path("MCTS_action_prob_MLP/data")
 
 FEATURES    = ["n_iter", "t_remain_s", "v", "kappa", "max_depth"]
@@ -26,30 +30,64 @@ N_CPU_BENCH = 10_000
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device : {DEVICE}")
 
-# ── Load model & scaler ─────────────────────────────────────────────────────
-model_gpu = torch.jit.load(str(MODEL_FILE)).to(DEVICE)
-model_gpu.eval()
+# ── Model definition ────────────────────────────────────────────────────────
+class ProbMLP(nn.Module):
+    def __init__(self, in_dim, hidden_dims, out_dim, dropout=0.0):
+        super().__init__()
+        dims   = [in_dim] + hidden_dims + [out_dim]
+        layers = []
+        for i in range(len(dims) - 1):
+            layers.append(nn.Linear(dims[i], dims[i + 1]))
+            if i < len(dims) - 2:
+                layers.append(nn.ReLU())
+                if dropout > 0:
+                    layers.append(nn.Dropout(dropout))
+        self.net = nn.Sequential(*layers)
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.softmax(self.net(x), dim=-1)
+
+# ── Load best HPs (for reference only) ─────────────────────────────────────
+with open(HP_FILE) as f:
+    hp = json.load(f)
+print(f"Best HP search result : val_mse={hp['val_mse']:.6f}")
+print(f"  lr={hp['lr']:.2e}, batch_size={hp['batch_size']}, "
+      f"n_layers={hp['n_layers']}, hidden_dim={hp['hidden_dim']}, dropout={hp.get('dropout',0)}")
+
+# ── Load scaler ─────────────────────────────────────────────────────────────
 with open(SCALER_FILE) as f:
     scaler = json.load(f)
 mu  = np.array(scaler["mean"], dtype=np.float32)
 std = np.array(scaler["std"],  dtype=np.float32)
-print(f"Model  : {MODEL_FILE}")
+
+# ── Infer architecture from state dict, then load weights ───────────────────
+sd = torch.load(MODEL_FILE, weights_only=True)
+# Linear layers appear as net.0.weight, net.2.weight, ... — extract output dims
+linear_weights = [v for k, v in sd.items() if k.endswith(".weight") and "net." in k]
+hidden_dims    = [w.shape[0] for w in linear_weights[:-1]]  # all but output layer
+dropout        = hp.get("dropout", 0.0)
+
+model = ProbMLP(len(FEATURES), hidden_dims, len(TARGETS), dropout)
+model.load_state_dict(sd)
+n_params = sum(p.numel() for p in model.parameters())
+print(f"\nArchitecture (from checkpoint) : {len(FEATURES)} → {hidden_dims} → {len(TARGETS)}")
+print(f"Parameters : {n_params:,}")
 
 # ── 1. GPU evaluation on ALL raw data ───────────────────────────────────────
 print("\n─── GPU evaluation (all raw data) ───────────────────────────────────")
-all_files = sorted(DATA_DIR.glob("mcts_weight_log_*.csv"))
+model_gpu = model.to(DEVICE)
+model_gpu.eval()
 
+all_files  = sorted(DATA_DIR.glob("mcts_weight_log_*.csv"))
 abs_errs   = {t: 0.0 for t in TARGETS}
 sq_errs    = {t: 0.0 for t in TARGETS}
 total_rows = 0
 
 with torch.no_grad():
     for fpath in all_files:
-        raw = pd.read_csv(fpath)
-        Xr  = (raw[FEATURES].values.astype(np.float32) - mu) / std
-        Yr  = raw[TARGETS].values.astype(np.float32)
-
+        raw  = pd.read_csv(fpath)
+        Xr   = (raw[FEATURES].values.astype(np.float32) - mu) / std
+        Yr   = raw[TARGETS].values.astype(np.float32)
         for start in range(0, len(Xr), CHUNK):
             xb   = torch.from_numpy(Xr[start:start + CHUNK]).to(DEVICE)
             yb   = Yr[start:start + CHUNK]
@@ -58,7 +96,6 @@ with torch.no_grad():
             for i, t in enumerate(TARGETS):
                 abs_errs[t] += np.abs(err[:, i]).sum()
                 sq_errs[t]  += (err[:, i] ** 2).sum()
-
         total_rows += len(raw)
 
 print(f"Total rows : {total_rows:,}")
@@ -71,15 +108,16 @@ for t in TARGETS:
 
 # ── 2. CPU inference benchmark — batch_size=1, 10 000 real samples ──────────
 print(f"\n─── CPU inference benchmark (batch=1, n={N_CPU_BENCH:,}) ──────────────────")
-model_cpu = torch.jit.load(str(MODEL_FILE)).cpu()
+model_cpu = ProbMLP(len(FEATURES), hidden_dims, len(TARGETS), dropout=0.0)
+model_cpu.load_state_dict(sd)
 model_cpu.eval()
 
-# Load 10 000 samples from the reduced dataset
-df_bench = pd.read_csv(DATA_DIR / "dataset_reduced.csv")
+# Load 10 000 samples from reduced dataset
+df_bench  = pd.read_csv(DATA_DIR / "dataset_reduced.csv")
 bench_raw = df_bench[FEATURES].values[:N_CPU_BENCH].astype(np.float32)
 bench_X   = torch.from_numpy((bench_raw - mu) / std)   # CPU tensor
 
-# Warm-up (50 calls, not timed)
+# Warm-up
 with torch.no_grad():
     for i in range(50):
         _ = model_cpu(bench_X[i].unsqueeze(0))
