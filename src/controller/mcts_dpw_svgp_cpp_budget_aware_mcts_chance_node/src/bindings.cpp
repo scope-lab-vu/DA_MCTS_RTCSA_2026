@@ -178,6 +178,10 @@ class F1TenthDPWSvgpCAlphaBudgetChanceNode {
         model_->set_budget_params(W_low, W_high, N_w, N_r);
     }
 
+    void set_context(double v, double kappa) { model_->set_context(v, kappa); }
+
+    void open_log(const std::string& path) { model_->open_log(path); }
+
     double get_last_tau() { return model_->get_last_tau(); }
 
     void learn(int Nsim) { model_->learn(Nsim); }
@@ -298,6 +302,10 @@ PYBIND11_MODULE(mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node, m) {
              py::arg("c_alpha"))
         .def("set_budget_params", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_budget_params,
              py::arg("W_low"), py::arg("W_high"), py::arg("N_w"), py::arg("N_r"))
+        .def("set_context", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_context,
+             py::arg("v"), py::arg("kappa"))
+        .def("open_log", &F1TenthDPWSvgpCAlphaBudgetChanceNode::open_log,
+             py::arg("path"))
         .def("get_last_tau", &F1TenthDPWSvgpCAlphaBudgetChanceNode::get_last_tau)
         .def("learn", &F1TenthDPWSvgpCAlphaBudgetChanceNode::learn, py::arg("Nsim"))
         .def("learn_timed", &F1TenthDPWSvgpCAlphaBudgetChanceNode::learn_timed, py::arg("budget_s"))

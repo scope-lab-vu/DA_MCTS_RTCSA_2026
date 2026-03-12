@@ -49,33 +49,33 @@ log = logging.getLogger("budget_aware_chance_node_experiments")
 
 # TRACKS = ["YasMarina", "Sepang"]
 TRACKS = ["Sepang", "YasMarina"]
-
 # TRACKS = ["YasMarina"]
 
 MU_CONFIGS = [
-    1.0,
-    0.9,
-    0.8,
-    0.7,
-    0.6,
+    # 1.0,
+    # 0.9,
+    # 0.8,
+    # 0.7,
+    # 0.6,
     0.5,
     0.4,
     0.3,
     0.2,
     0.1,
+
 ]
 
 # Sweep over time budgets (seconds)
 TIME_BUDGETS = [
-    0.001,  # tight budget — will surely fail
-    0.003,
-    0.009,
-    0.012,
-    0.015,
-    0.018,
-    0.021,
-    0.024,
-    0.027,
+    # 0.001,  # tight budget — will surely fail
+    # 0.003,
+    # 0.009,
+    # 0.012,
+    # 0.015,
+    # 0.018,
+    # 0.021,
+    # 0.024,
+    # 0.027,
     0.030,
 ]
 
@@ -430,7 +430,7 @@ def main():
         description="Budget-Aware Chance-Node MCTS experiments: sweep over time budgets"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
-    parser.add_argument("--num-trials", type=int, default=10, help="Trials per combo")
+    parser.add_argument("--num-trials", type=int, default=1, help="Trials per combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed")
     parser.add_argument("--max-retries", type=int, default=5,
                         help="Max retries for crashed/segfaulted trials")

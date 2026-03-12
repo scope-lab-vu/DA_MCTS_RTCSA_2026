@@ -17,7 +17,7 @@ controller:
   n_simulations: 0
   exploration_constant: 1.0   # K (UCB exploration)
   alpha_dpw: 0.5               # action progressive widening exponent
-  beta_dpw: 0.1               # outcome progressive widening exponent
+  beta_dpw: 0.1              # outcome progressive widening exponent
   discount: 0.9                # rollout discount factor
   rollout_horizon: 12          # initial/fallback horizon
   rollout_horizon_straight: 15  # horizon on straight segments (low kappa)
@@ -31,7 +31,8 @@ controller:
   # --- Reward/cost tuning ---
   v_ref: 1000.0
   speed_weight: 1.0
-  alpha_threshold: 1.5
+  # alpha_threshold: 1.5
+  alpha_threshold: 0.324 # Got this value from the lateral tire force experiment: it's where the Fy vs alpha curve deviates. 
   a_lat_budget: 30.0
   curvature_lookahead: 30
   mcts_time_budget: 0.035

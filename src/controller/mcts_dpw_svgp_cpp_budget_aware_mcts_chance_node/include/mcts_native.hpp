@@ -4,8 +4,10 @@
 #include "simulator.hpp"
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <random>
+#include <string>
 #include <utility>
 
 // Pure C++ MCTS — no Python calls in the hot path.
@@ -18,6 +20,7 @@ class MCTSNative {
     double K_;
     std::shared_ptr<DecisionNode> root_;
     std::mt19937 rng_;
+    int max_depth_seen_ = 0;
 
   public:
     MCTSNative(Simulator* sim, const State7& initial_obs, double K,
@@ -57,6 +60,8 @@ class MCTSNative {
         }
 
         dn->visits += 1;
+        if (static_cast<int>(path.size()) > max_depth_seen_)
+            max_depth_seen_ = static_cast<int>(path.size());
         double cumulative_reward = evaluate();
 
         // Backpropagate
@@ -219,6 +224,10 @@ class MCTSNative {
         return traj;
     }
 
+    // Maximum depth seen across all grow_tree() calls since last reset.
+    // O(1) — maintained as a running max inside grow_tree().
+    int max_tree_depth() const { return max_depth_seen_; }
+
     void forward(const Action2& action,
                  const State7& new_state) {
         auto it = root_->children.find(action);
@@ -284,6 +293,13 @@ class DPWNative : public SPWNative {
     int N_r_ = 100;
     double last_tau_ = 0.0;
 
+    // Context set from Python each step for logging
+    double v_context_ = 0.0;
+    double kappa_context_ = 0.0;
+
+    // Per-episode weight log
+    std::ofstream log_file_;
+
   public:
     DPWNative(Simulator* sim, const State7& initial_obs,
               double alpha, double beta, double K, unsigned seed = 0)
@@ -296,16 +312,43 @@ class DPWNative : public SPWNative {
         N_r_ = N_r;
     }
 
+    // Called from Python before each learn_timed() to provide logging context.
+    void set_context(double v, double kappa) {
+        v_context_ = v;
+        kappa_context_ = kappa;
+    }
+
+    // Open (or replace) the per-episode CSV log file.
+    void open_log(const std::string& path) {
+        if (log_file_.is_open()) log_file_.close();
+        log_file_.open(path, std::ios::out | std::ios::trunc);
+        if (log_file_.is_open())
+            log_file_ << "n_iter,t_remain_s,v,kappa,p_agg,p_slow,p_feas,max_depth\n";
+    }
+
     struct ActionWeights {
         double p_agg, p_slow, p_feas;
     };
+
+    void write_log_row(int n, double t_remain, const ActionWeights& w) {
+        if (!log_file_.is_open()) return;
+        log_file_ << n << ","
+                  << t_remain << ","
+                  << v_context_ << ","
+                  << kappa_context_ << ","
+                  << w.p_agg << ","
+                  << w.p_slow << ","
+                  << w.p_feas << ","
+                  << max_depth_seen_ << "\n";
+        log_file_.flush();
+    }
 
     ActionWeights compute_weights(double W_hat) {
         double tau = std::max(0.0, std::min(1.0,
             (W_hat - W_low_) / (W_high_ - W_low_)));
         last_tau_ = tau;
-        double p_slow = 0.90 - 0.89 * tau;
-        double p_feas = 0.05 + 0.57 * tau;
+        double p_slow = 0.90 - 0.85 * tau;
+        double p_feas = 0.05 + 0.55 * tau;
         double p_agg = 1.0 - p_slow - p_feas;
         return {p_agg, p_slow, p_feas};
     }
@@ -315,6 +358,7 @@ class DPWNative : public SPWNative {
         auto start = std::chrono::steady_clock::now();
         auto deadline = start + std::chrono::duration<double>(budget_s);
         int n = 0;
+        max_depth_seen_ = 0;  // reset per learn_timed() call
 
         // Phase 1: Warmup — equal sampling (1/3, 1/3, 1/3)
         sim_->set_action_weights(1.0/3.0, 1.0/3.0, 1.0/3.0);
@@ -337,6 +381,7 @@ class DPWNative : public SPWNative {
         double W_hat = std::pow(static_cast<double>(N_total), alpha_);
         auto w = compute_weights(W_hat);
         sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+        write_log_row(n, remaining, w);  // Phase 2: initial weight estimate
 
         // Phase 3: Adaptive search with periodic re-calibration
         while (std::chrono::steady_clock::now() < deadline) {
@@ -351,6 +396,7 @@ class DPWNative : public SPWNative {
                 W_hat = std::pow(static_cast<double>(N_total), alpha_);
                 w = compute_weights(W_hat);
                 sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+                write_log_row(n, remaining, w);  // Phase 3: recalibration
             }
         }
 
