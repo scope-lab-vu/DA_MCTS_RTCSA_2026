@@ -24,7 +24,7 @@ controller:
   # Cost function
   speed_weight: 1.0
   v_ref: 1000.0
-  alpha_threshold: 0.324
+  alpha_threshold: 0.475
   normalize_reward: false
 
   # Track boundaries
