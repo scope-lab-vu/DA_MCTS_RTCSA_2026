@@ -119,13 +119,17 @@ def main():
         ax.plot(alpha_values, F_y_arr, "o-", color=color, linewidth=1.8,
                 markersize=4, label=f"μ = {mu:.4g}")
 
-    # Find alpha_th for mu=1.0489: where F_y drops to 90% of its own linear tangent
+    # Linear tangent from the mu_ref curve (slope from first nonzero point)
     mu_ref = max(mu_values)
     F_y_ref = results[mu_ref]
     nonzero = alpha_values > 0
     slope_ref = F_y_ref[nonzero][0] / alpha_values[nonzero][0]
     F_y_lin_ref = slope_ref * alpha_values
 
+    ax.plot(alpha_values, F_y_lin_ref, "--", color="gray", linewidth=1.2,
+            label=f"Linear (slope from μ={mu_ref:.4g})")
+
+    # Find alpha_th for mu_ref: where F_y drops to 90% of its own linear tangent
     alpha_th = None
     for i in range(len(alpha_values)):
         if alpha_values[i] > 0 and F_y_lin_ref[i] > 0:
