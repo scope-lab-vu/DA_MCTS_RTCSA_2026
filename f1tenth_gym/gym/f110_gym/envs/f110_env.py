@@ -238,12 +238,12 @@ class F110Env(gym.Env):
                 self.near_starts[i] = False
                 self.toggle_list[i] += 1
             self.lap_counts[i] = self.toggle_list[i] // 2
-            if self.toggle_list[i] < 2:
+            if self.toggle_list[i] < 4:
                 self.lap_times[i] = self.current_time
         
-        done = (self.collisions[self.ego_idx]) or np.all(self.toggle_list >= 2)
+        done = (self.collisions[self.ego_idx]) or np.all(self.toggle_list >= 4)
         
-        return bool(done), self.toggle_list >= 2
+        return bool(done), self.toggle_list >= 4
 
     def _update_state(self, obs_dict):
         """

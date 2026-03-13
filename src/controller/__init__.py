@@ -29,10 +29,11 @@ from src.controller.mcts_dpw_svgp_cpp_calpha_model import MCTSDPWSvgpCppControll
 from src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts import MCTSDPWSvgpCppController as MCTSBudgetAwareCppController
 from src.controller.mcts_dpw_svgp_cpp_calpha_model_sample_chance_node import MCTSDPWSvgpCppController as MCTSChanceNodeCppController
 from src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node import MCTSDPWSvgpCppController as MCTSBudgetAwareChanceNodeCppController
+from src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred import MCTSDPWSvgpCppController as MCTSBudgetAwareChanceProbPredCppController
 
 # Controllers that need extra kwargs in their constructor.
-_NEEDS_MAP_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input", "mcts_dpw_svgp_cpp_calpha_model", "mcts_dpw_svgp_cpp_budget_aware_mcts", "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node", "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node"}
-_NEEDS_SIMULATION_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input", "mcts_dpw_svgp_cpp_calpha_model", "mcts_dpw_svgp_cpp_budget_aware_mcts", "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node", "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node"}
+_NEEDS_MAP_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input", "mcts_dpw_svgp_cpp_calpha_model", "mcts_dpw_svgp_cpp_budget_aware_mcts", "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node", "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node", "mcts_svgp_cpp_budget_aware_chance_prob_pred"}
+_NEEDS_SIMULATION_CONFIG = {"mppi", "mppi_cs", "mcts_dpw_py", "mcts_dpw_cpp", "mcts_dpw_pinn", "mcts_dpw_pinn_cpp", "mcts_dpw_svgp_cpp", "mcts_pi_svgp_cpp", "mcts_pi_svgp_cpp_cs", "mcts_pi_svgp_cpp_cs_extract", "mcts_known_dyn_action_prior_cpp", "mcts_pi_svgp_cpp_cs_c_alpha_input", "mcts_dpw_svgp_cpp_calpha_model", "mcts_dpw_svgp_cpp_budget_aware_mcts", "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node", "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node", "mcts_svgp_cpp_budget_aware_chance_prob_pred"}
 
 
 class Controller(ABC):
@@ -70,6 +71,7 @@ CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {
     "mcts_dpw_svgp_cpp_budget_aware_mcts": MCTSBudgetAwareCppController,
     "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node": MCTSChanceNodeCppController,
     "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node": MCTSBudgetAwareChanceNodeCppController,
+    "mcts_svgp_cpp_budget_aware_chance_prob_pred": MCTSBudgetAwareChanceProbPredCppController,
 }
 
 

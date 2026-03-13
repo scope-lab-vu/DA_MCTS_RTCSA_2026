@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nodes.hpp"
+#include "prob_mlp.hpp"
 #include "simulator.hpp"
 #include <chrono>
 #include <cmath>
@@ -293,6 +294,12 @@ class DPWNative : public SPWNative {
     int N_r_ = 100;
     double last_tau_ = 0.0;
 
+    // MLP weight predictor (loaded once at init; used in learn_timed())
+    ProbMLP mlp_;
+
+    // Last weights set during learn_timed() / learn_n_mlp()
+    double last_p_agg_ = 1.0/3.0, last_p_slow_ = 1.0/3.0, last_p_feas_ = 1.0/3.0;
+
     // Context set from Python each step for logging
     double v_context_ = 0.0;
     double kappa_context_ = 0.0;
@@ -310,6 +317,14 @@ class DPWNative : public SPWNative {
         W_high_ = W_high;
         N_w_ = N_w;
         N_r_ = N_r;
+    }
+
+    void load_mlp_weights(const std::vector<float>& W0, const std::vector<float>& b0,
+                          const std::vector<float>& W1, const std::vector<float>& b1,
+                          const std::vector<float>& W2, const std::vector<float>& b2,
+                          const std::vector<float>& mu,
+                          const std::vector<float>& sigma) {
+        mlp_.load(W0, b0, W1, b1, W2, b2, mu, sigma);
     }
 
     // Called from Python before each learn_timed() to provide logging context.
@@ -378,9 +393,21 @@ class DPWNative : public SPWNative {
         double t_iter = elapsed / n;
         double remaining = std::chrono::duration<double>(deadline - now).count();
         int N_total = n + static_cast<int>(remaining / t_iter);
-        double W_hat = std::pow(static_cast<double>(N_total), alpha_);
-        auto w = compute_weights(W_hat);
+        ActionWeights w;
+        if (mlp_.ready) {
+            float depth = static_cast<float>(max_depth_seen_ > 0 ? max_depth_seen_ : 12);
+            auto p = mlp_.predict(static_cast<float>(N_total),
+                                  static_cast<float>(remaining),
+                                  static_cast<float>(v_context_),
+                                  static_cast<float>(kappa_context_),
+                                  depth);
+            w = {p[0], p[1], p[2]};
+        } else {
+            double W_hat = std::pow(static_cast<double>(N_total), alpha_);
+            w = compute_weights(W_hat);
+        }
         sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+                last_p_agg_ = w.p_agg; last_p_slow_ = w.p_slow; last_p_feas_ = w.p_feas;
         write_log_row(n, remaining, w);  // Phase 2: initial weight estimate
 
         // Phase 3: Adaptive search with periodic re-calibration
@@ -393,9 +420,20 @@ class DPWNative : public SPWNative {
                 t_iter = elapsed / n;
                 remaining = std::chrono::duration<double>(deadline - now).count();
                 N_total = n + static_cast<int>(remaining / t_iter);
-                W_hat = std::pow(static_cast<double>(N_total), alpha_);
-                w = compute_weights(W_hat);
+                if (mlp_.ready) {
+                    float depth = static_cast<float>(max_depth_seen_ > 0 ? max_depth_seen_ : 12);
+                    auto p = mlp_.predict(static_cast<float>(N_total),
+                                          static_cast<float>(remaining),
+                                          static_cast<float>(v_context_),
+                                          static_cast<float>(kappa_context_),
+                                          depth);
+                    w = {p[0], p[1], p[2]};
+                } else {
+                    double W_hat = std::pow(static_cast<double>(N_total), alpha_);
+                    w = compute_weights(W_hat);
+                }
                 sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+                last_p_agg_ = w.p_agg; last_p_slow_ = w.p_slow; last_p_feas_ = w.p_feas;
                 write_log_row(n, remaining, w);  // Phase 3: recalibration
             }
         }
@@ -404,7 +442,84 @@ class DPWNative : public SPWNative {
         return n;
     }
 
+    // Fixed-iteration variant: run exactly N_total iterations with MLP weights.
+    // Uses wall-clock only to estimate t_remain for MLP input features.
+    int learn_n_mlp(int N_total) {
+        auto start = std::chrono::steady_clock::now();
+        int n = 0;
+        max_depth_seen_ = 0;
+
+        // Phase 1: Warmup
+        sim_->set_action_weights(1.0/3.0, 1.0/3.0, 1.0/3.0);
+        while (n < N_w_ && n < N_total) {
+            grow_tree();
+            ++n;
+        }
+        if (n >= N_total) {
+            sim_->set_state(root_->state);
+            return n;
+        }
+
+        // Estimate time per iteration from warmup
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - start).count();
+        double t_iter = elapsed / n;
+        double remaining = t_iter * (N_total - n);
+
+        // Phase 2: Initial MLP weight estimate
+        ActionWeights w;
+        if (mlp_.ready) {
+            float depth = static_cast<float>(max_depth_seen_ > 0 ? max_depth_seen_ : 12);
+            auto p = mlp_.predict(static_cast<float>(N_total),
+                                  static_cast<float>(remaining),
+                                  static_cast<float>(v_context_),
+                                  static_cast<float>(kappa_context_),
+                                  depth);
+            w = {p[0], p[1], p[2]};
+        } 
+        // else {
+        //     double W_hat = std::pow(static_cast<double>(N_total), alpha_);
+        //     w = compute_weights(W_hat);
+        // }
+        sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+                last_p_agg_ = w.p_agg; last_p_slow_ = w.p_slow; last_p_feas_ = w.p_feas;
+
+        // Phase 3: Run remaining with periodic recalibration
+        while (n < N_total) {
+            grow_tree();
+            ++n;
+            if (n % N_r_ == 0) {
+                now = std::chrono::steady_clock::now();
+                elapsed = std::chrono::duration<double>(now - start).count();
+                t_iter = elapsed / n;
+                remaining = t_iter * (N_total - n);
+                if (mlp_.ready) {
+                    float depth = static_cast<float>(max_depth_seen_ > 0 ? max_depth_seen_ : 12);
+                    auto p = mlp_.predict(static_cast<float>(N_total),
+                                          static_cast<float>(remaining),
+                                          static_cast<float>(v_context_),
+                                          static_cast<float>(kappa_context_),
+                                          depth);
+                    w = {p[0], p[1], p[2]};
+                } 
+                // else {
+                //     double W_hat = std::pow(static_cast<double>(N_total), alpha_);
+                //     w = compute_weights(W_hat);
+                // }
+                sim_->set_action_weights(w.p_agg, w.p_slow, w.p_feas);
+                last_p_agg_ = w.p_agg; last_p_slow_ = w.p_slow; last_p_feas_ = w.p_feas;
+            }
+        }
+
+        sim_->set_state(root_->state);
+        return n;
+    }
+
     double get_last_tau() const { return last_tau_; }
+
+    std::array<double, 3> get_last_weights() const {
+        return {last_p_agg_, last_p_slow_, last_p_feas_};
+    }
 
     std::pair<std::shared_ptr<DecisionNode>, double>
     select_outcome(RandomNode* random_node) override {

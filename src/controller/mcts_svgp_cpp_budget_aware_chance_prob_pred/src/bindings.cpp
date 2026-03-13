@@ -51,12 +51,12 @@ inline std::vector<float> to_float_vec(py::array_t<float> arr) {
 
 // Wrapper class that owns both the simulator and the DPW tree.
 // Exposed to Python as a single object with a clean API.
-class F1TenthDPWSvgpCAlphaBudgetChanceNode {
+class F1TenthMCTSSvgpBudgetProbPred {
     std::unique_ptr<F1TenthSimulator> sim_;
     std::unique_ptr<DPWNative> model_;
 
   public:
-    F1TenthDPWSvgpCAlphaBudgetChanceNode(py::array_t<double> initial_obs,
+    F1TenthMCTSSvgpBudgetProbPred(py::array_t<double> initial_obs,
                double alpha, double beta, double K,
                // Vehicle params
                double mu, double C_Sf, double C_Sr,
@@ -178,15 +178,43 @@ class F1TenthDPWSvgpCAlphaBudgetChanceNode {
         model_->set_budget_params(W_low, W_high, N_w, N_r);
     }
 
+    void set_action_weights(double p_agg, double p_slow, double p_feas) {
+        sim_->set_action_weights(p_agg, p_slow, p_feas);
+    }
+
+    // Load MLP weights from Python numpy float32 arrays.
+    // Call once after construction (before first learn_timed()).
+    void load_mlp_weights(py::array_t<float> W0, py::array_t<float> b0,
+                          py::array_t<float> W1, py::array_t<float> b1,
+                          py::array_t<float> W2, py::array_t<float> b2,
+                          py::array_t<float> mu, py::array_t<float> sigma) {
+        auto to_fvec = [](py::array_t<float> a) {
+            auto buf = a.request();
+            float* ptr = static_cast<float*>(buf.ptr);
+            return std::vector<float>(ptr, ptr + buf.size);
+        };
+        model_->load_mlp_weights(to_fvec(W0), to_fvec(b0),
+                                  to_fvec(W1), to_fvec(b1),
+                                  to_fvec(W2), to_fvec(b2),
+                                  to_fvec(mu), to_fvec(sigma));
+    }
+
     void set_context(double v, double kappa) { model_->set_context(v, kappa); }
 
     void open_log(const std::string& path) { model_->open_log(path); }
 
     double get_last_tau() { return model_->get_last_tau(); }
 
+    py::tuple get_last_weights() {
+        auto w = model_->get_last_weights();
+        return py::make_tuple(w[0], w[1], w[2]);
+    }
+
     void learn(int Nsim) { model_->learn(Nsim); }
 
     int learn_timed(double budget_s) { return model_->learn_timed(budget_s); }
+
+    int learn_n_mlp(int N_total) { return model_->learn_n_mlp(N_total); }
 
     py::array_t<double> best_action() {
         return to_numpy_action(model_->best_action_vec());
@@ -233,10 +261,10 @@ class F1TenthDPWSvgpCAlphaBudgetChanceNode {
     }
 };
 
-PYBIND11_MODULE(mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node, m) {
-    m.doc() = "C++ MCTS DPW + Krasser SVGP (C_alpha input) + GP variance sampling at chance nodes + budget-aware action weighting";
+PYBIND11_MODULE(mcts_svgp_cpp_budget_aware_chance_prob_pred, m) {
+    m.doc() = "C++ MCTS DPW + Krasser SVGP + budget-aware action weighting with MLP probability prediction";
 
-    py::class_<F1TenthDPWSvgpCAlphaBudgetChanceNode>(m, "F1TenthDPWSvgpCAlphaBudgetChanceNode")
+    py::class_<F1TenthMCTSSvgpBudgetProbPred>(m, "F1TenthMCTSSvgpBudgetProbPred")
         .def(py::init<py::array_t<double>,
                        double, double, double,
                        // Vehicle params (18)
@@ -288,32 +316,41 @@ PYBIND11_MODULE(mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node, m) {
              py::arg("svgp_D_input"),
              py::arg("base_timestep"),
              py::arg("seed") = 0)
-        .def("set_v_ref_window", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_v_ref_window,
+        .def("set_v_ref_window", &F1TenthMCTSSvgpBudgetProbPred::set_v_ref_window,
              py::arg("window"))
-        .def("set_action_prior", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_action_prior,
+        .def("set_action_prior", &F1TenthMCTSSvgpBudgetProbPred::set_action_prior,
              py::arg("mean"), py::arg("std"))
-        .def("set_rollout_horizon", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_rollout_horizon,
+        .def("set_rollout_horizon", &F1TenthMCTSSvgpBudgetProbPred::set_rollout_horizon,
              py::arg("horizon"))
-        .def("set_is_curve", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_is_curve,
+        .def("set_is_curve", &F1TenthMCTSSvgpBudgetProbPred::set_is_curve,
              py::arg("is_curve"))
-        .def("set_centerline", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_centerline,
+        .def("set_centerline", &F1TenthMCTSSvgpBudgetProbPred::set_centerline,
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
-        .def("set_c_alpha", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_c_alpha,
+        .def("set_c_alpha", &F1TenthMCTSSvgpBudgetProbPred::set_c_alpha,
              py::arg("c_alpha"))
-        .def("set_budget_params", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_budget_params,
+        .def("set_budget_params", &F1TenthMCTSSvgpBudgetProbPred::set_budget_params,
              py::arg("W_low"), py::arg("W_high"), py::arg("N_w"), py::arg("N_r"))
-        .def("set_context", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_context,
+        .def("set_action_weights", &F1TenthMCTSSvgpBudgetProbPred::set_action_weights,
+             py::arg("p_agg"), py::arg("p_slow"), py::arg("p_feas"))
+        .def("load_mlp_weights", &F1TenthMCTSSvgpBudgetProbPred::load_mlp_weights,
+             py::arg("W0"), py::arg("b0"),
+             py::arg("W1"), py::arg("b1"),
+             py::arg("W2"), py::arg("b2"),
+             py::arg("mu"), py::arg("sigma"))
+        .def("set_context", &F1TenthMCTSSvgpBudgetProbPred::set_context,
              py::arg("v"), py::arg("kappa"))
-        .def("open_log", &F1TenthDPWSvgpCAlphaBudgetChanceNode::open_log,
+        .def("open_log", &F1TenthMCTSSvgpBudgetProbPred::open_log,
              py::arg("path"))
-        .def("get_last_tau", &F1TenthDPWSvgpCAlphaBudgetChanceNode::get_last_tau)
-        .def("learn", &F1TenthDPWSvgpCAlphaBudgetChanceNode::learn, py::arg("Nsim"))
-        .def("learn_timed", &F1TenthDPWSvgpCAlphaBudgetChanceNode::learn_timed, py::arg("budget_s"))
-        .def("best_action", &F1TenthDPWSvgpCAlphaBudgetChanceNode::best_action)
-        .def("forward", &F1TenthDPWSvgpCAlphaBudgetChanceNode::forward,
+        .def("get_last_tau", &F1TenthMCTSSvgpBudgetProbPred::get_last_tau)
+        .def("get_last_weights", &F1TenthMCTSSvgpBudgetProbPred::get_last_weights)
+        .def("learn", &F1TenthMCTSSvgpBudgetProbPred::learn, py::arg("Nsim"))
+        .def("learn_timed", &F1TenthMCTSSvgpBudgetProbPred::learn_timed, py::arg("budget_s"))
+        .def("learn_n_mlp", &F1TenthMCTSSvgpBudgetProbPred::learn_n_mlp, py::arg("N_total"))
+        .def("best_action", &F1TenthMCTSSvgpBudgetProbPred::best_action)
+        .def("forward", &F1TenthMCTSSvgpBudgetProbPred::forward,
              py::arg("action"), py::arg("new_state"))
-        .def("set_state", &F1TenthDPWSvgpCAlphaBudgetChanceNode::set_state, py::arg("state"))
-        .def("get_root_actions", &F1TenthDPWSvgpCAlphaBudgetChanceNode::get_root_actions)
-        .def("get_best_trajectory", &F1TenthDPWSvgpCAlphaBudgetChanceNode::get_best_trajectory,
+        .def("set_state", &F1TenthMCTSSvgpBudgetProbPred::set_state, py::arg("state"))
+        .def("get_root_actions", &F1TenthMCTSSvgpBudgetProbPred::get_root_actions)
+        .def("get_best_trajectory", &F1TenthMCTSSvgpBudgetProbPred::get_best_trajectory,
              py::arg("max_depth") = 50);
 }

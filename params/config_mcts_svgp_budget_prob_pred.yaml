@@ -1,0 +1,61 @@
+controller:
+  type: mcts_svgp_cpp_budget_aware_chance_prob_pred
+
+  # MCTS tree hyperparameters
+  alpha_dpw: 0.5
+  beta_dpw: 0.1
+  exploration_constant: 1.0
+  discount: 0.9
+  n_simulations: 0             # 0 → use mcts_time_budget instead
+
+  # Time budget
+  mcts_time_budget: 0.012      # seconds per decision step (12 ms)
+
+  # Budget-aware warmup (equal weights for first N_warmup iterations)
+  budget_n_warmup: 10
+  budget_n_recalibrate: 10    # MLP recalibration every N iterations in Phase 3
+
+  # Rollout horizons
+  rollout_horizon: 12
+  rollout_horizon_straight: 15
+  rollout_horizon_curve: 15
+  kappa_threshold: 0.05
+
+  # Cost function
+  speed_weight: 1.0
+  v_ref: 1000.0
+  alpha_threshold: 0.324
+  normalize_reward: false
+
+  # Track boundaries
+  lane_width: 1.1
+  real_track_width: 1.75
+
+  # Lateral acceleration budget for v_ref window solver
+  a_lat_budget: 30.0
+  curvature_lookahead: 30
+
+  # Cornering stiffness estimation window
+  calpha_window_size: 10
+
+  # Action prior (SVGP/SGPR)
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  action_prior_model_type: svgp
+
+  # Krasser SVGP dynamics models
+  svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+
+  use_occupancy_map: true
+
+dynamics:
+  type: f1tenth_dynamics
+
+safety:
+  type: noop
+
+simulation:
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42
+  vehicle_interface: gym
