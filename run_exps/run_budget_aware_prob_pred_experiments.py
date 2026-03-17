@@ -49,21 +49,21 @@ logging.basicConfig(
 log = logging.getLogger("budget_aware_prob_pred_experiments")
 
 # TRACKS = ["YasMarina"]
-# TRACKS = ["YasMarina", "Sepang"]
-TRACKS = ["Sepang"]
+TRACKS = ["Sepang", "YasMarina"]
+# TRACKS = ["Sepang"]
 
 
 MU_CONFIGS = [
-    # 1.0,
-    # 0.9,
-    # 0.8,
-    # 0.7,
-    # 0.6,
+    1.0,
+    0.9,
+    0.8,
+    0.7,
+    0.6,
     0.5,
-    # 0.4,
-    # 0.3,
-    # 0.2,
-    # 0.1,
+    0.4,
+    0.3,
+    0.2,
+    0.1,
 ]
 # Sweep over time budgets (seconds)
 # TIME_BUDGETS = [
@@ -82,13 +82,13 @@ MU_CONFIGS = [
 
 
 TIME_BUDGETS = [
-    # 0.005,
-    # 0.010,
-    # 0.015,
-    # 0.020,
-    # 0.025,
+    0.001,
+    0.005,
+    0.010,
+    0.015,
+    0.020,
+    0.025,
     0.030,
-    # 0.035,
 ]
 
 BASE_CONFIG = Path("params/config_mcts_svgp_budget_prob_pred.yaml")

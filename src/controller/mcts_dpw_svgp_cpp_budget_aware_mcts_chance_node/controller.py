@@ -191,12 +191,12 @@ class MCTSDPWSvgpCppController:
             raise ValueError("MCTS controller requires centerline_path in map config.")
         self.track = Track(map_config.centerline_path)
 
-        # Log file naming: mcts_weight_log_{map_name}_{mu}_{budget_ms}ms_{ts}.csv
-        cl_parent = Path(map_config.centerline_path).parent.name  # e.g. "YasMarina_10489"
-        self._log_map_name = cl_parent.split("_")[0] if "_" in cl_parent else cl_parent
-        self._log_mu = float(vehicle_params.mu)
-        self._log_dir = Path("results/mcts_weight_logs")
-        self._log_dir.mkdir(parents=True, exist_ok=True)
+        # # Log file naming: mcts_weight_log_{map_name}_{mu}_{budget_ms}ms_{ts}.csv
+        # cl_parent = Path(map_config.centerline_path).parent.name  # e.g. "YasMarina_10489"
+        # self._log_map_name = cl_parent.split("_")[0] if "_" in cl_parent else cl_parent
+        # self._log_mu = float(vehicle_params.mu)
+        # self._log_dir = Path("results/mcts_weight_logs")
+        # self._log_dir.mkdir(parents=True, exist_ok=True)
 
         # Occupancy maps: imaginary (soft penalty) + real (hard penalty, done)
         self.track_occ_map = TrackOccupancyMap(
@@ -543,13 +543,13 @@ class MCTSDPWSvgpCppController:
                 self.budget_w_low, self.budget_w_high,
                 self.budget_n_warmup, self.budget_n_recalibrate,
             )
-            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            budget_ms = int(self.mcts_time_budget * 1000)
-            mu_str = f"{self._log_mu:.2f}".replace(".", "")
-            log_path = self._log_dir / (
-                f"mcts_weight_log_{self._log_map_name}_{mu_str}_{budget_ms}ms_{ts}.csv"
-            )
-            self._tree.open_log(str(log_path))
+            # ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            # budget_ms = int(self.mcts_time_budget * 1000)
+            # mu_str = f"{self._log_mu:.2f}".replace(".", "")
+            # log_path = self._log_dir / (
+            #     f"mcts_weight_log_{self._log_map_name}_{mu_str}_{budget_ms}ms_{ts}.csv"
+            # )
+            # self._tree.open_log(str(log_path))
 
         # 5. Push action prior, dynamic horizon, curve flag, and local centerline to C++
         self._tree.set_action_prior(action_mean, action_std)

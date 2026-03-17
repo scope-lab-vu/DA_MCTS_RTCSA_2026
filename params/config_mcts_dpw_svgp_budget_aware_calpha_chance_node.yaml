@@ -32,7 +32,7 @@ controller:
   v_ref: 1000.0
   speed_weight: 1.0
   # alpha_threshold: 1.5
-  alpha_threshold: 0.324 # Got this value from the lateral tire force experiment: it's where the Fy vs alpha curve deviates. 
+  alpha_threshold: 0.4 # Got this value from the lateral tire force experiment: it's where the Fy vs alpha curve deviates. 
   a_lat_budget: 30.0
   curvature_lookahead: 30
   mcts_time_budget: 0.035

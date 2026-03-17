@@ -19,3 +19,10 @@ results_new_reward/
 heatmap_results.*
 results_final_budget_aware
 results+budget_cn/
+results_something/
+plotting_code/exp_heatmaps
+results_alpha_1.5/
+results_bud_alpha_0.324/
+results_prob_pred_results_alpha_0.475/
+rerun_results*
+plotting_code/budget_mcts_1st_res.txt
