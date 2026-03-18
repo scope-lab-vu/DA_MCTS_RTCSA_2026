@@ -190,6 +190,9 @@ class MCTSDPWSvgpCppController:
         self.a_lat_budget = config.a_lat_budget
         self.curvature_lookahead = config.curvature_lookahead
         self.mcts_time_budget = config.mcts_time_budget
+        self.dynamic_budget = getattr(config, 'dynamic_budget', False)
+        self.dynamic_budget_min = getattr(config, 'dynamic_budget_min', 0.005)
+        self.dynamic_budget_max = getattr(config, 'dynamic_budget_max', 0.030)
         self.normalize_reward = getattr(config, 'normalize_reward', False)
 
         # Budget-aware MCTS hyperparameters
@@ -554,13 +557,17 @@ class MCTSDPWSvgpCppController:
         # 6. Run MCTS — C++ budget loop with inline MLP weight prediction
         self._tree.set_context(state.v, self._avg_kappa_lookahead)
         if self.mcts_time_budget > 0:
-            n_sims = self._tree.learn_timed(self.mcts_time_budget)
+            if self.dynamic_budget:
+                budget = np.random.uniform(self.dynamic_budget_min, self.dynamic_budget_max)
+            else:
+                budget = self.mcts_time_budget
+            n_sims = self._tree.learn_timed(budget)
         else:
             self._tree.set_action_weights(1/3, 1/3, 1/3)
             self._tree.learn(self.n_simulations)
             n_sims = self.n_simulations
 
-        log.debug("MCTS ran %d sims (C++ MLP)", n_sims)
+        log.debug("MCTS ran %d sims (C++ MLP, budget=%.1fms)", n_sims, budget * 1000 if self.mcts_time_budget > 0 else 0)
 
         # 7. Extract best trajectory
         try:

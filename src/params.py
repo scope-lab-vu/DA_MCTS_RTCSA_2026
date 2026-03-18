@@ -80,6 +80,9 @@ class ControllerConfig:
     a_lat_budget: float = 5.0
     curvature_lookahead: int = 30
     mcts_time_budget: float = 0.022
+    dynamic_budget: bool = False
+    dynamic_budget_min: float = 0.005
+    dynamic_budget_max: float = 0.030
     # MCTS DPW PINN fields
     batch_size: int = 8
     eval_K: int = 4

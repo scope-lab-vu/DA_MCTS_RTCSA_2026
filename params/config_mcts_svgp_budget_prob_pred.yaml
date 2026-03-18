@@ -10,6 +10,9 @@ controller:
 
   # Time budget
   mcts_time_budget: 0.012      # seconds per decision step (12 ms)
+  dynamic_budget: true         # if true, sample budget from U(min, max) each step
+  dynamic_budget_min: 0.005     # 5 ms lower bound
+  dynamic_budget_max: 0.030     # 30 ms upper bound
 
   # Budget-aware warmup (equal weights for first N_warmup iterations)
   budget_n_warmup: 10
