@@ -173,6 +173,7 @@ class F1TenthMCTSSvgpBudgetProbPred {
     }
 
     void set_c_alpha(double c_alpha) { sim_->set_c_alpha(c_alpha); }
+    void set_no_c_alpha(bool flag) { sim_->set_no_c_alpha(flag); }
 
     void set_budget_params(double W_low, double W_high, int N_w, int N_r) {
         model_->set_budget_params(W_low, W_high, N_w, N_r);
@@ -328,6 +329,8 @@ PYBIND11_MODULE(mcts_svgp_cpp_budget_aware_chance_prob_pred, m) {
              py::arg("cx"), py::arg("cy"), py::arg("heading"))
         .def("set_c_alpha", &F1TenthMCTSSvgpBudgetProbPred::set_c_alpha,
              py::arg("c_alpha"))
+        .def("set_no_c_alpha", &F1TenthMCTSSvgpBudgetProbPred::set_no_c_alpha,
+             py::arg("flag"))
         .def("set_budget_params", &F1TenthMCTSSvgpBudgetProbPred::set_budget_params,
              py::arg("W_low"), py::arg("W_high"), py::arg("N_w"), py::arg("N_r"))
         .def("set_action_weights", &F1TenthMCTSSvgpBudgetProbPred::set_action_weights,

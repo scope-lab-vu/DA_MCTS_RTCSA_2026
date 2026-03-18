@@ -99,6 +99,7 @@ class ControllerConfig:
     action_prior_model_path: Optional[str] = None
     action_prior_model_type: str = "svgp"  # "svgp" or "sgpr_krasserm"
     uniform_action_sampling: bool = False  # if true, use uniform sampling instead of action prior
+    no_c_alpha_input: bool = False  # if true, SVGP dynamics uses 6D input (no C_alpha)
     # Normalize reward components to ~[0,1] scale
     normalize_reward: bool = False
     # Cornering stiffness adaptive velocity parameters (mppi_cs controller)

@@ -45,6 +45,7 @@ controller:
   action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
   action_prior_model_type: svgp
   uniform_action_sampling: false  # if true, use uniform sampling instead of action prior
+  no_c_alpha_input: false         # if true, SVGP dynamics uses 6D input (no C_alpha)
 
   # Krasser SVGP dynamics models
   svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz

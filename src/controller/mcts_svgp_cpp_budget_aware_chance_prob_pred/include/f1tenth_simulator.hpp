@@ -276,6 +276,7 @@ class F1TenthSimulator : public Simulator {
 
     // C_alpha (cornering stiffness) — passed as 7th GP input
     double c_alpha_value_ = 104.89;
+    bool no_c_alpha_ = false;  // if true, use 6D GP input (no c_alpha)
 
     std::mt19937 rng_;
 
@@ -346,6 +347,7 @@ class F1TenthSimulator : public Simulator {
     }
 
     void set_c_alpha(double c_alpha) { c_alpha_value_ = c_alpha; }
+    void set_no_c_alpha(bool flag) { no_c_alpha_ = flag; }
 
     // Returns index of nearest centerline point (used for backward-progress check)
     int nearest_index(double x, double y) const {
@@ -424,8 +426,17 @@ class F1TenthSimulator : public Simulator {
             double next_beta  = beta  + sub_dt * beta_dot;
 
             // Krasser SVGP residual corrections (mean only)
-            // 7D input: [delta, v, omega, beta, accl, sv, c_alpha]
-            double gp_input[7] = {delta, v, omega, beta, accl, sv, c_alpha_value_};
+            double gp_input[7];
+            if (no_c_alpha_) {
+                // 6D input: [delta, v, omega, beta, accl, sv]
+                gp_input[0] = delta; gp_input[1] = v; gp_input[2] = omega;
+                gp_input[3] = beta;  gp_input[4] = accl; gp_input[5] = sv;
+            } else {
+                // 7D input: [delta, v, omega, beta, accl, sv, c_alpha]
+                gp_input[0] = delta; gp_input[1] = v; gp_input[2] = omega;
+                gp_input[3] = beta;  gp_input[4] = accl; gp_input[5] = sv;
+                gp_input[6] = c_alpha_value_;
+            }
             double err_omega = krasser_predict_single(gp_input, *omega_svgp_);
             double err_beta  = krasser_predict_single(gp_input, *beta_svgp_);
             next_omega += err_omega;
@@ -528,7 +539,15 @@ class F1TenthSimulator : public Simulator {
             accl = 0.0;
         accl = std::max(-vp_.a_max, std::min(pos_limit, accl));
 
-        double gp_input[7] = {delta, v, omega, beta_val, accl, sv, c_alpha_value_};
+        double gp_input[7];
+        if (no_c_alpha_) {
+            gp_input[0] = delta; gp_input[1] = v; gp_input[2] = omega;
+            gp_input[3] = beta_val; gp_input[4] = accl; gp_input[5] = sv;
+        } else {
+            gp_input[0] = delta; gp_input[1] = v; gp_input[2] = omega;
+            gp_input[3] = beta_val; gp_input[4] = accl; gp_input[5] = sv;
+            gp_input[6] = c_alpha_value_;
+        }
         auto [omega_mean, omega_var] = krasser_predict_with_variance(gp_input, *omega_svgp_);
         auto [beta_mean, beta_var]  = krasser_predict_with_variance(gp_input, *beta_svgp_);
         (void)omega_mean; (void)beta_mean;  // means unused here, step() re-integrates
@@ -630,6 +649,7 @@ class F1TenthSimulator : public Simulator {
         copy->cy_ = cy_;
         copy->cheading_ = cheading_;
         copy->c_alpha_value_ = c_alpha_value_;
+        copy->no_c_alpha_ = no_c_alpha_;
         copy->rng_ = rng_;
         return copy;
     }
