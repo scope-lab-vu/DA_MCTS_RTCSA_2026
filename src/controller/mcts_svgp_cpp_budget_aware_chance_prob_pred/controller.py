@@ -273,6 +273,7 @@ class MCTSDPWSvgpCppController:
         if model_path is None:
             raise ValueError("action_prior_model_path must be set in controller config.")
         self._model_type = getattr(config, 'action_prior_model_type', 'svgp')
+        self._uniform_action_sampling = getattr(config, 'uniform_action_sampling', False)
 
         if self._model_type == "sgpr_krasserm":
             self._gp_models, self._x_scaler, self._y_scaler, gp_config = \
@@ -548,8 +549,9 @@ class MCTSDPWSvgpCppController:
             self._tree.set_v_ref_window(v_ref_window)
             self._tree.set_c_alpha(c_alpha)
 
-        # 5. Push action prior, dynamic horizon, curve flag, centerline
-        self._tree.set_action_prior(action_mean, action_std)
+        # 5. Push action prior (skip if uniform_action_sampling), dynamic horizon, curve flag, centerline
+        if not self._uniform_action_sampling:
+            self._tree.set_action_prior(action_mean, action_std)
         self._tree.set_rollout_horizon(self._dynamic_horizon)
         self._tree.set_is_curve(self._max_kappa_lookahead >= self.kappa_threshold)
         self._tree.set_centerline(self._local_cx, self._local_cy, self._local_heading)
