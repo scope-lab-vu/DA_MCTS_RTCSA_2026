@@ -129,6 +129,18 @@ def main() -> None:
         pf_logger = PFLogger(output_path="results/pf_localization_log.csv")
         log.info("Particle filter initialized with %d particles", pf_config.max_particles)
 
+    # --- SVGP state error logging (when use_svgp_state is enabled) ---
+    svgp_state_log = None
+    use_svgp = api.algo_config.simulation.use_svgp_state
+    if use_svgp:
+        svgp_log_path = "results/svgp_state_error_log.csv"
+        svgp_state_log = open(svgp_log_path, "w")
+        svgp_state_log.write(
+            "step,gt_x,gt_y,gt_delta,gt_v,gt_psi,gt_omega,gt_beta,"
+            "svgp_x,svgp_y,svgp_delta,svgp_v,svgp_psi,svgp_omega,svgp_beta\n"
+        )
+        log.info("SVGP state logging enabled → %s", svgp_log_path)
+
     log.info("Starting control loop at dt=%.4fs (%.0f Hz)", dt_s, 1.0 / dt_s)
 
     try:
@@ -137,6 +149,16 @@ def main() -> None:
 
             # --- Core loop ---
             state = api.get_state()
+
+            # --- Log SVGP state vs ground truth ---
+            if svgp_state_log is not None:
+                gt = api._vehicle._env.sim.agents[0].state
+                svgp_state_log.write(
+                    f"{step},{gt[0]:.8f},{gt[1]:.8f},{gt[2]:.8f},{gt[3]:.8f},"
+                    f"{gt[4]:.8f},{gt[5]:.8f},{gt[6]:.8f},"
+                    f"{state.x:.8f},{state.y:.8f},{state.delta:.8f},{state.v:.8f},"
+                    f"{state.psi:.8f},{state.omega:.8f},{state.beta:.8f}\n"
+                )
 
             # --- Particle filter update (if enabled) ---
             if pf is not None:
@@ -218,6 +240,23 @@ def main() -> None:
     if pf_logger is not None:
         pf_logger.close()
         log.info("PF localization log saved to results/pf_localization_log.csv")
+
+    # --- Close SVGP state log and compute error ---
+    if svgp_state_log is not None:
+        svgp_state_log.close()
+        # Compute and print RMSE
+        import csv, math as _m
+        with open("results/svgp_state_error_log.csv") as f:
+            rows = list(csv.DictReader(f))
+        if rows:
+            n = len(rows)
+            fields = ['x', 'y', 'delta', 'v', 'psi', 'omega', 'beta']
+            print(f"\n=== SVGP State Error (RMSE over {n} steps) ===")
+            for field in fields:
+                gt_key, sv_key = f"gt_{field}", f"svgp_{field}"
+                mse = sum((float(r[gt_key]) - float(r[sv_key])) ** 2 for r in rows) / n
+                print(f"  {field:>8s}: {_m.sqrt(mse):.6f}")
+        log.info("SVGP state error log saved to results/svgp_state_error_log.csv")
 
 
 if __name__ == "__main__":

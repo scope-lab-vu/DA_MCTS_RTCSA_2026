@@ -68,3 +68,7 @@ simulation:
   log_every_n_steps: 1
   seed: 42
   vehicle_interface: gym
+  # SVGP state propagation: use extended kinematic model + GP corrections
+  use_svgp_state: false
+  svgp_state_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  svgp_state_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz

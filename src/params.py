@@ -143,6 +143,11 @@ class SimulationConfig:
     dt_s: float = 0.01
     log_every_n_steps: int = 100
     seed: int = 42
+    # SVGP state propagation: use extended kinematic model + GP corrections
+    # instead of ground-truth agent state
+    use_svgp_state: bool = False
+    svgp_state_omega_model_path: Optional[str] = None
+    svgp_state_beta_model_path: Optional[str] = None
 
 
 @dataclass(frozen=True)
