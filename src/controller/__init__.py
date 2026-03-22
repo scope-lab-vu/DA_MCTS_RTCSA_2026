@@ -30,19 +30,19 @@ def _try_import(dotted_path, attr):
         return None
 
 
-MCTSDPWCppController             = _try_import("src.controller.mcts_dpw_cpp",                                          "MCTSDPWCppController")
-MCTSDPWPINNController            = _try_import("src.controller.mcts_dpw_pinn",                                         "MCTSDPWPINNController")
-MCTSDPWPinnCppController         = _try_import("src.controller.mcts_dpw_pinn_cpp",                                     "MCTSDPWPinnCppController")
-MCTSDPWSvgpCppController         = _try_import("src.controller.mcts_dpw_svgp_cpp",                                     "MCTSDPWSvgpCppController")
-MCTSPiSvgpCppController          = _try_import("src.controller.mcts_pi_svgp_cpp",                                      "MCTSPiSvgpCppController")
-MCTSPiSvgpCppCsController        = _try_import("src.controller.mcts_pi_svgp_cpp_cs",                                   "MCTSPiSvgpCppCsController")
-MCTSPiSvgpCppCsExtractController = _try_import("src.controller.mcts_pi_svgp_cpp_cs_extract_actions",                   "MCTSPiSvgpCppCsExtractController")
-MCTSKnownDynActionPriorCppController = _try_import("src.controller.mcts_known_dyn_action_prior_cpp",                   "MCTSKnownDynActionPriorCppController")
-MCTSPiSvgpCppCsCAlphaController  = _try_import("src.controller.mcts_pi_svgp_cpp_cs_c_alpha_input",                     "MCTSPiSvgpCppCsCAlphaController")
-MCTSDPWSvgpCAlphaCppController   = _try_import("src.controller.mcts_dpw_svgp_cpp_calpha_model",                        "MCTSDPWSvgpCppController")
-MCTSBudgetAwareCppController     = _try_import("src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts",                   "MCTSDPWSvgpCppController")
-MCTSChanceNodeCppController      = _try_import("src.controller.mcts_dpw_svgp_cpp_calpha_model_sample_chance_node",     "MCTSDPWSvgpCppController")
-MCTSBudgetAwareChanceNodeCppController = _try_import("src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node", "MCTSDPWSvgpCppController")
+# MCTSDPWCppController             = _try_import("src.controller.mcts_dpw_cpp",                                          "MCTSDPWCppController")
+# MCTSDPWPINNController            = _try_import("src.controller.mcts_dpw_pinn",                                         "MCTSDPWPINNController")
+# MCTSDPWPinnCppController         = _try_import("src.controller.mcts_dpw_pinn_cpp",                                     "MCTSDPWPinnCppController")
+# MCTSDPWSvgpCppController         = _try_import("src.controller.mcts_dpw_svgp_cpp",                                     "MCTSDPWSvgpCppController")
+# MCTSPiSvgpCppController          = _try_import("src.controller.mcts_pi_svgp_cpp",                                      "MCTSPiSvgpCppController")
+# MCTSPiSvgpCppCsController        = _try_import("src.controller.mcts_pi_svgp_cpp_cs",                                   "MCTSPiSvgpCppCsController")
+# MCTSPiSvgpCppCsExtractController = _try_import("src.controller.mcts_pi_svgp_cpp_cs_extract_actions",                   "MCTSPiSvgpCppCsExtractController")
+# MCTSKnownDynActionPriorCppController = _try_import("src.controller.mcts_known_dyn_action_prior_cpp",                   "MCTSKnownDynActionPriorCppController")
+# MCTSPiSvgpCppCsCAlphaController  = _try_import("src.controller.mcts_pi_svgp_cpp_cs_c_alpha_input",                     "MCTSPiSvgpCppCsCAlphaController")
+# MCTSDPWSvgpCAlphaCppController   = _try_import("src.controller.mcts_dpw_svgp_cpp_calpha_model",                        "MCTSDPWSvgpCppController")
+# MCTSBudgetAwareCppController     = _try_import("src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts",                   "MCTSDPWSvgpCppController")
+# MCTSChanceNodeCppController      = _try_import("src.controller.mcts_dpw_svgp_cpp_calpha_model_sample_chance_node",     "MCTSDPWSvgpCppController")
+# MCTSBudgetAwareChanceNodeCppController = _try_import("src.controller.mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node", "MCTSDPWSvgpCppController")
 MCTSBudgetAwareChanceProbPredCppController = _try_import("src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred", "MCTSDPWSvgpCppController")
 
 # Controllers that need extra kwargs in their constructor.
@@ -71,20 +71,20 @@ _ALL_CONTROLLERS = {
     "mpc": MPCController,
     "mppi": MPPIController,
     "mppi_cs": MPPICorneringStiffnessController,
-    "mcts_dpw_py": MCTSDPWController,
-    "mcts_dpw_cpp": MCTSDPWCppController,
-    "mcts_dpw_pinn": MCTSDPWPINNController,
-    "mcts_dpw_pinn_cpp": MCTSDPWPinnCppController,
-    "mcts_dpw_svgp_cpp": MCTSDPWSvgpCppController,
-    "mcts_pi_svgp_cpp": MCTSPiSvgpCppController,
-    "mcts_pi_svgp_cpp_cs": MCTSPiSvgpCppCsController,
-    "mcts_pi_svgp_cpp_cs_extract": MCTSPiSvgpCppCsExtractController,
-    "mcts_known_dyn_action_prior_cpp": MCTSKnownDynActionPriorCppController,
-    "mcts_pi_svgp_cpp_cs_c_alpha_input": MCTSPiSvgpCppCsCAlphaController,
-    "mcts_dpw_svgp_cpp_calpha_model": MCTSDPWSvgpCAlphaCppController,
-    "mcts_dpw_svgp_cpp_budget_aware_mcts": MCTSBudgetAwareCppController,
-    "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node": MCTSChanceNodeCppController,
-    "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node": MCTSBudgetAwareChanceNodeCppController,
+    # "mcts_dpw_py": MCTSDPWController,
+    # "mcts_dpw_cpp": MCTSDPWCppController,
+    # "mcts_dpw_pinn": MCTSDPWPINNController,
+    # "mcts_dpw_pinn_cpp": MCTSDPWPinnCppController,
+    # "mcts_dpw_svgp_cpp": MCTSDPWSvgpCppController,
+    # "mcts_pi_svgp_cpp": MCTSPiSvgpCppController,
+    # "mcts_pi_svgp_cpp_cs": MCTSPiSvgpCppCsController,
+    # "mcts_pi_svgp_cpp_cs_extract": MCTSPiSvgpCppCsExtractController,
+    # "mcts_known_dyn_action_prior_cpp": MCTSKnownDynActionPriorCppController,
+    # "mcts_pi_svgp_cpp_cs_c_alpha_input": MCTSPiSvgpCppCsCAlphaController,
+    # "mcts_dpw_svgp_cpp_calpha_model": MCTSDPWSvgpCAlphaCppController,
+    # "mcts_dpw_svgp_cpp_budget_aware_mcts": MCTSBudgetAwareCppController,
+    # "mcts_dpw_svgp_cpp_calpha_model_sample_chance_node": MCTSChanceNodeCppController,
+    # "mcts_dpw_svgp_cpp_budget_aware_mcts_chance_node": MCTSBudgetAwareChanceNodeCppController,
     "mcts_svgp_cpp_budget_aware_chance_prob_pred": MCTSBudgetAwareChanceProbPredCppController,
 }
 # Drop entries whose C++ extension failed to import (value is None)

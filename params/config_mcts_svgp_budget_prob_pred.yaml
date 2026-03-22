@@ -14,6 +14,10 @@ controller:
   dynamic_budget_min: 0.005     # 5 ms lower bound
   dynamic_budget_max: 0.030     # 30 ms upper bound
 
+  # Localization-aware budget: use remaining time after PF as MCTS budget
+  localize_budget: false                # if true, MCTS budget = remaining_time - overhead
+  localize_budget_overhead_s: 0.010     # 10 ms overhead for MCTS pre/post processing
+
   # Budget-aware warmup (equal weights for first N_warmup iterations)
   budget_n_warmup: 10
   budget_n_recalibrate: 10    # MLP recalibration every N iterations in Phase 3

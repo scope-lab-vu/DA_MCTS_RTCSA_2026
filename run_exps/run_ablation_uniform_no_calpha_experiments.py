@@ -435,7 +435,7 @@ def main():
         description="Ablation: uniform action sampling + no C_alpha SVGP input"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
-    parser.add_argument("--num-trials", type=int, default=1, help="Trials per combo")
+    parser.add_argument("--num-trials", type=int, default=10, help="Trials per combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed")
     parser.add_argument("--max-retries", type=int, default=5,
                         help="Max retries for crashed/segfaulted trials")

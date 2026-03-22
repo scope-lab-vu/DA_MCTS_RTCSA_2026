@@ -26,3 +26,5 @@ results_bud_alpha_0.324/
 results_prob_pred_results_alpha_0.475/
 rerun_results*
 plotting_code/budget_mcts_1st_res.txt
+results_ca_mcts_no_chance_and_pro
+results_ablation_and_results/

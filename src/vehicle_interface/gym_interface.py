@@ -56,6 +56,7 @@ class GymVehicleInterface:
             map_config.stheta,
         ]])
         obs, _, _, _ = self._env.reset(self._start_pose)
+        self._last_obs = obs
         self._state = self._extract_state()
 
         log.info(
@@ -81,6 +82,7 @@ class GymVehicleInterface:
         # Gym (patched) expects [[steering_velocity, acceleration]].
         action = np.array([[cmd.steering_vel, cmd.acceleration]])
         obs, _, done, _ = self._env.step(action)
+        self._last_obs = obs
 
         self._state = self._extract_state()
 
@@ -170,6 +172,15 @@ class GymVehicleInterface:
 
     def render(self, mode: str = "human") -> None:
         self._env.render(mode=mode)
+
+    def get_scan(self) -> np.ndarray:
+        """Return the latest lidar scan ranges."""
+        return np.array(self._last_obs['scans'][self._env.ego_idx])
+
+    def get_scan_angles(self) -> np.ndarray:
+        """Return the lidar beam angles."""
+        from f110_gym.envs.base_classes import RaceCar
+        return RaceCar.scan_angles.copy()
 
     # -- Internal helpers ---------------------------------------------------
 

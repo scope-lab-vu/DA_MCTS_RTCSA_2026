@@ -102,6 +102,14 @@ class F1TenthAPI:
     def get_state(self) -> VehicleStateMsg:
         return self._vehicle.get_state()
 
+    def get_scan(self):
+        """Return latest lidar scan ranges from the vehicle interface."""
+        return self._vehicle.get_scan()
+
+    def get_scan_angles(self):
+        """Return lidar beam angles."""
+        return self._vehicle.get_scan_angles()
+
     def get_last_applied_action(self) -> ControlCmdMsg:
         return self._vehicle.get_last_applied_action()
 
@@ -109,8 +117,9 @@ class F1TenthAPI:
         self,
         state: VehicleStateMsg,
         waypoints: WaypointsMsg,
+        remaining_budget_s: float = 0.0,
     ) -> ControlCmdMsg:
-        raw_cmd = self._controller.compute_action(state, waypoints)
+        raw_cmd = self._controller.compute_action(state, waypoints, remaining_budget_s=remaining_budget_s)
         safe_cmd = self._safety.filter_action(state, raw_cmd)
         return safe_cmd
 

@@ -54,6 +54,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable visualization of the gym environment",
     )
+    parser.add_argument(
+        "--localize",
+        action="store_true",
+        help="Run particle filter localization alongside the control loop and log errors",
+    )
     return parser.parse_args()
 
 
@@ -87,12 +92,42 @@ def main() -> None:
         api.setup_rendering(waypoints)
 
     dt_s = api.algo_config.simulation.dt_s
+    dt_ms = dt_s * 1000.0
     log_every = api.algo_config.simulation.log_every_n_steps
     step = 0
     reason = "unknown"
 
     # Episode logger — records state-action pairs for CSV output.
     episode_logger = api.create_episode_logger()
+
+    # --- Particle filter localization (optional) ---
+    pf = None
+    pf_logger = None
+    prev_state = None
+    scan_angles = None
+    if args.localize:
+        from src.localize.particle_filter import ParticleFilter, PFConfig
+        from src.localize.particle_filter.pf_logger import PFLogger
+
+        # Resolve map yaml path from map_config
+        map_yaml = str(
+            Path(api.map_config.map_path).parent
+            / (Path(api.map_config.map_path).name + ".yaml")
+        )
+        log.info("Initializing particle filter with map: %s", map_yaml)
+
+        pf_config = PFConfig(
+            max_particles=1500,
+            range_method='rm',  # CPU ray marching (no GPU needed in sim)
+        )
+        pf = ParticleFilter(pf_config, map_yaml)
+
+        # Initialize at starting pose
+        pf.set_pose(api.map_config.sx, api.map_config.sy, api.map_config.stheta)
+
+        scan_angles = api.get_scan_angles()
+        pf_logger = PFLogger(output_path="results/pf_localization_log.csv")
+        log.info("Particle filter initialized with %d particles", pf_config.max_particles)
 
     log.info("Starting control loop at dt=%.4fs (%.0f Hz)", dt_s, 1.0 / dt_s)
 
@@ -102,7 +137,41 @@ def main() -> None:
 
             # --- Core loop ---
             state = api.get_state()
-            cmd = api.compute_action(state, waypoints)
+
+            # --- Particle filter update (if enabled) ---
+            if pf is not None:
+                scan = api.get_scan()
+
+                # Compute odom delta in local frame
+                if prev_state is not None:
+                    dx_global = state.x - prev_state.x
+                    dy_global = state.y - prev_state.y
+                    dtheta = state.psi - prev_state.psi
+                    # rotate into local frame of previous pose
+                    cos_prev = np.cos(-prev_state.psi)
+                    sin_prev = np.sin(-prev_state.psi)
+                    dx_local = cos_prev * dx_global - sin_prev * dy_global
+                    dy_local = sin_prev * dx_global + cos_prev * dy_global
+                    odom_delta = np.array([dx_local, dy_local, dtheta])
+                else:
+                    odom_delta = np.array([0.0, 0.0, 0.0])
+
+                pf_pose, pf_duration_ms = pf.update(scan, odom_delta, scan_angles)
+
+                remaining_budget_ms = dt_ms - pf_duration_ms
+
+                pf_logger.log(
+                    gt_x=state.x, gt_y=state.y, gt_psi=state.psi,
+                    pf_x=pf_pose[0], pf_y=pf_pose[1], pf_psi=pf_pose[2],
+                    pf_duration_ms=pf_duration_ms,
+                    dt_ms=dt_ms,
+                )
+
+            prev_state = state
+
+            # Pass remaining budget (in seconds) to controller
+            remaining_s = remaining_budget_ms / 1000.0 if pf is not None else 0.0
+            cmd = api.compute_action(state, waypoints, remaining_budget_s=remaining_s)
 
             # Grab optional per-step diagnostics from controller
             ctrl = api._controller
@@ -144,6 +213,11 @@ def main() -> None:
 
     # --- Save trajectory ---
     api.save_episode(episode_logger, output_dir="results/", reason=reason)
+
+    # --- Close PF logger ---
+    if pf_logger is not None:
+        pf_logger.close()
+        log.info("PF localization log saved to results/pf_localization_log.csv")
 
 
 if __name__ == "__main__":
