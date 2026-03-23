@@ -101,14 +101,9 @@ def make_ablation_config(time_budget: float) -> Path:
     with open(BASE_CONFIG) as f:
         cfg = yaml.safe_load(f)
     cfg["controller"]["mcts_time_budget"] = time_budget
-    cfg["controller"]["no_c_alpha_input"] = True
-    # Use no-c_alpha SVGP models (6D input)
-    cfg["controller"]["svgp_omega_model_path"] = (
-        "models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_no_c_alpha_M_11.npz"
-    )
-    cfg["controller"]["svgp_beta_model_path"] = (
-        "models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_no_c_alpha_M_12.npz"
-    )
+
+    cfg["controller"]["uniform_action_sampling"] = True
+
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False,
         prefix=f"config_ablation_tb{int(time_budget*1000)}ms_",
@@ -435,7 +430,7 @@ def main():
         description="Ablation: uniform action sampling + no C_alpha SVGP input"
     )
     parser.add_argument("--max-steps", type=int, default=10000)
-    parser.add_argument("--num-trials", type=int, default=1, help="Trials per combo")
+    parser.add_argument("--num-trials", type=int, default=10, help="Trials per combo")
     parser.add_argument("--base-seed", type=int, default=42, help="Base seed")
     parser.add_argument("--max-retries", type=int, default=5,
                         help="Max retries for crashed/segfaulted trials")
