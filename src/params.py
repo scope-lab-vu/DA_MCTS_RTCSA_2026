@@ -83,6 +83,8 @@ class ControllerConfig:
     dynamic_budget: bool = False
     dynamic_budget_min: float = 0.005
     dynamic_budget_max: float = 0.030
+    localize_budget: bool = False
+    localize_budget_overhead_s: float = 0.010
     # MCTS DPW PINN fields
     batch_size: int = 8
     eval_K: int = 4
@@ -141,6 +143,11 @@ class SimulationConfig:
     dt_s: float = 0.01
     log_every_n_steps: int = 100
     seed: int = 42
+    # SVGP state propagation: use extended kinematic model + GP corrections
+    # instead of ground-truth agent state
+    use_svgp_state: bool = False
+    svgp_state_omega_model_path: Optional[str] = None
+    svgp_state_beta_model_path: Optional[str] = None
 
 
 @dataclass(frozen=True)

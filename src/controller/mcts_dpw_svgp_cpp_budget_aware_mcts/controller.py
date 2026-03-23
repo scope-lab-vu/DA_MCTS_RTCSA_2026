@@ -30,8 +30,8 @@ try:
     from mcts_f1tenth_svgp_calpha_cpp import F1TenthDPWSvgpCAlpha as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_f1tenth_svgp_calpha_cpp C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_calpha_model/"
+        "mcts_dpw_svgp_cpp_budget_aware_mcts C++ extension not found. "
+        "Build with: pip install -e src/controller/mcts_dpw_svgp_cpp_budget_aware_mcts/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model

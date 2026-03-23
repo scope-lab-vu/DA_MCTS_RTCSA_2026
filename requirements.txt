@@ -6,3 +6,4 @@ pybind11>=2.9.0
 # pip install -e . in the f1tenth_gym repo
 # pip install -e src/controller/mcts_dpw_cpp/ for MCTS C++ extension
 numpy==1.22.4
+gpytorch==1.13

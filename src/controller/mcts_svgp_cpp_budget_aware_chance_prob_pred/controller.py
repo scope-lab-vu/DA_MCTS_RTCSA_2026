@@ -193,6 +193,8 @@ class MCTSDPWSvgpCppController:
         self.dynamic_budget = getattr(config, 'dynamic_budget', False)
         self.dynamic_budget_min = getattr(config, 'dynamic_budget_min', 0.005)
         self.dynamic_budget_max = getattr(config, 'dynamic_budget_max', 0.030)
+        self.localize_budget = getattr(config, 'localize_budget', False)
+        self.localize_budget_overhead_s = getattr(config, 'localize_budget_overhead_s', 0.010)
         self.normalize_reward = getattr(config, 'normalize_reward', False)
 
         # Budget-aware MCTS hyperparameters
@@ -507,6 +509,7 @@ class MCTSDPWSvgpCppController:
         self,
         state: VehicleStateMsg,
         waypoints: WaypointsMsg,
+        remaining_budget_s: float = 0.0,
     ) -> ControlCmdMsg:
         state_np = np.array([
             state.x, state.y, state.delta, state.v,
@@ -562,7 +565,10 @@ class MCTSDPWSvgpCppController:
         # 6. Run MCTS — C++ budget loop with inline MLP weight prediction
         self._tree.set_context(state.v, self._avg_kappa_lookahead)
         if self.mcts_time_budget > 0:
-            if self.dynamic_budget:
+            if self.localize_budget and remaining_budget_s > 0:
+                # Use remaining budget from localization, minus overhead
+                budget = max(remaining_budget_s - self.localize_budget_overhead_s, 0.001)
+            elif self.dynamic_budget:
                 budget = np.random.uniform(self.dynamic_budget_min, self.dynamic_budget_max)
             else:
                 budget = self.mcts_time_budget
