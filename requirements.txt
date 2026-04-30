@@ -1,9 +1,21 @@
 pyyaml>=6.0
 pytorch-mppi[test]
-cloudpickle
+cloudpickle==1.6.0
 pybind11>=2.9.0
-# pyglet==1.5.14 # for mac users
-# pip install -e . in the f1tenth_gym repo
-# pip install -e src/controller/mcts_dpw_cpp/ for MCTS C++ extension
-numpy==1.22.4
+numpy==1.22.0
 gpytorch==1.13
+gym==0.19.0
+numba==0.58.1
+llvmlite==0.41.1
+pyglet==1.4.11
+PyOpenGL==3.1.10
+scipy==1.10.1
+scikit-learn==1.3.2
+torch==2.4.1
+matplotlib==3.7.5
+pandas==2.0.3
+bayesian-optimization==1.4.3
+ray==2.10.0
+tqdm==4.67.3
+# pip install -e f1tenth_gym/gym  (f110-gym editable install)
+# pip install -e src/controller/mcts_svgp_cpp_budget_aware_chance_prob_pred/  (MCTS C++ extension)

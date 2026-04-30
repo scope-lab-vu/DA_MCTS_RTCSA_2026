@@ -1,7 +1,0 @@
-Metadata-Version: 2.1
-Name: mcts_f1tenth_cpp
-Version: 0.1.0
-Summary: C++ MCTS DPW for F1TENTH racing with pybind11
-Requires-Python: >=3.8
-Requires-Dist: numpy<2.0,>=1.21.0
-Requires-Dist: pybind11>=2.9.0

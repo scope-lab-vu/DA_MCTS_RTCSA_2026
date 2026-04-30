@@ -1,8 +1,0 @@
-pyproject.toml
-setup.py
-mcts_f1tenth_cpp.egg-info/PKG-INFO
-mcts_f1tenth_cpp.egg-info/SOURCES.txt
-mcts_f1tenth_cpp.egg-info/dependency_links.txt
-mcts_f1tenth_cpp.egg-info/requires.txt
-mcts_f1tenth_cpp.egg-info/top_level.txt
-src/bindings.cpp
