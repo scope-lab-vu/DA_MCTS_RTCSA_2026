@@ -1,0 +1,17 @@
+centerline_path: ./Sepang_10489/Sepang_centerline.csv
+map_ext: .png
+map_path: ./Sepang_10489/Sepang_map
+mu_id: '10489'
+perf_num: 6
+run_name: map_wide
+stheta: -3.0572307923526707
+sx: 0.0002779
+sy: 0.0404132
+track_name: Sepang
+wpt_delim: ;
+wpt_path: ./Sepang_10489/traj_race_cl_centerline_mintime_mue1.0489_Sepang_map.csv
+wpt_rowskip: 3
+wpt_thind: 3
+wpt_vind: 5
+wpt_xind: 1
+wpt_yind: 2

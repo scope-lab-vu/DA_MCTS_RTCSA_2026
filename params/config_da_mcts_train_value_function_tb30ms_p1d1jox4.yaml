@@ -1,0 +1,47 @@
+controller:
+  a_lat_budget: 30.0
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  action_prior_model_type: svgp
+  alpha_dpw: 0.5
+  alpha_threshold: 0.475
+  beta_dpw: 0.1
+  budget_n_recalibrate: 10
+  budget_n_warmup: 10
+  calpha_window_size: 10
+  curvature_lookahead: 30
+  discount: 0.9
+  dynamic_budget: false
+  dynamic_budget_max: 0.03
+  dynamic_budget_min: 0.005
+  exploration_constant: 1.0
+  kappa_threshold: 0.05
+  lane_width: 1.1
+  localize_budget: false
+  localize_budget_overhead_s: 0.01
+  mcts_time_budget: 0.03
+  n_simulations: 0
+  no_c_alpha_input: false
+  normalize_reward: false
+  real_track_width: 1.7
+  rollout_horizon: 12
+  rollout_horizon_curve: 15
+  rollout_horizon_straight: 15
+  speed_weight: 1.0
+  svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  type: da_mcts_train_value_function
+  uniform_action_sampling: false
+  use_occupancy_map: true
+  v_ref: 1000.0
+dynamics:
+  type: f1tenth_dynamics
+safety:
+  type: noop
+simulation:
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42
+  svgp_state_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  svgp_state_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  use_svgp_state: false
+  vehicle_interface: gym

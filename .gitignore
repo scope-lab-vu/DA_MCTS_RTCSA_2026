@@ -28,3 +28,7 @@ rerun_results*
 plotting_code/budget_mcts_1st_res.txt
 results_ca_mcts_no_chance_and_pro
 results_ablation_and_results/
+src/controller/*.so
+src/controller/**/*.so
+**/*.so
+f1tenth_gym/gym/*.egg-info/
