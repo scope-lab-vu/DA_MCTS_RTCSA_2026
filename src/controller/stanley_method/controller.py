@@ -83,12 +83,28 @@ class StanleyMethodController:
         self.ref_traj = ReferenceTrajectory(map_config.wpt_path)
         self.waypoints_world = np.asarray(self.ref_traj.positions, dtype=np.float64)
         self.velocities = np.asarray(self.ref_traj.velocities, dtype=np.float64)
+        self.arc_length = np.asarray(self.ref_traj.arc_length, dtype=np.float64)
+        self.total_length = float(self.ref_traj.total_length)
+
+        # ── Dynamic lookahead ────────────────────────────────────────────
+        # L_d = la_min_m + la_v_gain_s · v, applied to heading + speed
+        # reference *only*. Cross-track stays anchored to the front-axle
+        # nearest waypoint (preserves Stanley's "track the path, not the
+        # carrot" invariant). Defaults of 0 reproduce the original
+        # rear→front-axle (≈0.33 m baseline) heading reference exactly.
+        self.la_min_m = float(getattr(config, "lookahead_min_m", 0.0))
+        self.la_v_gain_s = float(getattr(config, "lookahead_v_gain_s", 0.0))
+
+        # Last-step world-frame lookahead point, exposed for visualisation.
+        self._last_lookahead_pt: np.ndarray | None = None
 
         log.info(
             "Stanley ready: %d raceline points  L=%.3fm  K_E=%.2f K_H=%.2f K_p=%.2f"
-            "  v_percentage=%.2f steering_limit=%.1f° dt=%.3fs",
+            "  v_percentage=%.2f steering_limit=%.1f° dt=%.3fs"
+            "  lookahead: %.2f + %.2f·v m",
             len(self.waypoints_world), self.L, self.K_E, self.K_H, self.K_p,
             self.velocity_percentage, self.steering_limit_deg, self.dt,
+            self.la_min_m, self.la_v_gain_s,
         )
 
     # ------------------------------------------------------------------ API
@@ -105,12 +121,12 @@ class StanleyMethodController:
         x_front = state.x + self.L * cos_p
         y_front = state.y + self.L * sin_p
 
-        # 2. Closest raceline point to the REAR pose → target_velocity.
+        # 2. Closest raceline point to the REAR pose (anchor for path heading
+        #    and arc-length lookahead).
         rear_idx = self._closest_waypoint_idx(state.x, state.y)
         rear_pt_world = self.waypoints_world[rear_idx]
-        target_velocity = float(self.velocities[rear_idx])
 
-        # 3. Closest raceline point to the FRONT pose → in world AND car frame.
+        # 3. Closest raceline point to the FRONT pose → cross-track only.
         front_idx = self._closest_waypoint_idx(x_front, y_front)
         front_pt_world = self.waypoints_world[front_idx]
         # Transform to car frame (rotate by −ψ around the front-axle origin).
@@ -118,10 +134,24 @@ class StanleyMethodController:
         dy = front_pt_world[1] - y_front
         front_pt_car_y = -sin_p * dx + cos_p * dy
 
-        # 4. Path heading: direction from rear waypoint to front waypoint.
+        # 3b. Lookahead point (heading + speed reference). When L_d == 0
+        #     this falls back to `front_idx`, which is exactly the original
+        #     rear→front-axle behavior. When L_d > 0 the controller "previews"
+        #     the path L_d meters along arc-length, anticipating corners.
+        L_d = self.la_min_m + self.la_v_gain_s * state.v
+        if L_d > 0.0:
+            s_target = (self.arc_length[rear_idx] + L_d) % self.total_length
+            lookahead_idx = int(np.argmin(np.abs(self.arc_length - s_target)))
+        else:
+            lookahead_idx = front_idx
+        lookahead_pt_world = self.waypoints_world[lookahead_idx]
+        target_velocity = float(self.velocities[lookahead_idx])
+        self._last_lookahead_pt = lookahead_pt_world
+
+        # 4. Path heading: direction from rear waypoint to lookahead waypoint.
         path_heading = math.atan2(
-            front_pt_world[1] - rear_pt_world[1],
-            front_pt_world[0] - rear_pt_world[0],
+            lookahead_pt_world[1] - rear_pt_world[1],
+            lookahead_pt_world[0] - rear_pt_world[0],
         )
 
         # 5. Current heading: direction from base_link to wheelbase-front.
@@ -177,6 +207,11 @@ class StanleyMethodController:
     def reset(self) -> None:
         """No internal state to reset (Stanley is memoryless)."""
         pass
+
+    def get_lookahead_point(self) -> np.ndarray | None:
+        """World-frame (x, y) of the lookahead waypoint from the most recent
+        compute_action call. Returns None before the first call."""
+        return self._last_lookahead_pt
 
     # Convenience accessors used by the experiment harness.
     def get_best_trajectory(self) -> list:

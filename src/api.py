@@ -136,6 +136,10 @@ class F1TenthAPI:
         """Register render callback to draw raceline and follow car."""
         self._vehicle.setup_rendering(waypoints)
 
+    def set_lookahead_point(self, xy) -> None:
+        """Highlight a single waypoint in the renderer (e.g. Stanley's lookahead)."""
+        self._vehicle.set_lookahead_point(xy)
+
     def set_planned_trajectory(self, xy_points) -> None:
         """Set MCTS planned trajectory for visualization."""
         self._vehicle.set_planned_trajectory(xy_points)

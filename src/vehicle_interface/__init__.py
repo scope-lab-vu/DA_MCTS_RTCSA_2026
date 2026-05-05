@@ -41,6 +41,10 @@ class VehicleInterface(ABC):
         """Set planned trajectory for visualization. No-op by default."""
         pass
 
+    def set_lookahead_point(self, xy) -> None:
+        """Highlight a single waypoint (e.g. Stanley's lookahead). No-op by default."""
+        pass
+
     def render(self, mode: str = "human") -> None:
         """Render the environment. No-op by default."""
         pass

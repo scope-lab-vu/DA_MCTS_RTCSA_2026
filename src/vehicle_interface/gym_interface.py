@@ -253,16 +253,25 @@ class GymVehicleInterface:
         """Set MCTS planned trajectory for visualization. xy_points: (N, 2)."""
         self._planned_trajectory = xy_points
 
+    def set_lookahead_point(self, xy) -> None:
+        """Highlight a single point (Stanley's lookahead). xy: (2,) array or
+        None to clear."""
+        self._lookahead_point = (
+            np.asarray(xy, dtype=np.float64) if xy is not None else None
+        )
+
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""
-        from pyglet.gl import GL_POINTS, GL_QUADS
+        from pyglet.gl import GL_POINTS, GL_QUADS, GL_TRIANGLE_FAN
 
         # Pre-compute scaled waypoint vertices for drawing.
         points = np.column_stack([waypoints.x, waypoints.y])
         scaled_points = 50.0 * points
         self._drawn_waypoints: List = []
         self._drawn_trajectory: List = []
+        self._drawn_lookahead: List = []
         self._planned_trajectory: np.ndarray = np.empty((0, 2))
+        self._lookahead_point: Optional[np.ndarray] = None
 
         def render_callback(env_renderer):
             e = env_renderer
@@ -315,6 +324,31 @@ class GymVehicleInterface:
                         ('c3B/stream', [r, g, b_color] * 4),
                     )
                     self._drawn_trajectory.append(b)
+
+            # Draw lookahead point (single highlighted waypoint, e.g. Stanley's)
+            # as a small bright-yellow filled circle via a triangle fan.
+            for b in self._drawn_lookahead:
+                b.delete()
+            self._drawn_lookahead.clear()
+            if self._lookahead_point is not None:
+                radius = 6.0       # smaller than the previous 16 px square
+                n_segs = 20        # perimeter samples — looks round at this size
+                cx = 50.0 * self._lookahead_point[0]
+                cy = 50.0 * self._lookahead_point[1]
+                verts = [cx, cy, 0.0]
+                for i in range(n_segs + 1):  # +1 to close the fan
+                    theta = 2.0 * math.pi * i / n_segs
+                    verts.extend([cx + radius * math.cos(theta),
+                                  cy + radius * math.sin(theta), 0.0])
+                n_verts = n_segs + 2  # 1 centre + n_segs + 1 closing
+                b = e.batch.add(
+                    n_verts, GL_TRIANGLE_FAN, None,
+                    ('v3f/stream', verts),
+                    # Bright yellow — distinct from raceline (blue) and
+                    # planned-trajectory gradient (red→green).
+                    ('c3B/stream', [255, 255, 0] * n_verts),
+                )
+                self._drawn_lookahead.append(b)
 
         self._env.add_render_callback(render_callback)
         log.info("Render callback registered with %d waypoints.", len(waypoints.x))

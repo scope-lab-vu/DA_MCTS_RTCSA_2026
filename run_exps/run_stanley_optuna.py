@@ -6,8 +6,10 @@ sampler. After each trial Optuna decides what to try next based on the
 posterior over the score function. Typically converges faster than random
 search and exposes promising regions earlier.
 
-Sweeps `K_E`, `K_H`, `K_p_speed` over continuous ranges; `velocity_percentage`
-is locked at 1.0 (full raceline speed) per the user's request.
+Sweeps `K_E`, `K_H`, `K_p_speed`, `velocity_percentage` ∈ [0.3, 1.0],
+and the dynamic-lookahead params `lookahead_min_m`, `lookahead_v_gain_s`
+(L_d = la_min + la_gain · v applied to the heading + speed reference).
+`steering_limit` is fixed at 25°.
 
 Usage:
     python run_exps/run_stanley_optuna.py                   # 50 trials
@@ -131,11 +133,21 @@ def run_trial_episode(params: dict, track: str, mu: float, max_steps: int) -> di
 
         progress_pct = (accumulated / track_obj.total_length) * 100.0
         collided = (reason == "collision")
-        # Score: just total progress + lap-completion bonus. No collision
-        # penalty — the lap-completion bonus already incentivises
-        # not-crashing for free (a config that crashes at 99% scores < a
-        # config that completes 1 lap).
-        score = progress_pct + 100.0 * len(lap_times)
+        # Score = progress_pct + 100·laps + max_v
+        #
+        # Three terms with deliberately separated scales:
+        #   • progress_pct  — fine-grained signal at all times.
+        #   • 100·laps      — large jump per completed lap. Dominates so
+        #                     completing more laps always beats completing
+        #                     fewer laps (even very fast ones).
+        #   • max_v         — tiebreaker. Among configs at the same lap
+        #                     count + similar progress, the one that hits
+        #                     a higher peak speed wins.
+        # No collision penalty: the lap-completion jump already makes any
+        # crash that misses a lap (progress=99%, laps=0, max_v=8 → ≈107)
+        # score far below any config that completes one
+        # (progress=199.9%, laps=1, max_v=11 → ≈310.9).
+        score = progress_pct + 100.0 * len(lap_times) + max_speed
         return {
             "score": score,
             "progress_pct": progress_pct,
@@ -156,12 +168,29 @@ def run_trial_episode(params: dict, track: str, mu: float, max_steps: int) -> di
 def make_objective(track: str, mu: float, max_steps: int):
     """Build the Optuna objective callable bound to track / mu / max_steps."""
     def objective(trial: optuna.Trial) -> float:
+        # All tuned params are searched on a 2-decimal grid (step=0.01) so the
+        # best trial reproduces exactly when written back to the YAML config.
+        # The previous run-to-run variance was caused by the controller being
+        # near a stability edge — full-precision Optuna params worked, but
+        # rounding to 2 decimals crashed the trial. Restricting the search
+        # itself to 2 decimals avoids that mismatch entirely. Dropping
+        # `log=True` (incompatible with `step=...` in Optuna's suggest_float)
+        # is the only tradeoff — fine here since the prior best lived in
+        # the mid-range of each interval, not at the extremes.
         params = {
-            "K_E":                 trial.suggest_float("K_E", 0.1, 6.0, log=True),
-            "K_H":                 trial.suggest_float("K_H", 0.05, 5.0, log=True),
-            "K_p_speed":           trial.suggest_float("K_p_speed", 0.1, 3.0, log=True),
-            "velocity_percentage": trial.suggest_float("velocity_percentage", 0.3, 1.0),
-            "steering_limit":      25.0,   # locked — reference default, not tuned
+            "K_E":                 trial.suggest_float("K_E", 0.1, 6.0, step=0.01),
+            "K_H":                 trial.suggest_float("K_H", 0.05, 5.0, step=0.01),
+            "K_p_speed":           trial.suggest_float("K_p_speed", 0.1, 3.0, step=0.01),
+            "velocity_percentage": trial.suggest_float("velocity_percentage", 0.3, 1.0, step=0.01),
+            "steering_limit":      24.0,   # locked — slightly under the gym's 25° hard limit
+            # Dynamic lookahead: heading + speed reference shifts forward by
+            # L_d = lookahead_min_m + lookahead_v_gain_s · v along arc-length.
+            # Search range covers "no preview" (0) up to ~5 m base + 0.6 s
+            # of velocity-scaled preview (e.g. at v=10 m/s that's a 6 m bonus
+            # → ~11 m total). Range upper bound reflects the corner-spacing
+            # on YasMarina; on tighter tracks Optuna will stay near the low end.
+            "lookahead_min_m":     trial.suggest_float("lookahead_min_m", 0.0, 5.0, step=0.01),
+            "lookahead_v_gain_s":  trial.suggest_float("lookahead_v_gain_s", 0.0, 0.6, step=0.01),
         }
         t0 = time.time()
         try:
@@ -177,7 +206,8 @@ def make_objective(track: str, mu: float, max_steps: int):
         trial.set_user_attr("wall_secs", round(secs, 2))
         # Per-trial console line — easier to watch progress than Optuna's default.
         print(f"  trial {trial.number:>3d}  K_E={params['K_E']:.2f} K_H={params['K_H']:.3f} "
-              f"K_p={params['K_p_speed']:.2f} v%={params['velocity_percentage']:.2f}"
+              f"K_p={params['K_p_speed']:.2f} v%={params['velocity_percentage']:.2f} "
+              f"la={params['lookahead_min_m']:.2f}+{params['lookahead_v_gain_s']:.2f}·v"
               f"  → {r['reason']:<10} laps={r['laps']} prog={r['progress_pct']:5.1f}% "
               f"max_v={r['max_v']:4.1f} score={r['score']:+7.1f} ({secs:.1f}s)")
         return r["score"]
@@ -237,6 +267,8 @@ def main():
     print("=" * 100)
     cols_pref = [c for c in [
         "number", "value", "params_K_E", "params_K_H", "params_K_p_speed",
+        "params_velocity_percentage",
+        "params_lookahead_min_m", "params_lookahead_v_gain_s",
         "user_attrs_reason", "user_attrs_laps", "user_attrs_progress_pct",
         "user_attrs_max_v",
     ] if c in df.columns]

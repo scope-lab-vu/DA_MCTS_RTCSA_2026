@@ -2,22 +2,31 @@ controller:
   type: stanley_method
 
   # --- Stanley gains ---
-  # Tuned by Optuna TPE on YasMarina (200 trials, 1500-step trials,
-  # steering_limit fixed at 25°, velocity_percentage swept ∈ [0.3, 1.0]).
-  # Reaches 98.4% lap progress at max_v ≈ 8.5 m/s without crashing.
-  # Reference defaults assume a 100 Hz control rate; we run at 25 Hz, so
-  # K_H ends up ~3× lower than the reference's 1.5.
-  K_E: 4.53          # cross-track gain on atan2 numerator
-  K_H: 0.50          # heading-error gain
-  K_p_speed: 1.93    # P-gain on speed-tracking → acceleration
+  # Tuned by Optuna TPE on YasMarina (1000 trials, --max-steps 3000,
+  # steering_limit fixed at 24°, all params on a 2-decimal grid via
+  # step=0.01). Best trial #928 completed 1 full lap in 46.04 s and
+  # reached 199.9% progress in 2284 steps, max_v ≈ 11.04 m/s. Score
+  # (= progress_pct + 100·laps + max_v) = 310.95.
+  K_E: 1.78          # cross-track gain on atan2 numerator
+  K_H: 0.46          # heading-error gain
+  K_p_speed: 1.52    # P-gain on speed-tracking → acceleration
 
-  # Reference's velocity_percentage: scales raceline target speed.
-  # 1.0 was empirically too aggressive at 25 Hz — controller crashes at
-  # the first sharp corner. 0.71 hits the stability/speed sweet spot.
-  velocity_percentage: 0.71
+  # Velocity scaling on the raceline target speed. The previous tune
+  # (without lookahead) ceilinged at 0.71; with dynamic lookahead the
+  # controller previews corners early enough to push v_pct close to 1.0.
+  velocity_percentage: 0.92
 
-  # Reference's steering_limit is in DEGREES (default 25°). Not tuned.
-  steering_limit: 25.0
+  # steering_limit is in DEGREES — fixed at 24° (slightly under the gym's
+  # 25° hard limit) and not tuned.
+  steering_limit: 24.0
+
+  # --- Dynamic lookahead ---
+  # L_d = lookahead_min_m + lookahead_v_gain_s · v, applied to the heading
+  # + speed reference (cross-track stays anchored to the front-axle
+  # nearest). At v ≈ 11 m/s this gives ~4.3 m of preview, enough to start
+  # steering into corners ~10 ticks before the front axle arrives.
+  lookahead_min_m: 0.80
+  lookahead_v_gain_s: 0.32
 
 dynamics:
   type: f1tenth_dynamics
@@ -31,3 +40,5 @@ simulation:
   seed: 42
   vehicle_interface: gym
   use_svgp_state: false
+
+# python run_exps/run_stanley_optuna.py --n 1000 --max-steps 3000
