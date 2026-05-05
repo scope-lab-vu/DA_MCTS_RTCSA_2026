@@ -1,0 +1,17 @@
+centerline_path: ./YasMarina_10489/YasMarina_centerline.csv
+map_ext: .png
+map_path: ./YasMarina_10489/YasMarina_map
+mu_id: '10489'
+perf_num: 6
+run_name: map_wide
+stheta: 0.0925943241614839
+sx: -2.07e-05
+sy: 0.1489505
+track_name: YasMarina
+wpt_delim: ;
+wpt_path: ./YasMarina_10489/traj_race_cl_centerline_mintime_mue1.0489_YasMarina_map.csv
+wpt_rowskip: 3
+wpt_thind: 3
+wpt_vind: 5
+wpt_xind: 1
+wpt_yind: 2

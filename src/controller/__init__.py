@@ -27,9 +27,10 @@ def _try_import(dotted_path, attr):
 MCTSBudgetAwareChanceProbPredCppController = _try_import("src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred", "MCTSDPWSvgpCppController")
 DAMctsNewRewardController = _try_import("src.controller.da_mcts_new_reward", "MCTSDPWSvgpCppController")
 DAMctsTrainValueFunctionController = _try_import("src.controller.da_mcts_train_value_function", "MCTSDPWSvgpCppController")
+StanleyMethodController = _try_import("src.controller.stanley_method", "StanleyMethodController")
 
-_NEEDS_MAP_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function"}
-_NEEDS_SIMULATION_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function"}
+_NEEDS_MAP_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function", "stanley_method"}
+_NEEDS_SIMULATION_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function", "stanley_method"}
 
 
 class Controller(ABC):
@@ -52,6 +53,7 @@ _ALL_CONTROLLERS = {
     "mcts_svgp_cpp_budget_aware_chance_prob_pred": MCTSBudgetAwareChanceProbPredCppController,
     "da_mcts_new_reward": DAMctsNewRewardController,
     "da_mcts_train_value_function": DAMctsTrainValueFunctionController,
+    "stanley_method": StanleyMethodController,
 }
 # Drop entries whose C++ extension failed to import (value is None)
 CONTROLLER_REGISTRY: Dict[str, Type[Controller]] = {

@@ -1,0 +1,17 @@
+controller:
+  K_E: 2.9
+  K_H: 1.7
+  K_V: 1.0
+  K_p_speed: 0.5
+  type: stanley_method
+  velocity_percentage: 0.5
+dynamics:
+  type: f1tenth_dynamics
+safety:
+  type: noop
+simulation:
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42
+  use_svgp_state: false
+  vehicle_interface: gym

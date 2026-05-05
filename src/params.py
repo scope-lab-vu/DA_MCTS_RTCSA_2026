@@ -85,6 +85,20 @@ class ControllerConfig:
     dynamic_budget_max: float = 0.030
     localize_budget: bool = False
     localize_budget_overhead_s: float = 0.010
+    # stanley_method gains (defaults exactly match the CL2-UWaterloo reference).
+    # `steering_limit` is in DEGREES (per reference; default 25°).
+    K_E: float = 2.0
+    K_H: float = 1.5
+    K_p_speed: float = 0.5
+    velocity_percentage: float = 1.0
+    steering_limit: float = 25.0
+    # Dynamic lookahead for stanley_method: shifts the heading + speed
+    # reference forward by L_d = lookahead_min_m + lookahead_v_gain_s · v
+    # along the raceline arc-length. Cross-track stays anchored to the
+    # front-axle nearest. Defaults of 0 preserve the original behavior
+    # (path heading from rear→front-axle baseline of `wheelbase` ≈ 0.33 m).
+    lookahead_min_m: float = 0.0
+    lookahead_v_gain_s: float = 0.0
     # MCTS DPW PINN fields
     batch_size: int = 8
     eval_K: int = 4

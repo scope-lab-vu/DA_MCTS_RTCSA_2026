@@ -1,0 +1,33 @@
+controller:
+  type: stanley_method
+
+  # --- Stanley gains ---
+  # Tuned by Optuna TPE on YasMarina (200 trials, 1500-step trials,
+  # steering_limit fixed at 25°, velocity_percentage swept ∈ [0.3, 1.0]).
+  # Reaches 98.4% lap progress at max_v ≈ 8.5 m/s without crashing.
+  # Reference defaults assume a 100 Hz control rate; we run at 25 Hz, so
+  # K_H ends up ~3× lower than the reference's 1.5.
+  K_E: 4.53          # cross-track gain on atan2 numerator
+  K_H: 0.50          # heading-error gain
+  K_p_speed: 1.93    # P-gain on speed-tracking → acceleration
+
+  # Reference's velocity_percentage: scales raceline target speed.
+  # 1.0 was empirically too aggressive at 25 Hz — controller crashes at
+  # the first sharp corner. 0.71 hits the stability/speed sweet spot.
+  velocity_percentage: 0.71
+
+  # Reference's steering_limit is in DEGREES (default 25°). Not tuned.
+  steering_limit: 25.0
+
+dynamics:
+  type: f1tenth_dynamics
+
+safety:
+  type: noop
+
+simulation:
+  dt_s: 0.04
+  log_every_n_steps: 1
+  seed: 42
+  vehicle_interface: gym
+  use_svgp_state: false
