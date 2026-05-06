@@ -1,0 +1,30 @@
+{
+  "varidx": 6,
+  "var_name": "beta",
+  "sigma_y": 0.031020494767848128,
+  "num_inducing": 38,
+  "inducing_init": "kmeans",
+  "kernel_type": "ard_rbf",
+  "num_kernel_params": 8,
+  "init_length_scale": 1.0,
+  "init_signal_std": 1.0,
+  "optimizer": "L-BFGS-B",
+  "val_check_every": 10,
+  "patience": 200,
+  "input_dim": 7,
+  "jitter": 1e-06,
+  "seed": 42,
+  "best_val_rmse": 0.0016864243152691285,
+  "best_iter": 480,
+  "optimized_length_scales": [
+    30.71039851644886,
+    6.477913206322848,
+    27.45970139836333,
+    30.467426827095572,
+    40.66826974057534,
+    35.560061025110514,
+    26.785656170627618
+  ],
+  "optimized_signal_std": 9.873517016380504,
+  "eval_rmse_overall": 0.0016204643356789153
+}

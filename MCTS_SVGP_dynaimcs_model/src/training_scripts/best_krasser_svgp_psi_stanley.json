@@ -1,0 +1,30 @@
+{
+  "varidx": 4,
+  "y_name": "Y_psi",
+  "feature_mode": "c_alpha_smooth",
+  "task_dirs": [
+    "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_dynaimcs_model/data/splits/YasMarina_VAR4_Ts0.100_stanley_mu_1.0489"
+  ],
+  "n_trials": 100,
+  "best_val_rmse": 0.023621515638348193,
+  "best_trial": 62,
+  "params": {
+    "sigma_y": 0.00278588050538344,
+    "num_inducing": 3,
+    "inducing_init": "kmeans"
+  },
+  "search_space": {
+    "sigma_y": [
+      0.0001,
+      1.0
+    ],
+    "num_inducing": [
+      1,
+      15
+    ],
+    "inducing_init": [
+      "kmeans",
+      "random_subset"
+    ]
+  }
+}

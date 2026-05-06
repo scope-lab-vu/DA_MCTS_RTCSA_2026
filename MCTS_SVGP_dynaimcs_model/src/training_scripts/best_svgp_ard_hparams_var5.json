@@ -1,0 +1,30 @@
+{
+  "varidx": 5,
+  "var_name": "omega",
+  "sigma_y": 0.00010363721227473038,
+  "num_inducing": 52,
+  "inducing_init": "random_subset",
+  "kernel_type": "ard_rbf",
+  "num_kernel_params": 8,
+  "init_length_scale": 1.0,
+  "init_signal_std": 1.0,
+  "optimizer": "L-BFGS-B",
+  "val_check_every": 10,
+  "patience": 200,
+  "input_dim": 7,
+  "jitter": 1e-06,
+  "seed": 42,
+  "best_val_rmse": 0.026959510607463665,
+  "best_iter": 13000,
+  "optimized_length_scales": [
+    9.553506644304093,
+    1.4115616658633674,
+    6.610564004093713,
+    15.93220078659742,
+    5.895328836415851,
+    23.675300763049314,
+    7.152788238675632
+  ],
+  "optimized_signal_std": 0.10577754139035975,
+  "eval_rmse_overall": 0.029793711894106803
+}

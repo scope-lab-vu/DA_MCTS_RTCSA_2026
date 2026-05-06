@@ -1,0 +1,17 @@
+{
+  "map_name": "YasMarina",
+  "VARIDX": 6,
+  "Ts": 0.02,
+  "split": {
+    "train": 0.5,
+    "val": 0.2,
+    "test": 0.3
+  },
+  "sizes": {
+    "X": 2309,
+    "train": 1737,
+    "val": 217,
+    "test": 355
+  },
+  "saved_at": "2026-05-06T10:26:14.877170"
+}

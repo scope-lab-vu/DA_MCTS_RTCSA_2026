@@ -1,0 +1,23 @@
+# Pinned to versions used to train the reference models in data/models_verify/
+# Source environment: deep-dynamics/deep_dyn_venv (Python 3.10.13)
+
+# Core numerics
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.3.3
+scikit-learn==1.7.2
+matplotlib==3.10.8
+
+# JAX (CPU build)
+jax==0.6.2
+jaxlib==0.6.2
+
+# Vehicle dynamics + LHS sampling
+casadi==3.7.2
+pyDOE2==1.3.0
+
+# Hyperparameter search
+optuna==4.7.0
+
+# Notebook front-end (uncomment if not already provided by your IDE)
+# jupyter==1.0.0

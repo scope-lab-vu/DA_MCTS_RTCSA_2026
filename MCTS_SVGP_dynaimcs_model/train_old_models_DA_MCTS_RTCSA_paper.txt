@@ -1,0 +1,31 @@
+Model 1 — krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+1) Data processing scripts
+
+gp/prepare_dataset_from_raw_pure_pursuit_diff_mu.ipynb — generates the per-task splits.npz, xscaler.pkl, yscaler.pkl
+gp/prepare_dataset.py and gp/regenerate_splits.py — supporting dataset prep
+2) Training script
+
+svgp_train_varidx_5.ipynb (the c_alpha_smooth, 7-D input version — input_dim=7, saved as ..._ard_kernel_c_alpha_smooth_M_11)
+Helpers: params.py, config_utils.py
+3) Dataset used (loaded inside the notebook for the 3 friction tasks [1.0489, 0.8642, 0.4947])
+
+gp/data/YasMarina_VAR5_Ts0.020/splits.npz (mu=1.0489)
+gp/data/YasMarina_VAR5_Ts0.020_mu_0.8642/splits.npz
+gp/data/YasMarina_VAR5_Ts0.020_mu_0.4947/splits.npz
+Plus the matching xscaler.pkl / yscaler.pkl per directory
+Feature column 6 is C_alpha_smooth (per meta.json); total combined size = 7705 samples, 7 features
+Model 2 — krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+1) Data processing scripts — same as above:
+
+gp/prepare_dataset_from_raw_pure_pursuit_diff_mu.ipynb, gp/prepare_dataset.py, gp/regenerate_splits.py
+2) Training script
+
+svgp_train_varidx_6.ipynb (VARIDX=6 → beta, c_alpha_smooth 7-D version, M=12 inducing points)
+Helpers: params.py, config_utils.py
+3) Dataset used
+
+gp/data/YasMarina_VAR6_Ts0.020/splits.npz (mu=1.0489)
+gp/data/YasMarina_VAR6_Ts0.020_mu_0.8642/splits.npz
+gp/data/YasMarina_VAR6_Ts0.020_mu_0.4947/splits.npz
+Plus matching xscaler.pkl / yscaler.pkl per directory
+Note on naming: the suffix _c_alpha_smooth means the C_alpha column is kept (7-D input). The suffix _no_c_alpha (newer, untracked notebooks) means C_alpha column is dropped (6-D input). Both variants load the same underlying splits.npz; the no_c_alpha notebooks just np.delete column index 6 before training.
