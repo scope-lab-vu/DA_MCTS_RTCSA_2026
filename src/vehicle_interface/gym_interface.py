@@ -166,13 +166,28 @@ class GymVehicleInterface:
             self._svgp_beta_model = _load_krasser_model(beta_path)
             log.info("SVGP state propagation enabled.")
 
+        # Optional physics sub-stepping: integrate at `physics_dt_s` and
+        # call the controller every `dt_s`, applying the same command for
+        # `n_substeps = round(dt_s / physics_dt_s)` ticks. Required for
+        # Stanley/LQR at dt_s ≥ ~0.07 s — Euler at that step size goes
+        # unstable for the dynamic single-track model. MCTS configs leave
+        # physics_dt_s = None so the gym integrates one step of dt_s as
+        # before (no behaviour change at dt_s = 0.04).
+        physics_dt = getattr(simulation_config, "physics_dt_s", None)
+        if physics_dt is not None and physics_dt < simulation_config.dt_s:
+            self._physics_dt = float(physics_dt)
+            self._n_substeps = max(1, round(simulation_config.dt_s / self._physics_dt))
+        else:
+            self._physics_dt = float(simulation_config.dt_s)
+            self._n_substeps = 1
+
         # Build gym environment with vehicle params.
         self._env = gym.make(
             "f110_gym:f110-v0",
             map=map_config.map_path,
             map_ext=map_config.map_ext,
             num_agents=1,
-            timestep=simulation_config.dt_s,
+            timestep=self._physics_dt,
             integrator=Integrator.Euler,
             params=vehicle_params.to_gym_dict(),
         )
@@ -222,12 +237,21 @@ class GymVehicleInterface:
         return self._last_action
 
     def apply_action(self, cmd: ControlCmdMsg) -> bool:
-        """Apply action and return True if the episode is done."""
+        """Apply action and return True if the episode is done.
+
+        When `physics_dt_s < dt_s` was set in the simulation config, the
+        same command is held across `_n_substeps` integrator ticks; we
+        return early if the gym signals done mid-substep.
+        """
         self._last_action = cmd
 
         # Gym (patched) expects [[steering_velocity, acceleration]].
         action = np.array([[cmd.steering_vel, cmd.acceleration]])
-        obs, _, done, _ = self._env.step(action)
+        done = False
+        for _ in range(self._n_substeps):
+            obs, _, done, _ = self._env.step(action)
+            if done:
+                break
         self._last_obs = obs
 
         if self._use_svgp_state:

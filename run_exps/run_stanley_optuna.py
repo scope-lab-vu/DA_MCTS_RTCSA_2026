@@ -54,11 +54,14 @@ BASE_CONFIG = Path("params/config_stanley_method.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 
 
-def make_temp_config(params: dict) -> Path:
+def make_temp_config(params: dict, dt_s: float | None = None) -> Path:
     with open(BASE_CONFIG) as f:
         cfg = yaml.safe_load(f)
     for k, v in params.items():
         cfg["controller"][k] = v
+    if dt_s is not None:
+        cfg.setdefault("simulation", {})
+        cfg["simulation"]["dt_s"] = float(dt_s)
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False,
         prefix="stanley_optuna_", dir=str(BASE_CONFIG.parent),
@@ -85,9 +88,10 @@ def make_fixed_map_config(track: str, mu_id: str = "10489") -> Path:
     return Path(tmp.name)
 
 
-def run_trial_episode(params: dict, track: str, mu: float, max_steps: int) -> dict:
+def run_trial_episode(params: dict, track: str, mu: float, max_steps: int,
+                      dt_s: float | None = None) -> dict:
     """Run one episode with the given params; return scoring + telemetry."""
-    tmp_algo = make_temp_config(params)
+    tmp_algo = make_temp_config(params, dt_s=dt_s)
     tmp_map = make_fixed_map_config(track)
     try:
         api = F1TenthAPI(VEHICLE_PARAMS, tmp_algo, tmp_map, mu_override=mu)
@@ -165,7 +169,34 @@ def run_trial_episode(params: dict, track: str, mu: float, max_steps: int) -> di
             except OSError: pass
 
 
-def make_objective(track: str, mu: float, max_steps: int):
+def make_progress_callback(every: int):
+    """Return an Optuna callback that prints the current best trial every
+    `every` completed trials. `study.optimize(callbacks=[cb])` invokes it
+    after each trial sequentially (TPE is single-threaded by default), so
+    this is safe."""
+    def cb(study: optuna.Study, trial: optuna.trial.FrozenTrial) -> None:
+        n_done = len(study.trials)
+        if every <= 0 or n_done % every != 0:
+            return
+        try:
+            best = study.best_trial
+        except ValueError:
+            return  # no successful trials yet
+        ua = best.user_attrs
+        print(
+            f"\n  ── progress @ {n_done} trials → BEST #{best.number}  "
+            f"score={best.value:+.2f}  "
+            f"reason={ua.get('reason', '?')}  laps={ua.get('laps', 0)}  "
+            f"prog={ua.get('progress_pct', 0):.1f}%  "
+            f"max_v={ua.get('max_v', 0):.2f}  "
+            f"lap_times={ua.get('lap_times_s', [])}\n"
+            f"     params={best.params}\n"
+        )
+    return cb
+
+
+def make_objective(track: str, mu: float, max_steps: int,
+                   dt_s: float | None = None):
     """Build the Optuna objective callable bound to track / mu / max_steps."""
     def objective(trial: optuna.Trial) -> float:
         # All tuned params are searched on a 2-decimal grid (step=0.01) so the
@@ -194,7 +225,7 @@ def make_objective(track: str, mu: float, max_steps: int):
         }
         t0 = time.time()
         try:
-            r = run_trial_episode(params, track, mu, max_steps)
+            r = run_trial_episode(params, track, mu, max_steps, dt_s=dt_s)
         except Exception as e:
             trial.set_user_attr("error", f"{type(e).__name__}: {e}")
             return -1e9
@@ -227,14 +258,23 @@ def main():
                         help="Resume an existing study (study_name must match).")
     parser.add_argument("--results-dir", type=Path,
                         default=Path("results/stanley_optuna"))
+    parser.add_argument("--dt-s", type=float, default=None,
+                        help="Override simulation.dt_s (default: from YAML, "
+                             "currently 0.04). The Stanley first-tick "
+                             "lookahead and rate-limit margin both scale "
+                             "with this — sweeping is a useful experiment.")
+    parser.add_argument("--report-every", type=int, default=100,
+                        help="Print the current best trial after every N "
+                             "completed trials (set 0 to disable).")
     args = parser.parse_args()
 
     args.results_dir.mkdir(parents=True, exist_ok=True)
-    study_name = args.study_name or f"stanley_{args.track}_n{args.n}"
+    dt_tag = f"_dt{args.dt_s:g}" if args.dt_s is not None else ""
+    study_name = args.study_name or f"stanley_{args.track}{dt_tag}_n{args.n}"
     storage_url = f"sqlite:///{args.results_dir / (study_name + '.db')}"
     print(f"\nstudy: {study_name}\nstorage: {storage_url}")
     print(f"track={args.track} mu={args.mu} max_steps={args.max_steps} "
-          f"n_trials={args.n} sampler=TPE seed={args.seed}\n")
+          f"dt_s={args.dt_s} n_trials={args.n} sampler=TPE seed={args.seed}\n")
 
     study = optuna.create_study(
         study_name=study_name,
@@ -244,8 +284,10 @@ def main():
         load_if_exists=args.resume,
         direction="maximize",
     )
-    study.optimize(make_objective(args.track, args.mu, args.max_steps),
-                   n_trials=args.n, show_progress_bar=False)
+    study.optimize(make_objective(args.track, args.mu, args.max_steps,
+                                   dt_s=args.dt_s),
+                   n_trials=args.n, show_progress_bar=False,
+                   callbacks=[make_progress_callback(args.report_every)])
 
     # ── Final summary ──────────────────────────────────────────────────
     print("\n" + "=" * 100)

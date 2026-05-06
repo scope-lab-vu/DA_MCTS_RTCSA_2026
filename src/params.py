@@ -99,6 +99,15 @@ class ControllerConfig:
     # (path heading from rear→front-axle baseline of `wheelbase` ≈ 0.33 m).
     lookahead_min_m: float = 0.0
     lookahead_v_gain_s: float = 0.0
+    # LQR weights — diag(Q) on [e_cg, ė_cg, θ_e, θ̇_e] and scalar R.
+    # Defaults match LQRPlanner.plan() in f1tenth_planning.
+    matrix_q_1: float = 0.999
+    matrix_q_2: float = 0.0
+    matrix_q_3: float = 0.0066
+    matrix_q_4: float = 0.0
+    matrix_r: float = 0.75
+    lqr_iterations: int = 50
+    lqr_eps: float = 0.001
     # MCTS DPW PINN fields
     batch_size: int = 8
     eval_K: int = 4
@@ -157,6 +166,14 @@ class SimulationConfig:
     dt_s: float = 0.01
     log_every_n_steps: int = 100
     seed: int = 42
+    # Physics integrator step. None (default) → gym integrates one Euler
+    # step of size dt_s per apply_action() call (legacy; MCTS configs at
+    # dt_s=0.04 keep this). When set < dt_s, the gym integrates at
+    # physics_dt_s and apply_action() applies the same command for
+    # round(dt_s / physics_dt_s) sub-steps. Required for Stanley/LQR at
+    # dt_s ≥ ~0.07 s, where Euler at that step size is unstable for the
+    # dynamic single-track model.
+    physics_dt_s: Optional[float] = None
     # SVGP state propagation: use extended kinematic model + GP corrections
     # instead of ground-truth agent state
     use_svgp_state: bool = False

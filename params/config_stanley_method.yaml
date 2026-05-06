@@ -36,6 +36,12 @@ safety:
 
 simulation:
   dt_s: 0.04
+  # Sub-step the gym physics at 20 ms regardless of dt_s. Required when
+  # sweeping dt_s ≥ ~0.07 — Euler at large steps goes unstable for the
+  # dynamic single-track model. At dt_s=0.04 this is 2 sub-steps per
+  # control tick (slight dynamics change vs 1×0.04 step), so the previously
+  # tuned best may need a re-run if you compare bit-exactly.
+  physics_dt_s: 0.02
   log_every_n_steps: 1
   seed: 42
   vehicle_interface: gym

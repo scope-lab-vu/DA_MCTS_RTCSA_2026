@@ -1,0 +1,41 @@
+controller:
+  type: lqr
+
+  # --- LQR weights (defaults from f1tenth_planning's LQRPlanner.plan()) ---
+  # State x = [e_cg, ė_cg, θ_e, θ̇_e]; Q is diagonal over the 4 states,
+  # R is scalar (single steering input). Larger q_1 → tighter cross-track
+  # tracking; q_3 weights heading error.
+  matrix_q_1: 0.999
+  matrix_q_2: 0.0
+  matrix_q_3: 0.0066
+  matrix_q_4: 0.0
+  matrix_r: 0.75
+
+  # Riccati iteration cap + tolerance (the iterative DARE solver).
+  lqr_iterations: 50
+  lqr_eps: 0.001
+
+  # --- Speed conversion (our gym needs (accel, sv), not (steer, speed)) ---
+  K_p_speed: 1.0
+  velocity_percentage: 1.0
+
+  # Steering-limit clip (defensive — reference plan() doesn't clip).
+  steering_limit: 24.0
+
+dynamics:
+  type: f1tenth_dynamics
+
+safety:
+  type: noop
+
+simulation:
+  dt_s: 0.04
+  # Sub-step the gym physics at 20 ms regardless of dt_s (decouples the
+  # physics rate from the LQR control rate). Required when sweeping
+  # dt_s ≥ ~0.07 — Euler at large steps goes unstable for the dynamic
+  # single-track model.
+  physics_dt_s: 0.02
+  log_every_n_steps: 1
+  seed: 42
+  vehicle_interface: gym
+  use_svgp_state: false
