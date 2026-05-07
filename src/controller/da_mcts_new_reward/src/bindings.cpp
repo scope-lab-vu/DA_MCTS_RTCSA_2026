@@ -260,6 +260,28 @@ class F1TenthMCTSDANewReward {
         }
         return result;
     }
+
+    // For each root child action, return the principal variation (most-
+    // visited path). Each PV is a dict {root_action, root_visits,
+    // root_avg_reward, states: List[ndarray(7,)]}. The chosen action
+    // (highest visits) is identifiable as the PV with max root_visits.
+    py::list get_principal_variations(int max_depth = 20) {
+        auto pvs = model_->get_principal_variations(max_depth);
+        py::list result;
+        for (auto& pv : pvs) {
+            py::dict d;
+            d["root_action"] = to_numpy_action(pv.root_action);
+            d["root_visits"] = pv.root_visits;
+            d["root_avg_reward"] = pv.root_avg_reward;
+            py::list states;
+            for (auto& s : pv.states) {
+                states.append(to_numpy_state(s));
+            }
+            d["states"] = states;
+            result.append(d);
+        }
+        return result;
+    }
 };
 
 PYBIND11_MODULE(da_mcts_new_reward, m) {
@@ -355,5 +377,8 @@ PYBIND11_MODULE(da_mcts_new_reward, m) {
         .def("set_state", &F1TenthMCTSDANewReward::set_state, py::arg("state"))
         .def("get_root_actions", &F1TenthMCTSDANewReward::get_root_actions)
         .def("get_best_trajectory", &F1TenthMCTSDANewReward::get_best_trajectory,
-             py::arg("max_depth") = 50);
+             py::arg("max_depth") = 50)
+        .def("get_principal_variations",
+             &F1TenthMCTSDANewReward::get_principal_variations,
+             py::arg("max_depth") = 20);
 }

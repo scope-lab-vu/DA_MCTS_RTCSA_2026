@@ -284,9 +284,40 @@ class GymVehicleInterface:
             np.asarray(xy, dtype=np.float64) if xy is not None else None
         )
 
+    def set_mcts_trajectories(
+        self,
+        trajectories,
+        best_idx: int = -1,
+        ranks=None,
+    ) -> None:
+        """Set MCTS principal-variation trajectories for visualization.
+
+        trajectories: iterable of (N, 2) arrays — one polyline per
+                      first-level child of the MCTS root (most-visited
+                      path).
+        best_idx:     index (within `trajectories`) of the chosen action's
+                      PV → drawn in bright cyan with thick line. -1 to
+                      treat all equally.
+        ranks:        optional list of float in [0, 1] per polyline,
+                      0=highest-visit, 1=lowest. Used to fade runners-up
+                      via a yellow→grey gradient. None → all drawn at
+                      same intensity.
+        """
+        polylines = []
+        for t in trajectories:
+            arr = np.asarray(t, dtype=np.float64) if t is not None else None
+            if arr is not None and len(arr) >= 2:
+                polylines.append(arr)
+        self._mcts_trajectories = polylines
+        self._mcts_best_idx = int(best_idx)
+        if ranks is None:
+            self._mcts_ranks = [0.5] * len(polylines)
+        else:
+            self._mcts_ranks = [float(r) for r in ranks][:len(polylines)]
+
     def setup_rendering(self, waypoints: WaypointsMsg) -> None:
         """Register render callback that draws the raceline and follows the car."""
-        from pyglet.gl import GL_POINTS, GL_QUADS, GL_TRIANGLE_FAN
+        from pyglet.gl import GL_POINTS, GL_QUADS, GL_TRIANGLE_FAN, GL_LINES
 
         # Pre-compute scaled waypoint vertices for drawing.
         points = np.column_stack([waypoints.x, waypoints.y])
@@ -294,8 +325,12 @@ class GymVehicleInterface:
         self._drawn_waypoints: List = []
         self._drawn_trajectory: List = []
         self._drawn_lookahead: List = []
+        self._drawn_mcts_pvs: List = []
         self._planned_trajectory: np.ndarray = np.empty((0, 2))
         self._lookahead_point: Optional[np.ndarray] = None
+        self._mcts_trajectories: List[np.ndarray] = []
+        self._mcts_best_idx: int = -1
+        self._mcts_ranks: List[float] = []
 
         def render_callback(env_renderer):
             e = env_renderer
@@ -348,6 +383,63 @@ class GymVehicleInterface:
                         ('c3B/stream', [r, g, b_color] * 4),
                     )
                     self._drawn_trajectory.append(b)
+
+            # Draw MCTS principal-variation trajectories as quad bands
+            # (thin filled rectangles per segment) so line thickness is
+            # explicit rather than depending on glLineWidth state.
+            # Chosen PV: bright cyan + thicker. Runners-up: yellow→orange
+            # gradient faded by visit-rank (0=most-visited runner-up,
+            # 1=least), thinner.
+            for b in self._drawn_mcts_pvs:
+                b.delete()
+            self._drawn_mcts_pvs.clear()
+            best_idx = self._mcts_best_idx
+            HALF_W_BEST = 4.0      # ~8 px wide in screen units
+            HALF_W_OTHER = 2.0     # ~4 px wide for runners-up
+            for k, polyline in enumerate(self._mcts_trajectories):
+                if len(polyline) < 2:
+                    continue
+                is_best = (k == best_idx)
+                if is_best:
+                    color = (0, 220, 255)         # bright cyan
+                    half_w = HALF_W_BEST
+                else:
+                    rank = (self._mcts_ranks[k]
+                            if k < len(self._mcts_ranks) else 0.5)
+                    # Yellow (255,210,80) → grey-orange (140,90,70)
+                    r = int(255 - rank * (255 - 140))
+                    g = int(210 - rank * (210 - 90))
+                    b_c = int(80 - rank * (80 - 70))
+                    color = (r, g, b_c)
+                    half_w = HALF_W_OTHER
+
+                pts = 50.0 * polyline
+                n_segs = len(pts) - 1
+                verts = []
+                for i in range(n_segs):
+                    x1, y1 = pts[i, 0], pts[i, 1]
+                    x2, y2 = pts[i + 1, 0], pts[i + 1, 1]
+                    dx, dy = x2 - x1, y2 - y1
+                    length = math.hypot(dx, dy)
+                    if length < 1e-6:
+                        continue
+                    # Perpendicular unit vector (rotate 90 deg).
+                    px, py = -dy / length, dx / length
+                    ox, oy = px * half_w, py * half_w
+                    # Quad: p1+offset, p2+offset, p2-offset, p1-offset.
+                    verts.extend([x1 + ox, y1 + oy, 0.0])
+                    verts.extend([x2 + ox, y2 + oy, 0.0])
+                    verts.extend([x2 - ox, y2 - oy, 0.0])
+                    verts.extend([x1 - ox, y1 - oy, 0.0])
+                if not verts:
+                    continue
+                n_verts = len(verts) // 3
+                b = e.batch.add(
+                    n_verts, GL_QUADS, None,
+                    ('v3f/stream', verts),
+                    ('c3B/stream', list(color) * n_verts),
+                )
+                self._drawn_mcts_pvs.append(b)
 
             # Draw lookahead point (single highlighted waypoint, e.g. Stanley's)
             # as a small bright-yellow filled circle via a triangle fan.

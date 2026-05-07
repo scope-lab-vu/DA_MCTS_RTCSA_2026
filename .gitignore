@@ -33,3 +33,4 @@ src/controller/**/*.so
 **/*.so
 f1tenth_gym/gym/*.egg-info/
 MCTS_SVGP_dynaimcs_model/train_venv
+.claude

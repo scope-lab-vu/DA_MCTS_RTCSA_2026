@@ -587,6 +587,16 @@ class MCTSDPWSvgpCppController:
         except Exception:
             self._last_best_trajectory = []
 
+        # 7b. Extract principal variations (one per root child action) for
+        # rendering — each PV walks down the most-visited path. The best
+        # one (highest root_visits) is what best_action() will return.
+        try:
+            self._last_principal_variations = (
+                self._tree.get_principal_variations(self._dynamic_horizon)
+            )
+        except Exception:
+            self._last_principal_variations = []
+
         # 8. Select best action
         action = self._tree.best_action()
         self._last_action = action
@@ -630,3 +640,10 @@ class MCTSDPWSvgpCppController:
 
     def get_best_trajectory(self) -> list:
         return getattr(self, '_last_best_trajectory', [])
+
+    def get_principal_variations(self) -> list:
+        """Return per-root-child principal variations from the last MCTS
+        search. Each entry is a dict with keys
+        {root_action, root_visits, root_avg_reward, states: List[ndarray]}.
+        """
+        return getattr(self, '_last_principal_variations', [])

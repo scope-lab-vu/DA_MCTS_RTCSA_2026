@@ -26,12 +26,13 @@ def _try_import(dotted_path, attr):
 
 MCTSBudgetAwareChanceProbPredCppController = _try_import("src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred", "MCTSDPWSvgpCppController")
 DAMctsNewRewardController = _try_import("src.controller.da_mcts_new_reward", "MCTSDPWSvgpCppController")
+DAMctsNewRewardTs100msController = _try_import("src.controller.da_mcts_new_reward_ts_100ms", "MCTSDPWSvgpCppController")
 DAMctsTrainValueFunctionController = _try_import("src.controller.da_mcts_train_value_function", "MCTSDPWSvgpCppController")
 StanleyMethodController = _try_import("src.controller.stanley_method", "StanleyMethodController")
 LQRController = _try_import("src.controller.lqr", "LQRController")
 
-_NEEDS_MAP_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function", "stanley_method", "lqr"}
-_NEEDS_SIMULATION_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_train_value_function", "stanley_method", "lqr"}
+_NEEDS_MAP_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_new_reward_ts_100ms", "da_mcts_train_value_function", "stanley_method", "lqr"}
+_NEEDS_SIMULATION_CONFIG = {"mcts_svgp_cpp_budget_aware_chance_prob_pred", "da_mcts_new_reward", "da_mcts_new_reward_ts_100ms", "da_mcts_train_value_function", "stanley_method", "lqr"}
 
 
 class Controller(ABC):
@@ -53,6 +54,7 @@ class Controller(ABC):
 _ALL_CONTROLLERS = {
     "mcts_svgp_cpp_budget_aware_chance_prob_pred": MCTSBudgetAwareChanceProbPredCppController,
     "da_mcts_new_reward": DAMctsNewRewardController,
+    "da_mcts_new_reward_ts_100ms": DAMctsNewRewardTs100msController,
     "da_mcts_train_value_function": DAMctsTrainValueFunctionController,
     "stanley_method": StanleyMethodController,
     "lqr": LQRController,

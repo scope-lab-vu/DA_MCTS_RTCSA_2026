@@ -144,6 +144,16 @@ class F1TenthAPI:
         """Set MCTS planned trajectory for visualization."""
         self._vehicle.set_planned_trajectory(xy_points)
 
+    def set_mcts_trajectories(
+        self, trajectories, best_idx: int = -1, ranks=None,
+    ) -> None:
+        """Set MCTS principal-variation trajectories for visualization.
+        best_idx → bright cyan thick line. ranks (0..1, lower = better)
+        → yellow→grey gradient for runners-up."""
+        self._vehicle.set_mcts_trajectories(
+            trajectories, best_idx, ranks=ranks,
+        )
+
     def render(self, mode: str = "human") -> None:
         self._vehicle.render(mode=mode)
 

@@ -300,6 +300,11 @@ class DPWNative : public SPWNative {
     // Last weights set during learn_timed() / learn_n_mlp()
     double last_p_agg_ = 1.0/3.0, last_p_slow_ = 1.0/3.0, last_p_feas_ = 1.0/3.0;
 
+    // Force 100% feasible (GP action prior). When true, skips all 3-phase
+    // recalibration in learn_timed/learn_n_mlp and runs the entire budget
+    // with weights = (0, 0, 1).
+    bool gp_action_only_ = false;
+
     // Context set from Python each step for logging
     double v_context_ = 0.0;
     double kappa_context_ = 0.0;
@@ -318,6 +323,8 @@ class DPWNative : public SPWNative {
         N_w_ = N_w;
         N_r_ = N_r;
     }
+
+    void set_gp_action_only(bool v) { gp_action_only_ = v; }
 
     void load_mlp_weights(const std::vector<float>& W0, const std::vector<float>& b0,
                           const std::vector<float>& W1, const std::vector<float>& b1,
@@ -374,6 +381,21 @@ class DPWNative : public SPWNative {
         auto deadline = start + std::chrono::duration<double>(budget_s);
         int n = 0;
         max_depth_seen_ = 0;  // reset per learn_timed() call
+
+        // gp_action_only mode: skip the 3-phase budget-aware recalibration
+        // entirely. Lock weights at (0, 0, 1) — every action sampled inside
+        // the tree comes from the GP action-prior, never from the
+        // aggressive/slow uniform branches.
+        if (gp_action_only_) {
+            sim_->set_action_weights(0.0, 0.0, 1.0);
+            last_p_agg_ = 0.0; last_p_slow_ = 0.0; last_p_feas_ = 1.0;
+            while (std::chrono::steady_clock::now() < deadline) {
+                grow_tree();
+                ++n;
+            }
+            sim_->set_state(root_->state);
+            return n;
+        }
 
         // Phase 1: Warmup — equal sampling (1/3, 1/3, 1/3)
         sim_->set_action_weights(1.0/3.0, 1.0/3.0, 1.0/3.0);
@@ -448,6 +470,19 @@ class DPWNative : public SPWNative {
         auto start = std::chrono::steady_clock::now();
         int n = 0;
         max_depth_seen_ = 0;
+
+        // gp_action_only mode: same idea as in learn_timed — skip
+        // recalibration and run the full N_total iterations at (0, 0, 1).
+        if (gp_action_only_) {
+            sim_->set_action_weights(0.0, 0.0, 1.0);
+            last_p_agg_ = 0.0; last_p_slow_ = 0.0; last_p_feas_ = 1.0;
+            while (n < N_total) {
+                grow_tree();
+                ++n;
+            }
+            sim_->set_state(root_->state);
+            return n;
+        }
 
         // Phase 1: Warmup
         sim_->set_action_weights(1.0/3.0, 1.0/3.0, 1.0/3.0);

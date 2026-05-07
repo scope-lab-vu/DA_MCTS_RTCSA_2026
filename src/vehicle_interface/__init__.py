@@ -45,6 +45,14 @@ class VehicleInterface(ABC):
         """Highlight a single waypoint (e.g. Stanley's lookahead). No-op by default."""
         pass
 
+    def set_mcts_trajectories(
+        self, trajectories, best_idx: int = -1, ranks=None,
+    ) -> None:
+        """Draw MCTS principal-variation polylines, with best_idx
+        highlighted and runners-up coloured by `ranks` (0..1, 0=best).
+        No-op by default."""
+        pass
+
     def render(self, mode: str = "human") -> None:
         """Render the environment. No-op by default."""
         pass

@@ -32,11 +32,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from da_mcts_new_reward import F1TenthMCTSDANewReward as F1TenthDPW
+    from da_mcts_new_reward_ts_100ms import F1TenthMCTSDANewReward as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "da_mcts_new_reward C++ extension not found. "
-        "Build with: pip install -e src/controller/da_mcts_new_reward/"
+        "da_mcts_new_reward_ts_100ms C++ extension not found. "
+        "Build with: pip install -e src/controller/da_mcts_new_reward_ts_100ms/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model
@@ -171,7 +171,14 @@ class MCTSDPWSvgpCppController:
         self._config = config
 
         self.dt = simulation_config.dt_s if simulation_config is not None else 0.04
-        self.base_timestep = 0.02
+        # SVGP training timestep — the C++ rollout simulator does
+        # `n_substeps = round(self.dt / base_timestep)` SVGP forward rollouts
+        # per MCTS tick. Must match the discretisation the SVGP dynamics
+        # models were trained on. Old MPPI-data SVGPs were trained at 20 ms
+        # → base_timestep=0.02 with dt=0.04 gave 2 substeps. Stanley-data
+        # SVGPs (M_15) are trained at 100 ms, so base_timestep=0.1 with
+        # dt=0.1 gives 1 substep — exactly one SVGP forward per MCTS tick.
+        self.base_timestep = float(getattr(config, "svgp_base_timestep", 0.02))
         self.seed = simulation_config.seed if simulation_config is not None else 42
 
         # MCTS hyperparameters
@@ -277,6 +284,10 @@ class MCTSDPWSvgpCppController:
         self._model_type = getattr(config, 'action_prior_model_type', 'svgp')
         self._uniform_action_sampling = getattr(config, 'uniform_action_sampling', False)
         self._no_c_alpha_input = getattr(config, 'no_c_alpha_input', False)
+        # Force 100% GP-action sampling inside MCTS (disables budget-aware
+        # agg / slow / feas mixing). Default false → keeps existing behavior
+        # for the parent controller's config.
+        self._gp_action_only = bool(getattr(config, 'gp_action_only', False))
 
         if self._model_type == "sgpr_krasserm":
             self._gp_models, self._x_scaler, self._y_scaler, gp_config = \
@@ -501,6 +512,11 @@ class MCTSDPWSvgpCppController:
             self._mlp_W2, self._mlp_b2,
             self._mlp_mu, self._mlp_std,
         )
+        # If config requests it, force 100% GP-action sampling — disables
+        # the budget-aware (agg / slow / feas) recalibration and runs the
+        # entire MCTS budget at (p_agg=0, p_slow=0, p_feas=1).
+        if self._gp_action_only:
+            tree.set_gp_action_only(True)
         return tree
 
     # --- Main control loop ---
@@ -580,15 +596,29 @@ class MCTSDPWSvgpCppController:
 
         log.debug("MCTS ran %d sims (C++ MLP, budget=%.1fms)", n_sims, budget * 1000 if self.mcts_time_budget > 0 else 0)
 
-        # 7. Extract best trajectory
+        # 7. Extract best trajectory.
+        # Visualisation depth is independent of the rollout horizon —
+        # walk the most-visited path as deep as the tree actually grew.
+        # The C++ method short-circuits at leaves / terminals, so 50 is
+        # just an upper safety bound.
         try:
-            self._last_best_trajectory = self._tree.get_best_trajectory(
-                self._dynamic_horizon)
+            self._last_best_trajectory = self._tree.get_best_trajectory(50)
         except Exception:
             self._last_best_trajectory = []
 
         # 8. Select best action
         action = self._tree.best_action()
+        # Diagnostic: GP prior vs the action MCTS actually picked.
+        # If `chose ≪ prior_mean`, MCTS is rejecting the prior → cost-side issue.
+        # If `prior_mean` itself is small, the GP is suggesting cautious actions
+        # (which propagate to MCTS regardless of cost).
+        log.info(
+            "v=%.2f  prior: a=%.2f±%.2f sv=%.2f±%.2f  | chose: a=%.2f sv=%.2f",
+            state.v,
+            float(action_mean[0]), float(action_std[0]),
+            float(action_mean[1]), float(action_std[1]),
+            float(action[0]), float(action[1]),
+        )
         self._last_action = action
         self._prev_state = state
 

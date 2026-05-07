@@ -205,6 +205,38 @@ def main() -> None:
             done = api.apply_action(cmd)
 
             if render:
+                # Visualize MCTS tree: one polyline per root child action
+                # (most-visited path). DPW often expands ~50 root children
+                # but only ~5-10 are deeply searched; the rest are 1-visit
+                # stubs that just clutter. Filter to the top-K by visits
+                # and pass a per-PV rank so the renderer can fade
+                # runners-up.
+                if hasattr(ctrl, 'get_principal_variations'):
+                    pvs = ctrl.get_principal_variations()
+                    if pvs:
+                        # Sort by visits desc, take top K (chosen action's
+                        # PV is always rank 0 = most visited).
+                        TOP_K = 10
+                        order = sorted(
+                            range(len(pvs)),
+                            key=lambda i: pvs[i]['root_visits'],
+                            reverse=True,
+                        )[:TOP_K]
+                        kept = [pvs[i] for i in order]
+                        polylines = [
+                            np.array([s[:2] for s in pv['states']],
+                                     dtype=np.float64)
+                            for pv in kept
+                        ]
+                        # Best is the most-visited (rank 0 in `kept`).
+                        best_idx = 0
+                        # Rank 0..1 across the kept set for color fade.
+                        n = len(kept)
+                        ranks = ([i / max(n - 1, 1) for i in range(n)]
+                                 if n > 1 else [0.0])
+                        api.set_mcts_trajectories(
+                            polylines, best_idx, ranks=ranks,
+                        )
                 api.render()
 
             step += 1

@@ -229,6 +229,61 @@ class MCTSNative {
     // O(1) — maintained as a running max inside grow_tree().
     int max_tree_depth() const { return max_depth_seen_; }
 
+    // For each first-level child of root (each candidate action), walk down
+    // most-visited path and return the resulting state sequence. Together
+    // with the chosen-action index this lets the renderer draw all
+    // principal variations and highlight the one that best_action()
+    // selected. State sequences include the root state at index 0.
+    struct PrincipalVariation {
+        Action2 root_action;
+        int root_visits;
+        double root_avg_reward;
+        std::vector<State7> states;  // [root, after_action, after_action_2, ...]
+    };
+
+    std::vector<PrincipalVariation>
+    get_principal_variations(int max_depth = 20) const {
+        std::vector<PrincipalVariation> pvs;
+        pvs.reserve(root_->children.size());
+        for (auto& [action, rnd] : root_->children) {
+            PrincipalVariation pv;
+            pv.root_action = action;
+            pv.root_visits = rnd->visits;
+            pv.root_avg_reward = (rnd->visits > 0)
+                ? rnd->cumulative_reward / rnd->visits : 0.0;
+            pv.states.push_back(root_->state);
+
+            // Pick most-visited outcome (DecisionNode) under this RandomNode.
+            const RandomNode* cur_rnd = rnd.get();
+            for (int d = 0; d < max_depth; ++d) {
+                if (!cur_rnd || cur_rnd->children.empty()) break;
+                int best_visits = -1;
+                const DecisionNode* best_dn = nullptr;
+                for (auto& [state, child] : cur_rnd->children) {
+                    if (child->visits > best_visits) {
+                        best_visits = child->visits;
+                        best_dn = child.get();
+                    }
+                }
+                if (!best_dn) break;
+                pv.states.push_back(best_dn->state);
+                if (best_dn->is_final || best_dn->children.empty()) break;
+                // Most-visited action under this decision node.
+                int best_action_visits = -1;
+                const RandomNode* next_rnd = nullptr;
+                for (auto& [a, r] : best_dn->children) {
+                    if (r->visits > best_action_visits) {
+                        best_action_visits = r->visits;
+                        next_rnd = r.get();
+                    }
+                }
+                cur_rnd = next_rnd;
+            }
+            pvs.push_back(std::move(pv));
+        }
+        return pvs;
+    }
+
     void forward(const Action2& action,
                  const State7& new_state) {
         auto it = root_->children.find(action);

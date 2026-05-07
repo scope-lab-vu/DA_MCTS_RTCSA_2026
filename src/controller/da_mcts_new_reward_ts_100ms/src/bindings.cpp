@@ -183,6 +183,10 @@ class F1TenthMCTSDANewReward {
         sim_->set_action_weights(p_agg, p_slow, p_feas);
     }
 
+    // Force 100% feasible (GP action prior). Disables the 3-phase
+    // budget-aware recalibration in learn_timed/learn_n_mlp.
+    void set_gp_action_only(bool v) { model_->set_gp_action_only(v); }
+
     // Load MLP weights from Python numpy float32 arrays.
     // Call once after construction (before first learn_timed()).
     void load_mlp_weights(py::array_t<float> W0, py::array_t<float> b0,
@@ -260,12 +264,20 @@ class F1TenthMCTSDANewReward {
         }
         return result;
     }
+
+    // Deepest descent depth observed during the most recent learn_timed()
+    // call. Counts decision-node hops from root, so depth=1 means one tick
+    // of selection past root. Reset to 0 at the start of each learn_timed.
+    int max_tree_depth() const { return model_->max_tree_depth(); }
 };
 
-PYBIND11_MODULE(da_mcts_new_reward, m) {
+PYBIND11_MODULE(da_mcts_new_reward_ts_100ms, m) {
     m.doc() = "C++ MCTS DPW + Krasser SVGP + budget-aware action weighting with MLP probability prediction";
 
-    py::class_<F1TenthMCTSDANewReward>(m, "F1TenthMCTSDANewReward")
+    // module_local: required so this .so can coexist with the older
+    // src/controller/da_mcts_new_reward/*.so in the same Python process
+    // (both bind a class named "F1TenthMCTSDANewReward").
+    py::class_<F1TenthMCTSDANewReward>(m, "F1TenthMCTSDANewReward", py::module_local())
         .def(py::init<py::array_t<double>,
                        double, double, double,
                        // Vehicle params (18)
@@ -335,6 +347,10 @@ PYBIND11_MODULE(da_mcts_new_reward, m) {
              py::arg("W_low"), py::arg("W_high"), py::arg("N_w"), py::arg("N_r"))
         .def("set_action_weights", &F1TenthMCTSDANewReward::set_action_weights,
              py::arg("p_agg"), py::arg("p_slow"), py::arg("p_feas"))
+        .def("set_gp_action_only", &F1TenthMCTSDANewReward::set_gp_action_only,
+             py::arg("v"),
+             "If true, force (p_agg=0, p_slow=0, p_feas=1) for the entire "
+             "MCTS budget — every sampled action comes from the GP prior.")
         .def("load_mlp_weights", &F1TenthMCTSDANewReward::load_mlp_weights,
              py::arg("W0"), py::arg("b0"),
              py::arg("W1"), py::arg("b1"),
@@ -355,5 +371,7 @@ PYBIND11_MODULE(da_mcts_new_reward, m) {
         .def("set_state", &F1TenthMCTSDANewReward::set_state, py::arg("state"))
         .def("get_root_actions", &F1TenthMCTSDANewReward::get_root_actions)
         .def("get_best_trajectory", &F1TenthMCTSDANewReward::get_best_trajectory,
-             py::arg("max_depth") = 50);
+             py::arg("max_depth") = 50)
+        .def("max_tree_depth", &F1TenthMCTSDANewReward::max_tree_depth,
+             "Deepest descent observed in the most recent learn_timed call.");
 }
