@@ -30,6 +30,7 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader, TensorDataset
 
 import gpytorch
+from linear_operator.utils.errors import NotPSDError
 
 # Allow importing from the same directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,7 +89,9 @@ def objective(trial: optuna.Trial, data_splits: dict, args: argparse.Namespace) 
     """Single Optuna trial: train SVGP, return negative ELBO on validation set."""
 
     # ── Sample hyperparameters ────────────────────────────────────────────
-    num_inducing = trial.suggest_int("num_inducing", 32, 512, step=32)
+    # Cap at 130 (matches the production `minimal_feature_1st_train` model
+    # which used M=128). step=16 → {32, 48, 64, 80, 96, 112, 128}.
+    num_inducing = trial.suggest_int("num_inducing", 32, 130, step=16)
     epochs = trial.suggest_int("epochs", 20, 150, step=10)
     batch_size = trial.suggest_categorical("batch_size", [128, 256, 512, 1024])
     lr = trial.suggest_float("lr", 1e-4, 0.1, log=True)
@@ -251,6 +254,10 @@ def main():
         lambda trial: objective(trial, data_splits, args),
         n_trials=args.n_trials,
         show_progress_bar=True,
+        # Don't let a single Cholesky failure (e.g. tiny init_lengthscale
+        # → singular K_uu) kill the whole study. Mark the trial failed
+        # and continue.
+        catch=(NotPSDError,),
     )
     search_elapsed = time.time() - t0
 

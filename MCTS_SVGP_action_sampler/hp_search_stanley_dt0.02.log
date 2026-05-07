@@ -1,0 +1,1037 @@
+2026-05-07 10:57:57,353 [hp_search] INFO: Feature set 'no_lateral' (3D): ['S_vel', 'max_kappa', 'C_alpha']
+2026-05-07 10:57:57,357 [train_svgp] INFO: Loaded dataset_YasMarina_mu10489.csv: 3000 rows
+2026-05-07 10:57:57,357 [train_svgp] INFO: Total rows before filtering: 3000
+2026-05-07 10:57:57,357 [train_svgp] INFO: After dropping NaN: 3000 rows
+2026-05-07 10:57:57,358 [hp_search] INFO: Loaded 3000 rows total
+2026-05-07 10:57:57,359 [hp_search] INFO: Split: train=1920  val=480  test=600
+[I 2026-05-07 10:57:57,360] A new study created in memory with name: svgp_action_prior_no_lateral
+  0%|          | 0/100 [00:00<?, ?it/s]2026-05-07 10:57:57,371 [train_svgp] INFO: Selecting 192 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:57:58,277 [train_svgp] INFO: Epoch   1/150  loss: 4.9607
+2026-05-07 10:57:58,766 [train_svgp] INFO: Epoch   5/150  loss: 4.8673
+2026-05-07 10:57:59,390 [train_svgp] INFO: Epoch  10/150  loss: 4.7547
+2026-05-07 10:58:00,046 [train_svgp] INFO: Epoch  15/150  loss: 4.6468
+2026-05-07 10:58:00,650 [train_svgp] INFO: Epoch  20/150  loss: 4.5431
+2026-05-07 10:58:01,279 [train_svgp] INFO: Epoch  25/150  loss: 4.4434
+2026-05-07 10:58:01,883 [train_svgp] INFO: Epoch  30/150  loss: 4.3472
+2026-05-07 10:58:02,542 [train_svgp] INFO: Epoch  35/150  loss: 4.2546
+2026-05-07 10:58:03,169 [train_svgp] INFO: Epoch  40/150  loss: 4.1651
+2026-05-07 10:58:03,776 [train_svgp] INFO: Epoch  45/150  loss: 4.0785
+2026-05-07 10:58:04,377 [train_svgp] INFO: Epoch  50/150  loss: 3.9949
+2026-05-07 10:58:05,022 [train_svgp] INFO: Epoch  55/150  loss: 3.9141
+2026-05-07 10:58:05,661 [train_svgp] INFO: Epoch  60/150  loss: 3.8360
+2026-05-07 10:58:06,251 [train_svgp] INFO: Epoch  65/150  loss: 3.7607
+2026-05-07 10:58:06,903 [train_svgp] INFO: Epoch  70/150  loss: 3.6883
+2026-05-07 10:58:07,510 [train_svgp] INFO: Epoch  75/150  loss: 3.6186
+2026-05-07 10:58:08,122 [train_svgp] INFO: Epoch  80/150  loss: 3.5516
+2026-05-07 10:58:08,763 [train_svgp] INFO: Epoch  85/150  loss: 3.4875
+2026-05-07 10:58:09,366 [train_svgp] INFO: Epoch  90/150  loss: 3.4262
+2026-05-07 10:58:09,958 [train_svgp] INFO: Epoch  95/150  loss: 3.3676
+2026-05-07 10:58:10,558 [train_svgp] INFO: Epoch 100/150  loss: 3.3118
+2026-05-07 10:58:11,176 [train_svgp] INFO: Epoch 105/150  loss: 3.2589
+2026-05-07 10:58:11,813 [train_svgp] INFO: Epoch 110/150  loss: 3.2088
+2026-05-07 10:58:12,423 [train_svgp] INFO: Epoch 115/150  loss: 3.1613
+2026-05-07 10:58:13,055 [train_svgp] INFO: Epoch 120/150  loss: 3.1167
+2026-05-07 10:58:13,570 [train_svgp] INFO: Epoch 125/150  loss: 3.0747
+2026-05-07 10:58:14,138 [train_svgp] INFO: Epoch 130/150  loss: 3.0355
+2026-05-07 10:58:14,705 [train_svgp] INFO: Epoch 135/150  loss: 2.9989
+2026-05-07 10:58:15,224 [train_svgp] INFO: Epoch 140/150  loss: 2.9649
+2026-05-07 10:58:15,723 [train_svgp] INFO: Epoch 145/150  loss: 2.9334
+2026-05-07 10:58:16,230 [train_svgp] INFO: Epoch 150/150  loss: 2.9044
+2026-05-07 10:58:16,235 [hp_search] INFO: Trial 0: neg_ELBO=2.9143  (M=192, ep=150, bs=128, lr=0.00015, ls=5.399, os=1.593, noise=0.06797)
+                                         0%|          | 0/100 [00:18<?, ?it/s]Best trial: 0. Best value: 2.91426:   0%|          | 0/100 [00:18<?, ?it/s]Best trial: 0. Best value: 2.91426:   1%|          | 1/100 [00:18<31:07, 18.87s/it]2026-05-07 10:58:16,238 [train_svgp] INFO: Selecting 32 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:58:16,319 [train_svgp] INFO: Epoch   1/150  loss: 3.9261
+2026-05-07 10:58:16,567 [train_svgp] INFO: Epoch   5/150  loss: 3.6171
+2026-05-07 10:58:16,812 [train_svgp] INFO: Epoch  10/150  loss: 3.2768
+2026-05-07 10:58:17,051 [train_svgp] INFO: Epoch  15/150  loss: 3.0071
+2026-05-07 10:58:17,299 [train_svgp] INFO: Epoch  20/150  loss: 2.8315
+2026-05-07 10:58:17,531 [train_svgp] INFO: Epoch  25/150  loss: 2.7165
+2026-05-07 10:58:17,762 [train_svgp] INFO: Epoch  30/150  loss: 2.6285
+2026-05-07 10:58:17,991 [train_svgp] INFO: Epoch  35/150  loss: 2.5550
+2026-05-07 10:58:18,221 [train_svgp] INFO: Epoch  40/150  loss: 2.4918
+2026-05-07 10:58:18,453 [train_svgp] INFO: Epoch  45/150  loss: 2.4374
+2026-05-07 10:58:18,685 [train_svgp] INFO: Epoch  50/150  loss: 2.3899
+2026-05-07 10:58:18,925 [train_svgp] INFO: Epoch  55/150  loss: 2.3481
+2026-05-07 10:58:19,167 [train_svgp] INFO: Epoch  60/150  loss: 2.3106
+2026-05-07 10:58:19,404 [train_svgp] INFO: Epoch  65/150  loss: 2.2763
+2026-05-07 10:58:19,646 [train_svgp] INFO: Epoch  70/150  loss: 2.2444
+2026-05-07 10:58:19,887 [train_svgp] INFO: Epoch  75/150  loss: 2.2143
+2026-05-07 10:58:20,124 [train_svgp] INFO: Epoch  80/150  loss: 2.1856
+2026-05-07 10:58:20,354 [train_svgp] INFO: Epoch  85/150  loss: 2.1582
+2026-05-07 10:58:20,594 [train_svgp] INFO: Epoch  90/150  loss: 2.1320
+2026-05-07 10:58:20,827 [train_svgp] INFO: Epoch  95/150  loss: 2.1070
+2026-05-07 10:58:21,059 [train_svgp] INFO: Epoch 100/150  loss: 2.0830
+2026-05-07 10:58:21,297 [train_svgp] INFO: Epoch 105/150  loss: 2.0598
+2026-05-07 10:58:21,536 [train_svgp] INFO: Epoch 110/150  loss: 2.0376
+2026-05-07 10:58:21,771 [train_svgp] INFO: Epoch 115/150  loss: 2.0159
+2026-05-07 10:58:22,011 [train_svgp] INFO: Epoch 120/150  loss: 1.9953
+2026-05-07 10:58:22,247 [train_svgp] INFO: Epoch 125/150  loss: 1.9754
+2026-05-07 10:58:22,482 [train_svgp] INFO: Epoch 130/150  loss: 1.9566
+2026-05-07 10:58:22,727 [train_svgp] INFO: Epoch 135/150  loss: 1.9384
+2026-05-07 10:58:22,965 [train_svgp] INFO: Epoch 140/150  loss: 1.9215
+2026-05-07 10:58:23,233 [train_svgp] INFO: Epoch 145/150  loss: 1.9047
+2026-05-07 10:58:23,499 [train_svgp] INFO: Epoch 150/150  loss: 1.8894
+2026-05-07 10:58:23,503 [hp_search] INFO: Trial 1: neg_ELBO=1.9775  (M=32, ep=150, bs=128, lr=0.00082, ls=1.121, os=0.731, noise=0.00146)
+                                                                                   Best trial: 0. Best value: 2.91426:   1%|          | 1/100 [00:26<31:07, 18.87s/it]Best trial: 1. Best value: 1.97753:   1%|          | 1/100 [00:26<31:07, 18.87s/it]Best trial: 1. Best value: 1.97753:   2%|▏         | 2/100 [00:26<19:40, 12.04s/it]2026-05-07 10:58:23,504 [train_svgp] INFO: Selecting 320 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:58:23,684 [train_svgp] INFO: Epoch   1/30  loss: 5.1163
+2026-05-07 10:58:23,925 [train_svgp] INFO: Epoch   5/30  loss: 5.0573
+2026-05-07 10:58:24,198 [train_svgp] INFO: Epoch  10/30  loss: 4.9855
+2026-05-07 10:58:24,521 [train_svgp] INFO: Epoch  15/30  loss: 4.9082
+2026-05-07 10:58:24,799 [train_svgp] INFO: Epoch  20/30  loss: 4.8388
+2026-05-07 10:58:25,085 [train_svgp] INFO: Epoch  25/30  loss: 4.7736
+2026-05-07 10:58:25,372 [train_svgp] INFO: Epoch  30/30  loss: 4.6978
+2026-05-07 10:58:25,380 [hp_search] INFO: Trial 2: neg_ELBO=4.6855  (M=320, ep=30, bs=1024, lr=0.00040, ls=1.068, os=1.530, noise=0.00015)
+                                                                                   Best trial: 1. Best value: 1.97753:   2%|▏         | 2/100 [00:28<19:40, 12.04s/it]Best trial: 1. Best value: 1.97753:   2%|▏         | 2/100 [00:28<19:40, 12.04s/it]Best trial: 1. Best value: 1.97753:   3%|▎         | 3/100 [00:28<11:57,  7.40s/it]2026-05-07 10:58:25,381 [train_svgp] INFO: Selecting 320 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:58:25,593 [train_svgp] INFO: Epoch   1/40  loss: 6.2421
+2026-05-07 10:58:25,919 [train_svgp] INFO: Epoch   5/40  loss: 6.0061
+2026-05-07 10:58:26,344 [train_svgp] INFO: Epoch  10/40  loss: 5.7047
+2026-05-07 10:58:26,705 [train_svgp] INFO: Epoch  15/40  loss: 5.3565
+2026-05-07 10:58:27,065 [train_svgp] INFO: Epoch  20/40  loss: 5.0110
+2026-05-07 10:58:27,423 [train_svgp] INFO: Epoch  25/40  loss: 4.7093
+2026-05-07 10:58:27,779 [train_svgp] INFO: Epoch  30/40  loss: 4.4413
+2026-05-07 10:58:28,133 [train_svgp] INFO: Epoch  35/40  loss: 4.2217
+2026-05-07 10:58:28,497 [train_svgp] INFO: Epoch  40/40  loss: 4.0542
+2026-05-07 10:58:28,505 [hp_search] INFO: Trial 3: neg_ELBO=4.1278  (M=320, ep=40, bs=512, lr=0.00082, ls=0.157, os=2.336, noise=0.00576)
+                                                                                   Best trial: 1. Best value: 1.97753:   3%|▎         | 3/100 [00:31<11:57,  7.40s/it]Best trial: 1. Best value: 1.97753:   3%|▎         | 3/100 [00:31<11:57,  7.40s/it]Best trial: 1. Best value: 1.97753:   4%|▍         | 4/100 [00:31<09:08,  5.71s/it]2026-05-07 10:58:28,507 [train_svgp] INFO: Selecting 64 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:58:28,584 [train_svgp] INFO: Epoch   1/80  loss: 4.6554
+2026-05-07 10:58:28,750 [train_svgp] INFO: Epoch   5/80  loss: 4.3448
+2026-05-07 10:58:28,933 [train_svgp] INFO: Epoch  10/80  loss: 3.9784
+2026-05-07 10:58:29,178 [train_svgp] INFO: Epoch  15/80  loss: 3.6446
+2026-05-07 10:58:29,371 [train_svgp] INFO: Epoch  20/80  loss: 3.3556
+2026-05-07 10:58:29,556 [train_svgp] INFO: Epoch  25/80  loss: 3.0898
+2026-05-07 10:58:29,743 [train_svgp] INFO: Epoch  30/80  loss: 2.9308
+2026-05-07 10:58:29,936 [train_svgp] INFO: Epoch  35/80  loss: 2.8244
+2026-05-07 10:58:30,122 [train_svgp] INFO: Epoch  40/80  loss: 2.7421
+2026-05-07 10:58:30,300 [train_svgp] INFO: Epoch  45/80  loss: 2.6533
+2026-05-07 10:58:30,477 [train_svgp] INFO: Epoch  50/80  loss: 2.6026
+2026-05-07 10:58:30,657 [train_svgp] INFO: Epoch  55/80  loss: 2.5296
+2026-05-07 10:58:30,839 [train_svgp] INFO: Epoch  60/80  loss: 2.4981
+2026-05-07 10:58:31,019 [train_svgp] INFO: Epoch  65/80  loss: 2.4666
+2026-05-07 10:58:31,195 [train_svgp] INFO: Epoch  70/80  loss: 2.4318
+2026-05-07 10:58:31,377 [train_svgp] INFO: Epoch  75/80  loss: 2.4082
+2026-05-07 10:58:31,566 [train_svgp] INFO: Epoch  80/80  loss: 2.3775
+2026-05-07 10:58:31,569 [hp_search] INFO: Trial 4: neg_ELBO=2.4309  (M=64, ep=80, bs=256, lr=0.00086, ls=1.097, os=1.240, noise=0.00055)
+                                                                                   Best trial: 1. Best value: 1.97753:   4%|▍         | 4/100 [00:34<09:08,  5.71s/it]Best trial: 1. Best value: 1.97753:   4%|▍         | 4/100 [00:34<09:08,  5.71s/it]Best trial: 1. Best value: 1.97753:   5%|▌         | 5/100 [00:34<07:32,  4.76s/it]2026-05-07 10:58:31,571 [train_svgp] INFO: Selecting 512 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:58:32,213 [train_svgp] INFO: Epoch   1/120  loss: 3.0880
+2026-05-07 10:58:33,727 [train_svgp] INFO: Epoch   5/120  loss: 3.0690
+2026-05-07 10:58:35,647 [train_svgp] INFO: Epoch  10/120  loss: 3.0425
+2026-05-07 10:58:37,612 [train_svgp] INFO: Epoch  15/120  loss: 3.0095
+2026-05-07 10:58:39,436 [train_svgp] INFO: Epoch  20/120  loss: 2.9721
+2026-05-07 10:58:41,251 [train_svgp] INFO: Epoch  25/120  loss: 2.9413
+2026-05-07 10:58:43,072 [train_svgp] INFO: Epoch  30/120  loss: 2.9170
+2026-05-07 10:58:44,949 [train_svgp] INFO: Epoch  35/120  loss: 2.8958
+2026-05-07 10:58:46,867 [train_svgp] INFO: Epoch  40/120  loss: 2.8762
+2026-05-07 10:58:48,657 [train_svgp] INFO: Epoch  45/120  loss: 2.8576
+2026-05-07 10:58:50,473 [train_svgp] INFO: Epoch  50/120  loss: 2.8399
+2026-05-07 10:58:52,351 [train_svgp] INFO: Epoch  55/120  loss: 2.8229
+2026-05-07 10:58:54,339 [train_svgp] INFO: Epoch  60/120  loss: 2.8064
+2026-05-07 10:58:56,206 [train_svgp] INFO: Epoch  65/120  loss: 2.7903
+2026-05-07 10:58:58,033 [train_svgp] INFO: Epoch  70/120  loss: 2.7747
+2026-05-07 10:58:59,884 [train_svgp] INFO: Epoch  75/120  loss: 2.7596
+2026-05-07 10:59:01,732 [train_svgp] INFO: Epoch  80/120  loss: 2.7449
+2026-05-07 10:59:03,654 [train_svgp] INFO: Epoch  85/120  loss: 2.7307
+2026-05-07 10:59:05,596 [train_svgp] INFO: Epoch  90/120  loss: 2.7168
+2026-05-07 10:59:07,487 [train_svgp] INFO: Epoch  95/120  loss: 2.7034
+2026-05-07 10:59:09,381 [train_svgp] INFO: Epoch 100/120  loss: 2.6903
+2026-05-07 10:59:11,249 [train_svgp] INFO: Epoch 105/120  loss: 2.6775
+2026-05-07 10:59:13,115 [train_svgp] INFO: Epoch 110/120  loss: 2.6651
+2026-05-07 10:59:15,103 [train_svgp] INFO: Epoch 115/120  loss: 2.6529
+2026-05-07 10:59:16,991 [train_svgp] INFO: Epoch 120/120  loss: 2.6410
+2026-05-07 10:59:17,003 [hp_search] INFO: Trial 5: neg_ELBO=2.6484  (M=512, ep=120, bs=128, lr=0.00018, ls=0.247, os=0.123, noise=0.00200)
+                                                                                   Best trial: 1. Best value: 1.97753:   5%|▌         | 5/100 [01:19<07:32,  4.76s/it]Best trial: 1. Best value: 1.97753:   5%|▌         | 5/100 [01:19<07:32,  4.76s/it]Best trial: 1. Best value: 1.97753:   6%|▌         | 6/100 [01:19<29:07, 18.59s/it]2026-05-07 10:59:17,004 [train_svgp] INFO: Selecting 224 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:59:17,240 [train_svgp] INFO: Epoch   1/50  loss: 3.0160
+2026-05-07 10:59:17,722 [train_svgp] INFO: Epoch   5/50  loss: 3.0049
+2026-05-07 10:59:18,363 [train_svgp] INFO: Epoch  10/50  loss: 2.9913
+2026-05-07 10:59:19,009 [train_svgp] INFO: Epoch  15/50  loss: 2.9779
+2026-05-07 10:59:19,647 [train_svgp] INFO: Epoch  20/50  loss: 2.9648
+2026-05-07 10:59:20,270 [train_svgp] INFO: Epoch  25/50  loss: 2.9519
+2026-05-07 10:59:20,914 [train_svgp] INFO: Epoch  30/50  loss: 2.9393
+2026-05-07 10:59:21,554 [train_svgp] INFO: Epoch  35/50  loss: 2.9269
+2026-05-07 10:59:22,166 [train_svgp] INFO: Epoch  40/50  loss: 2.9145
+2026-05-07 10:59:22,784 [train_svgp] INFO: Epoch  45/50  loss: 2.9022
+2026-05-07 10:59:23,407 [train_svgp] INFO: Epoch  50/50  loss: 2.8897
+2026-05-07 10:59:23,413 [hp_search] INFO: Trial 6: neg_ELBO=2.8846  (M=224, ep=50, bs=128, lr=0.00026, ls=4.022, os=0.141, noise=0.88623)
+                                                                                   Best trial: 1. Best value: 1.97753:   6%|▌         | 6/100 [01:26<29:07, 18.59s/it]Best trial: 1. Best value: 1.97753:   6%|▌         | 6/100 [01:26<29:07, 18.59s/it]Best trial: 1. Best value: 1.97753:   7%|▋         | 7/100 [01:26<22:38, 14.61s/it]2026-05-07 10:59:23,414 [train_svgp] INFO: Selecting 416 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:59:23,792 [train_svgp] INFO: Epoch   1/40  loss: 3.3973
+2026-05-07 10:59:24,398 [train_svgp] INFO: Epoch   5/40  loss: 2.5267
+2026-05-07 10:59:25,150 [train_svgp] INFO: Epoch  10/40  loss: 2.0913
+2026-05-07 10:59:25,894 [train_svgp] INFO: Epoch  15/40  loss: 1.6676
+2026-05-07 10:59:26,642 [train_svgp] INFO: Epoch  20/40  loss: 1.4446
+2026-05-07 10:59:27,377 [train_svgp] INFO: Epoch  25/40  loss: 1.4439
+2026-05-07 10:59:28,112 [train_svgp] INFO: Epoch  30/40  loss: 1.3238
+2026-05-07 10:59:28,870 [train_svgp] INFO: Epoch  35/40  loss: 1.3331
+2026-05-07 10:59:29,553 [train_svgp] INFO: Epoch  40/40  loss: 1.3021
+2026-05-07 10:59:29,562 [hp_search] INFO: Trial 7: neg_ELBO=1.8897  (M=416, ep=40, bs=256, lr=0.02060, ls=0.141, os=0.521, noise=0.00029)
+                                                                                   Best trial: 1. Best value: 1.97753:   7%|▋         | 7/100 [01:32<22:38, 14.61s/it]Best trial: 7. Best value: 1.88966:   7%|▋         | 7/100 [01:32<22:38, 14.61s/it]Best trial: 7. Best value: 1.88966:   8%|▊         | 8/100 [01:32<18:16, 11.91s/it]2026-05-07 10:59:29,563 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:59:30,065 [train_svgp] INFO: Epoch   1/100  loss: 7.9232
+2026-05-07 10:59:31,118 [train_svgp] INFO: Epoch   5/100  loss: 2.4373
+2026-05-07 10:59:32,438 [train_svgp] INFO: Epoch  10/100  loss: 2.2360
+2026-05-07 10:59:33,775 [train_svgp] INFO: Epoch  15/100  loss: 2.0307
+2026-05-07 10:59:35,254 [train_svgp] INFO: Epoch  20/100  loss: 1.8094
+2026-05-07 10:59:36,683 [train_svgp] INFO: Epoch  25/100  loss: 1.6763
+2026-05-07 10:59:38,101 [train_svgp] INFO: Epoch  30/100  loss: 1.5810
+2026-05-07 10:59:39,524 [train_svgp] INFO: Epoch  35/100  loss: 1.5642
+2026-05-07 10:59:40,936 [train_svgp] INFO: Epoch  40/100  loss: 1.5529
+2026-05-07 10:59:42,341 [train_svgp] INFO: Epoch  45/100  loss: 1.5112
+2026-05-07 10:59:43,748 [train_svgp] INFO: Epoch  50/100  loss: 1.5317
+2026-05-07 10:59:45,150 [train_svgp] INFO: Epoch  55/100  loss: 1.5534
+2026-05-07 10:59:46,560 [train_svgp] INFO: Epoch  60/100  loss: 1.5125
+2026-05-07 10:59:48,010 [train_svgp] INFO: Epoch  65/100  loss: 1.5038
+2026-05-07 10:59:49,429 [train_svgp] INFO: Epoch  70/100  loss: 1.4958
+2026-05-07 10:59:50,830 [train_svgp] INFO: Epoch  75/100  loss: 1.4695
+2026-05-07 10:59:52,231 [train_svgp] INFO: Epoch  80/100  loss: 1.4711
+2026-05-07 10:59:53,639 [train_svgp] INFO: Epoch  85/100  loss: 1.4886
+2026-05-07 10:59:55,040 [train_svgp] INFO: Epoch  90/100  loss: 1.4570
+2026-05-07 10:59:56,426 [train_svgp] INFO: Epoch  95/100  loss: 1.4626
+2026-05-07 10:59:57,818 [train_svgp] INFO: Epoch 100/100  loss: 1.4503
+2026-05-07 10:59:57,828 [hp_search] INFO: Trial 8: neg_ELBO=1.6770  (M=448, ep=100, bs=128, lr=0.01545, ls=1.884, os=5.949, noise=0.00774)
+                                                                                   Best trial: 7. Best value: 1.88966:   8%|▊         | 8/100 [02:00<18:16, 11.91s/it]Best trial: 8. Best value: 1.67701:   8%|▊         | 8/100 [02:00<18:16, 11.91s/it]Best trial: 8. Best value: 1.67701:   9%|▉         | 9/100 [02:00<25:49, 17.03s/it]2026-05-07 10:59:57,829 [train_svgp] INFO: Selecting 64 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 10:59:57,892 [train_svgp] INFO: Epoch   1/110  loss: 3.0766
+2026-05-07 10:59:57,991 [train_svgp] INFO: Epoch   5/110  loss: 2.9716
+2026-05-07 10:59:58,119 [train_svgp] INFO: Epoch  10/110  loss: 2.8486
+2026-05-07 10:59:58,249 [train_svgp] INFO: Epoch  15/110  loss: 2.7825
+2026-05-07 10:59:58,423 [train_svgp] INFO: Epoch  20/110  loss: 2.7215
+2026-05-07 10:59:58,563 [train_svgp] INFO: Epoch  25/110  loss: 2.6307
+2026-05-07 10:59:58,699 [train_svgp] INFO: Epoch  30/110  loss: 2.5595
+2026-05-07 10:59:58,832 [train_svgp] INFO: Epoch  35/110  loss: 2.4806
+2026-05-07 10:59:58,965 [train_svgp] INFO: Epoch  40/110  loss: 2.4031
+2026-05-07 10:59:59,100 [train_svgp] INFO: Epoch  45/110  loss: 2.3289
+2026-05-07 10:59:59,232 [train_svgp] INFO: Epoch  50/110  loss: 2.2624
+2026-05-07 10:59:59,367 [train_svgp] INFO: Epoch  55/110  loss: 2.2056
+2026-05-07 10:59:59,503 [train_svgp] INFO: Epoch  60/110  loss: 2.1547
+2026-05-07 10:59:59,638 [train_svgp] INFO: Epoch  65/110  loss: 2.1114
+2026-05-07 10:59:59,775 [train_svgp] INFO: Epoch  70/110  loss: 2.0730
+2026-05-07 10:59:59,909 [train_svgp] INFO: Epoch  75/110  loss: 2.0275
+2026-05-07 11:00:00,046 [train_svgp] INFO: Epoch  80/110  loss: 1.9911
+2026-05-07 11:00:00,179 [train_svgp] INFO: Epoch  85/110  loss: 1.9526
+2026-05-07 11:00:00,312 [train_svgp] INFO: Epoch  90/110  loss: 1.9248
+2026-05-07 11:00:00,494 [train_svgp] INFO: Epoch  95/110  loss: 1.8910
+2026-05-07 11:00:00,630 [train_svgp] INFO: Epoch 100/110  loss: 1.8591
+2026-05-07 11:00:00,767 [train_svgp] INFO: Epoch 105/110  loss: 1.8309
+2026-05-07 11:00:00,896 [train_svgp] INFO: Epoch 110/110  loss: 1.7986
+2026-05-07 11:00:00,900 [hp_search] INFO: Trial 9: neg_ELBO=1.8965  (M=64, ep=110, bs=512, lr=0.00370, ls=0.716, os=0.112, noise=0.00027)
+                                                                                   Best trial: 8. Best value: 1.67701:   9%|▉         | 9/100 [02:03<25:49, 17.03s/it]Best trial: 8. Best value: 1.67701:   9%|▉         | 9/100 [02:03<25:49, 17.03s/it]Best trial: 8. Best value: 1.67701:  10%|█         | 10/100 [02:03<19:04, 12.72s/it]2026-05-07 11:00:00,906 [train_svgp] INFO: Selecting 512 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:01,314 [train_svgp] INFO: Epoch   1/80  loss: 10.7206
+2026-05-07 11:00:01,781 [train_svgp] INFO: Epoch   5/80  loss: 3.1154
+2026-05-07 11:00:02,333 [train_svgp] INFO: Epoch  10/80  loss: 2.6418
+2026-05-07 11:00:02,938 [train_svgp] INFO: Epoch  15/80  loss: 2.5466
+2026-05-07 11:00:03,467 [train_svgp] INFO: Epoch  20/80  loss: 2.4657
+2026-05-07 11:00:04,005 [train_svgp] INFO: Epoch  25/80  loss: 2.3748
+2026-05-07 11:00:04,539 [train_svgp] INFO: Epoch  30/80  loss: 2.2808
+2026-05-07 11:00:05,114 [train_svgp] INFO: Epoch  35/80  loss: 2.1762
+2026-05-07 11:00:05,643 [train_svgp] INFO: Epoch  40/80  loss: 2.0678
+2026-05-07 11:00:06,174 [train_svgp] INFO: Epoch  45/80  loss: 1.9556
+2026-05-07 11:00:06,703 [train_svgp] INFO: Epoch  50/80  loss: 1.8527
+2026-05-07 11:00:07,233 [train_svgp] INFO: Epoch  55/80  loss: 1.7700
+2026-05-07 11:00:07,764 [train_svgp] INFO: Epoch  60/80  loss: 1.7152
+2026-05-07 11:00:08,300 [train_svgp] INFO: Epoch  65/80  loss: 1.6855
+2026-05-07 11:00:08,834 [train_svgp] INFO: Epoch  70/80  loss: 1.6538
+2026-05-07 11:00:09,411 [train_svgp] INFO: Epoch  75/80  loss: 1.6260
+2026-05-07 11:00:09,946 [train_svgp] INFO: Epoch  80/80  loss: 1.5886
+2026-05-07 11:00:09,959 [hp_search] INFO: Trial 10: neg_ELBO=1.6649  (M=512, ep=80, bs=1024, lr=0.06461, ls=2.694, os=6.536, noise=0.04145)
+                                                                                    Best trial: 8. Best value: 1.67701:  10%|█         | 10/100 [02:12<19:04, 12.72s/it]Best trial: 10. Best value: 1.66492:  10%|█         | 10/100 [02:12<19:04, 12.72s/it]Best trial: 10. Best value: 1.66492:  11%|█         | 11/100 [02:12<17:12, 11.60s/it]2026-05-07 11:00:09,963 [train_svgp] INFO: Selecting 512 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:10,330 [train_svgp] INFO: Epoch   1/80  loss: 12.6160
+2026-05-07 11:00:10,769 [train_svgp] INFO: Epoch   5/80  loss: 3.2265
+2026-05-07 11:00:11,302 [train_svgp] INFO: Epoch  10/80  loss: 2.7514
+2026-05-07 11:00:11,839 [train_svgp] INFO: Epoch  15/80  loss: 2.6368
+2026-05-07 11:00:12,375 [train_svgp] INFO: Epoch  20/80  loss: 2.5270
+2026-05-07 11:00:12,911 [train_svgp] INFO: Epoch  25/80  loss: 2.4117
+2026-05-07 11:00:13,447 [train_svgp] INFO: Epoch  30/80  loss: 2.2884
+2026-05-07 11:00:13,998 [train_svgp] INFO: Epoch  35/80  loss: 2.1500
+2026-05-07 11:00:14,584 [train_svgp] INFO: Epoch  40/80  loss: 2.0100
+2026-05-07 11:00:15,133 [train_svgp] INFO: Epoch  45/80  loss: 1.8790
+2026-05-07 11:00:15,693 [train_svgp] INFO: Epoch  50/80  loss: 1.7842
+2026-05-07 11:00:16,253 [train_svgp] INFO: Epoch  55/80  loss: 1.7533
+2026-05-07 11:00:16,849 [train_svgp] INFO: Epoch  60/80  loss: 1.7192
+2026-05-07 11:00:17,411 [train_svgp] INFO: Epoch  65/80  loss: 1.7006
+2026-05-07 11:00:17,956 [train_svgp] INFO: Epoch  70/80  loss: 1.6957
+2026-05-07 11:00:18,490 [train_svgp] INFO: Epoch  75/80  loss: 1.6985
+2026-05-07 11:00:19,066 [train_svgp] INFO: Epoch  80/80  loss: 1.6952
+2026-05-07 11:00:19,080 [hp_search] INFO: Trial 11: neg_ELBO=1.7554  (M=512, ep=80, bs=1024, lr=0.09665, ls=2.818, os=8.572, noise=0.04791)
+                                                                                     Best trial: 10. Best value: 1.66492:  11%|█         | 11/100 [02:21<17:12, 11.60s/it]Best trial: 10. Best value: 1.66492:  11%|█         | 11/100 [02:21<17:12, 11.60s/it]Best trial: 10. Best value: 1.66492:  12%|█▏        | 12/100 [02:21<15:54, 10.84s/it]2026-05-07 11:00:19,085 [train_svgp] INFO: Selecting 416 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:19,388 [train_svgp] INFO: Epoch   1/100  loss: 13.9055
+2026-05-07 11:00:19,713 [train_svgp] INFO: Epoch   5/100  loss: 6.4302
+2026-05-07 11:00:20,084 [train_svgp] INFO: Epoch  10/100  loss: 3.3915
+2026-05-07 11:00:20,474 [train_svgp] INFO: Epoch  15/100  loss: 2.7568
+2026-05-07 11:00:20,874 [train_svgp] INFO: Epoch  20/100  loss: 2.5955
+2026-05-07 11:00:21,261 [train_svgp] INFO: Epoch  25/100  loss: 2.5115
+2026-05-07 11:00:21,640 [train_svgp] INFO: Epoch  30/100  loss: 2.4629
+2026-05-07 11:00:22,020 [train_svgp] INFO: Epoch  35/100  loss: 2.4232
+2026-05-07 11:00:22,399 [train_svgp] INFO: Epoch  40/100  loss: 2.3939
+2026-05-07 11:00:22,824 [train_svgp] INFO: Epoch  45/100  loss: 2.3627
+2026-05-07 11:00:23,212 [train_svgp] INFO: Epoch  50/100  loss: 2.3290
+2026-05-07 11:00:23,592 [train_svgp] INFO: Epoch  55/100  loss: 2.2961
+2026-05-07 11:00:23,981 [train_svgp] INFO: Epoch  60/100  loss: 2.2567
+2026-05-07 11:00:24,375 [train_svgp] INFO: Epoch  65/100  loss: 2.2204
+2026-05-07 11:00:24,776 [train_svgp] INFO: Epoch  70/100  loss: 2.1938
+2026-05-07 11:00:25,169 [train_svgp] INFO: Epoch  75/100  loss: 2.1485
+2026-05-07 11:00:25,566 [train_svgp] INFO: Epoch  80/100  loss: 2.1077
+2026-05-07 11:00:26,013 [train_svgp] INFO: Epoch  85/100  loss: 2.0640
+2026-05-07 11:00:26,393 [train_svgp] INFO: Epoch  90/100  loss: 2.0296
+2026-05-07 11:00:26,769 [train_svgp] INFO: Epoch  95/100  loss: 1.9981
+2026-05-07 11:00:27,154 [train_svgp] INFO: Epoch 100/100  loss: 1.9450
+2026-05-07 11:00:27,164 [hp_search] INFO: Trial 12: neg_ELBO=2.0157  (M=416, ep=100, bs=1024, lr=0.02629, ls=2.130, os=8.466, noise=0.03221)
+                                                                                     Best trial: 10. Best value: 1.66492:  12%|█▏        | 12/100 [02:29<15:54, 10.84s/it]Best trial: 10. Best value: 1.66492:  12%|█▏        | 12/100 [02:29<15:54, 10.84s/it]Best trial: 10. Best value: 1.66492:  13%|█▎        | 13/100 [02:29<14:30, 10.01s/it]2026-05-07 11:00:27,168 [train_svgp] INFO: Selecting 416 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:27,444 [train_svgp] INFO: Epoch   1/70  loss: 6.6705
+2026-05-07 11:00:27,763 [train_svgp] INFO: Epoch   5/70  loss: 5.3617
+2026-05-07 11:00:28,137 [train_svgp] INFO: Epoch  10/70  loss: 4.2407
+2026-05-07 11:00:28,513 [train_svgp] INFO: Epoch  15/70  loss: 3.5474
+2026-05-07 11:00:28,878 [train_svgp] INFO: Epoch  20/70  loss: 3.1355
+2026-05-07 11:00:29,263 [train_svgp] INFO: Epoch  25/70  loss: 2.9082
+2026-05-07 11:00:29,684 [train_svgp] INFO: Epoch  30/70  loss: 2.7907
+2026-05-07 11:00:30,060 [train_svgp] INFO: Epoch  35/70  loss: 2.7182
+2026-05-07 11:00:30,437 [train_svgp] INFO: Epoch  40/70  loss: 2.6620
+2026-05-07 11:00:30,860 [train_svgp] INFO: Epoch  45/70  loss: 2.6061
+2026-05-07 11:00:31,233 [train_svgp] INFO: Epoch  50/70  loss: 2.5597
+2026-05-07 11:00:31,608 [train_svgp] INFO: Epoch  55/70  loss: 2.5179
+2026-05-07 11:00:31,978 [train_svgp] INFO: Epoch  60/70  loss: 2.4760
+2026-05-07 11:00:32,390 [train_svgp] INFO: Epoch  65/70  loss: 2.4394
+2026-05-07 11:00:32,815 [train_svgp] INFO: Epoch  70/70  loss: 2.4071
+2026-05-07 11:00:32,825 [hp_search] INFO: Trial 13: neg_ELBO=2.4382  (M=416, ep=70, bs=1024, lr=0.01269, ls=9.284, os=3.848, noise=0.28696)
+                                                                                     Best trial: 10. Best value: 1.66492:  13%|█▎        | 13/100 [02:35<14:30, 10.01s/it]Best trial: 10. Best value: 1.66492:  13%|█▎        | 13/100 [02:35<14:30, 10.01s/it]Best trial: 10. Best value: 1.66492:  14%|█▍        | 14/100 [02:35<12:27,  8.70s/it]2026-05-07 11:00:32,830 [train_svgp] INFO: Selecting 480 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:33,397 [train_svgp] INFO: Epoch   1/60  loss: 4.8287
+2026-05-07 11:00:34,695 [train_svgp] INFO: Epoch   5/60  loss: 1.9650
+2026-05-07 11:00:36,371 [train_svgp] INFO: Epoch  10/60  loss: 1.6762
+2026-05-07 11:00:38,012 [train_svgp] INFO: Epoch  15/60  loss: 1.6184
+2026-05-07 11:00:39,646 [train_svgp] INFO: Epoch  20/60  loss: 1.6887
+2026-05-07 11:00:41,372 [train_svgp] INFO: Epoch  25/60  loss: 1.5949
+2026-05-07 11:00:43,120 [train_svgp] INFO: Epoch  30/60  loss: 1.5897
+2026-05-07 11:00:44,867 [train_svgp] INFO: Epoch  35/60  loss: 1.5758
+2026-05-07 11:00:46,758 [train_svgp] INFO: Epoch  40/60  loss: 1.5965
+2026-05-07 11:00:48,539 [train_svgp] INFO: Epoch  45/60  loss: 1.5736
+2026-05-07 11:00:50,278 [train_svgp] INFO: Epoch  50/60  loss: 1.6114
+2026-05-07 11:00:51,982 [train_svgp] INFO: Epoch  55/60  loss: 1.5756
+2026-05-07 11:00:53,522 [train_svgp] INFO: Epoch  60/60  loss: 1.5599
+2026-05-07 11:00:53,533 [hp_search] INFO: Trial 14: neg_ELBO=1.6840  (M=480, ep=60, bs=128, lr=0.08884, ls=0.412, os=4.294, noise=0.00974)
+                                                                                     Best trial: 10. Best value: 1.66492:  14%|█▍        | 14/100 [02:56<12:27,  8.70s/it]Best trial: 10. Best value: 1.66492:  14%|█▍        | 14/100 [02:56<12:27,  8.70s/it]Best trial: 10. Best value: 1.66492:  15%|█▌        | 15/100 [02:56<17:26, 12.32s/it]2026-05-07 11:00:53,537 [train_svgp] INFO: Selecting 352 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:00:53,746 [train_svgp] INFO: Epoch   1/130  loss: 8.1838
+2026-05-07 11:00:54,010 [train_svgp] INFO: Epoch   5/130  loss: 6.8161
+2026-05-07 11:00:54,334 [train_svgp] INFO: Epoch  10/130  loss: 5.3333
+2026-05-07 11:00:54,639 [train_svgp] INFO: Epoch  15/130  loss: 4.0781
+2026-05-07 11:00:54,943 [train_svgp] INFO: Epoch  20/130  loss: 3.1821
+2026-05-07 11:00:55,256 [train_svgp] INFO: Epoch  25/130  loss: 2.8106
+2026-05-07 11:00:55,564 [train_svgp] INFO: Epoch  30/130  loss: 2.6773
+2026-05-07 11:00:55,966 [train_svgp] INFO: Epoch  35/130  loss: 2.5924
+2026-05-07 11:00:56,340 [train_svgp] INFO: Epoch  40/130  loss: 2.5431
+2026-05-07 11:00:56,643 [train_svgp] INFO: Epoch  45/130  loss: 2.5088
+2026-05-07 11:00:56,956 [train_svgp] INFO: Epoch  50/130  loss: 2.4819
+2026-05-07 11:00:57,271 [train_svgp] INFO: Epoch  55/130  loss: 2.4584
+2026-05-07 11:00:57,580 [train_svgp] INFO: Epoch  60/130  loss: 2.4357
+2026-05-07 11:00:57,905 [train_svgp] INFO: Epoch  65/130  loss: 2.4171
+2026-05-07 11:00:58,223 [train_svgp] INFO: Epoch  70/130  loss: 2.4043
+2026-05-07 11:00:58,529 [train_svgp] INFO: Epoch  75/130  loss: 2.3822
+2026-05-07 11:00:58,895 [train_svgp] INFO: Epoch  80/130  loss: 2.3656
+2026-05-07 11:00:59,356 [train_svgp] INFO: Epoch  85/130  loss: 2.3470
+2026-05-07 11:00:59,713 [train_svgp] INFO: Epoch  90/130  loss: 2.3383
+2026-05-07 11:01:00,025 [train_svgp] INFO: Epoch  95/130  loss: 2.3187
+2026-05-07 11:01:00,331 [train_svgp] INFO: Epoch 100/130  loss: 2.3060
+2026-05-07 11:01:00,708 [train_svgp] INFO: Epoch 105/130  loss: 2.2883
+2026-05-07 11:01:01,040 [train_svgp] INFO: Epoch 110/130  loss: 2.2747
+2026-05-07 11:01:01,365 [train_svgp] INFO: Epoch 115/130  loss: 2.2560
+2026-05-07 11:01:01,674 [train_svgp] INFO: Epoch 120/130  loss: 2.2418
+2026-05-07 11:01:02,041 [train_svgp] INFO: Epoch 125/130  loss: 2.2222
+2026-05-07 11:01:02,403 [train_svgp] INFO: Epoch 130/130  loss: 2.2053
+2026-05-07 11:01:02,413 [hp_search] INFO: Trial 15: neg_ELBO=2.2871  (M=352, ep=130, bs=1024, lr=0.00699, ls=2.188, os=4.579, noise=0.15116)
+                                                                                     Best trial: 10. Best value: 1.66492:  15%|█▌        | 15/100 [03:05<17:26, 12.32s/it]Best trial: 10. Best value: 1.66492:  15%|█▌        | 15/100 [03:05<17:26, 12.32s/it]Best trial: 10. Best value: 1.66492:  16%|█▌        | 16/100 [03:05<15:47, 11.28s/it]2026-05-07 11:01:02,417 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:02,808 [train_svgp] INFO: Epoch   1/100  loss: 3.2749
+2026-05-07 11:01:03,291 [train_svgp] INFO: Epoch   5/100  loss: 2.7829
+2026-05-07 11:01:03,886 [train_svgp] INFO: Epoch  10/100  loss: 2.5734
+2026-05-07 11:01:04,471 [train_svgp] INFO: Epoch  15/100  loss: 2.1165
+2026-05-07 11:01:05,053 [train_svgp] INFO: Epoch  20/100  loss: 1.8730
+2026-05-07 11:01:05,635 [train_svgp] INFO: Epoch  25/100  loss: 1.8563
+2026-05-07 11:01:06,204 [train_svgp] INFO: Epoch  30/100  loss: 1.8231
+2026-05-07 11:01:06,795 [train_svgp] INFO: Epoch  35/100  loss: 1.8254
+2026-05-07 11:01:07,388 [train_svgp] INFO: Epoch  40/100  loss: 1.8177
+2026-05-07 11:01:07,988 [train_svgp] INFO: Epoch  45/100  loss: 1.7913
+2026-05-07 11:01:08,593 [train_svgp] INFO: Epoch  50/100  loss: 1.7874
+2026-05-07 11:01:09,184 [train_svgp] INFO: Epoch  55/100  loss: 1.7813
+2026-05-07 11:01:09,772 [train_svgp] INFO: Epoch  60/100  loss: 1.7763
+2026-05-07 11:01:10,379 [train_svgp] INFO: Epoch  65/100  loss: 1.7745
+2026-05-07 11:01:10,956 [train_svgp] INFO: Epoch  70/100  loss: 1.7561
+2026-05-07 11:01:11,546 [train_svgp] INFO: Epoch  75/100  loss: 1.7623
+2026-05-07 11:01:12,120 [train_svgp] INFO: Epoch  80/100  loss: 1.7178
+2026-05-07 11:01:12,686 [train_svgp] INFO: Epoch  85/100  loss: 1.7157
+2026-05-07 11:01:13,267 [train_svgp] INFO: Epoch  90/100  loss: 1.6948
+2026-05-07 11:01:13,850 [train_svgp] INFO: Epoch  95/100  loss: 1.6761
+2026-05-07 11:01:14,426 [train_svgp] INFO: Epoch 100/100  loss: 1.6607
+2026-05-07 11:01:14,436 [hp_search] INFO: Trial 16: neg_ELBO=1.6790  (M=448, ep=100, bs=512, lr=0.04021, ls=9.666, os=0.339, noise=0.02291)
+                                                                                     Best trial: 10. Best value: 1.66492:  16%|█▌        | 16/100 [03:17<15:47, 11.28s/it]Best trial: 10. Best value: 1.66492:  16%|█▌        | 16/100 [03:17<15:47, 11.28s/it]Best trial: 10. Best value: 1.66492:  17%|█▋        | 17/100 [03:17<15:54, 11.50s/it]2026-05-07 11:01:14,440 [train_svgp] INFO: Selecting 352 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:14,720 [train_svgp] INFO: Epoch   1/90  loss: 6.2843
+2026-05-07 11:01:15,273 [train_svgp] INFO: Epoch   5/90  loss: 2.7989
+2026-05-07 11:01:15,947 [train_svgp] INFO: Epoch  10/90  loss: 2.3938
+2026-05-07 11:01:16,631 [train_svgp] INFO: Epoch  15/90  loss: 2.2920
+2026-05-07 11:01:17,304 [train_svgp] INFO: Epoch  20/90  loss: 2.2040
+2026-05-07 11:01:17,983 [train_svgp] INFO: Epoch  25/90  loss: 2.0791
+2026-05-07 11:01:18,674 [train_svgp] INFO: Epoch  30/90  loss: 1.9775
+2026-05-07 11:01:19,368 [train_svgp] INFO: Epoch  35/90  loss: 1.8755
+2026-05-07 11:01:20,094 [train_svgp] INFO: Epoch  40/90  loss: 1.7761
+2026-05-07 11:01:20,803 [train_svgp] INFO: Epoch  45/90  loss: 1.6892
+2026-05-07 11:01:21,500 [train_svgp] INFO: Epoch  50/90  loss: 1.6094
+2026-05-07 11:01:22,204 [train_svgp] INFO: Epoch  55/90  loss: 1.5613
+2026-05-07 11:01:22,905 [train_svgp] INFO: Epoch  60/90  loss: 1.5041
+2026-05-07 11:01:23,597 [train_svgp] INFO: Epoch  65/90  loss: 1.4635
+2026-05-07 11:01:24,288 [train_svgp] INFO: Epoch  70/90  loss: 1.4509
+2026-05-07 11:01:24,961 [train_svgp] INFO: Epoch  75/90  loss: 1.4674
+2026-05-07 11:01:25,632 [train_svgp] INFO: Epoch  80/90  loss: 1.4273
+2026-05-07 11:01:26,300 [train_svgp] INFO: Epoch  85/90  loss: 1.4244
+2026-05-07 11:01:26,967 [train_svgp] INFO: Epoch  90/90  loss: 1.4532
+2026-05-07 11:01:26,975 [hp_search] INFO: Trial 17: neg_ELBO=1.7288  (M=352, ep=90, bs=256, lr=0.00897, ls=1.722, os=2.814, noise=0.00466)
+                                                                                     Best trial: 10. Best value: 1.66492:  17%|█▋        | 17/100 [03:29<15:54, 11.50s/it]Best trial: 10. Best value: 1.66492:  17%|█▋        | 17/100 [03:29<15:54, 11.50s/it]Best trial: 10. Best value: 1.66492:  18%|█▊        | 18/100 [03:29<16:08, 11.82s/it]2026-05-07 11:01:26,980 [train_svgp] INFO: Selecting 160 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:27,214 [train_svgp] INFO: Epoch   1/130  loss: 5.4691
+2026-05-07 11:01:27,664 [train_svgp] INFO: Epoch   5/130  loss: 2.3097
+2026-05-07 11:01:28,203 [train_svgp] INFO: Epoch  10/130  loss: 1.8143
+2026-05-07 11:01:28,753 [train_svgp] INFO: Epoch  15/130  loss: 1.6903
+2026-05-07 11:01:29,279 [train_svgp] INFO: Epoch  20/130  loss: 1.6610
+2026-05-07 11:01:29,813 [train_svgp] INFO: Epoch  25/130  loss: 1.6295
+2026-05-07 11:01:30,346 [train_svgp] INFO: Epoch  30/130  loss: 1.6225
+2026-05-07 11:01:30,889 [train_svgp] INFO: Epoch  35/130  loss: 1.6120
+2026-05-07 11:01:31,437 [train_svgp] INFO: Epoch  40/130  loss: 1.5783
+2026-05-07 11:01:31,981 [train_svgp] INFO: Epoch  45/130  loss: 1.5684
+2026-05-07 11:01:32,511 [train_svgp] INFO: Epoch  50/130  loss: 1.5685
+2026-05-07 11:01:33,059 [train_svgp] INFO: Epoch  55/130  loss: 1.5647
+2026-05-07 11:01:33,666 [train_svgp] INFO: Epoch  60/130  loss: 1.5566
+2026-05-07 11:01:34,209 [train_svgp] INFO: Epoch  65/130  loss: 1.5350
+2026-05-07 11:01:34,757 [train_svgp] INFO: Epoch  70/130  loss: 1.5254
+2026-05-07 11:01:35,305 [train_svgp] INFO: Epoch  75/130  loss: 1.5457
+2026-05-07 11:01:35,830 [train_svgp] INFO: Epoch  80/130  loss: 1.5390
+2026-05-07 11:01:36,374 [train_svgp] INFO: Epoch  85/130  loss: 1.5485
+2026-05-07 11:01:36,909 [train_svgp] INFO: Epoch  90/130  loss: 1.5244
+2026-05-07 11:01:37,455 [train_svgp] INFO: Epoch  95/130  loss: 1.5259
+2026-05-07 11:01:37,980 [train_svgp] INFO: Epoch 100/130  loss: 1.5541
+2026-05-07 11:01:38,521 [train_svgp] INFO: Epoch 105/130  loss: 1.5194
+2026-05-07 11:01:39,065 [train_svgp] INFO: Epoch 110/130  loss: 1.5726
+2026-05-07 11:01:39,641 [train_svgp] INFO: Epoch 115/130  loss: 1.5197
+2026-05-07 11:01:40,169 [train_svgp] INFO: Epoch 120/130  loss: 1.5210
+2026-05-07 11:01:40,695 [train_svgp] INFO: Epoch 125/130  loss: 1.4918
+2026-05-07 11:01:41,241 [train_svgp] INFO: Epoch 130/130  loss: 1.4932
+2026-05-07 11:01:41,245 [hp_search] INFO: Trial 18: neg_ELBO=1.6913  (M=160, ep=130, bs=128, lr=0.04606, ls=0.636, os=6.658, noise=0.01580)
+                                                                                     Best trial: 10. Best value: 1.66492:  18%|█▊        | 18/100 [03:43<16:08, 11.82s/it]Best trial: 10. Best value: 1.66492:  18%|█▊        | 18/100 [03:43<16:08, 11.82s/it]Best trial: 10. Best value: 1.66492:  19%|█▉        | 19/100 [03:43<16:56, 12.55s/it]2026-05-07 11:01:41,250 [train_svgp] INFO: Selecting 512 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:41,634 [train_svgp] INFO: Epoch   1/20  loss: 14.7397
+2026-05-07 11:01:42,084 [train_svgp] INFO: Epoch   5/20  loss: 13.6141
+2026-05-07 11:01:42,648 [train_svgp] INFO: Epoch  10/20  loss: 12.3026
+2026-05-07 11:01:43,208 [train_svgp] INFO: Epoch  15/20  loss: 11.0634
+2026-05-07 11:01:43,767 [train_svgp] INFO: Epoch  20/20  loss: 9.8962
+2026-05-07 11:01:43,781 [hp_search] INFO: Trial 19: neg_ELBO=9.7032  (M=512, ep=20, bs=1024, lr=0.00323, ls=5.116, os=9.944, noise=0.13842)
+                                                                                     Best trial: 10. Best value: 1.66492:  19%|█▉        | 19/100 [03:46<16:56, 12.55s/it]Best trial: 10. Best value: 1.66492:  19%|█▉        | 19/100 [03:46<16:56, 12.55s/it]Best trial: 10. Best value: 1.66492:  20%|██        | 20/100 [03:46<12:43,  9.55s/it]2026-05-07 11:01:43,787 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:44,080 [train_svgp] INFO: Epoch   1/70  loss: 6.0230
+2026-05-07 11:01:44,380 [train_svgp] INFO: Epoch   5/70  loss: 2.8867
+2026-05-07 11:01:44,744 [train_svgp] INFO: Epoch  10/70  loss: 2.5195
+2026-05-07 11:01:45,106 [train_svgp] INFO: Epoch  15/70  loss: 2.3990
+2026-05-07 11:01:45,466 [train_svgp] INFO: Epoch  20/70  loss: 2.2964
+2026-05-07 11:01:45,826 [train_svgp] INFO: Epoch  25/70  loss: 2.1823
+2026-05-07 11:01:46,195 [train_svgp] INFO: Epoch  30/70  loss: 2.0573
+2026-05-07 11:01:46,557 [train_svgp] INFO: Epoch  35/70  loss: 1.9413
+2026-05-07 11:01:46,915 [train_svgp] INFO: Epoch  40/70  loss: 1.8414
+2026-05-07 11:01:47,310 [train_svgp] INFO: Epoch  45/70  loss: 1.7515
+2026-05-07 11:01:47,655 [train_svgp] INFO: Epoch  50/70  loss: 1.6854
+2026-05-07 11:01:48,002 [train_svgp] INFO: Epoch  55/70  loss: 1.6412
+2026-05-07 11:01:48,352 [train_svgp] INFO: Epoch  60/70  loss: 1.5859
+2026-05-07 11:01:48,707 [train_svgp] INFO: Epoch  65/70  loss: 1.5592
+2026-05-07 11:01:49,057 [train_svgp] INFO: Epoch  70/70  loss: 1.5335
+2026-05-07 11:01:49,067 [hp_search] INFO: Trial 20: neg_ELBO=1.6179  (M=384, ep=70, bs=1024, lr=0.04795, ls=3.380, os=2.397, noise=0.00274)
+                                                                                     Best trial: 10. Best value: 1.66492:  20%|██        | 20/100 [03:51<12:43,  9.55s/it]Best trial: 20. Best value: 1.6179:  20%|██        | 20/100 [03:51<12:43,  9.55s/it] Best trial: 20. Best value: 1.6179:  21%|██        | 21/100 [03:51<10:53,  8.27s/it]2026-05-07 11:01:49,071 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:49,428 [train_svgp] INFO: Epoch   1/70  loss: 6.1216
+2026-05-07 11:01:49,799 [train_svgp] INFO: Epoch   5/70  loss: 2.9145
+2026-05-07 11:01:50,233 [train_svgp] INFO: Epoch  10/70  loss: 2.5460
+2026-05-07 11:01:50,728 [train_svgp] INFO: Epoch  15/70  loss: 2.4203
+2026-05-07 11:01:51,160 [train_svgp] INFO: Epoch  20/70  loss: 2.3193
+2026-05-07 11:01:51,595 [train_svgp] INFO: Epoch  25/70  loss: 2.2115
+2026-05-07 11:01:52,079 [train_svgp] INFO: Epoch  30/70  loss: 2.0864
+2026-05-07 11:01:52,492 [train_svgp] INFO: Epoch  35/70  loss: 1.9721
+2026-05-07 11:01:52,897 [train_svgp] INFO: Epoch  40/70  loss: 1.8636
+2026-05-07 11:01:53,308 [train_svgp] INFO: Epoch  45/70  loss: 1.7834
+2026-05-07 11:01:53,712 [train_svgp] INFO: Epoch  50/70  loss: 1.7205
+2026-05-07 11:01:54,119 [train_svgp] INFO: Epoch  55/70  loss: 1.6736
+2026-05-07 11:01:54,578 [train_svgp] INFO: Epoch  60/70  loss: 1.6326
+2026-05-07 11:01:55,041 [train_svgp] INFO: Epoch  65/70  loss: 1.6501
+2026-05-07 11:01:55,488 [train_svgp] INFO: Epoch  70/70  loss: 1.5921
+2026-05-07 11:01:55,501 [hp_search] INFO: Trial 21: neg_ELBO=1.6571  (M=448, ep=70, bs=1024, lr=0.04919, ls=3.473, os=2.461, noise=0.00244)
+                                                                                    Best trial: 20. Best value: 1.6179:  21%|██        | 21/100 [03:58<10:53,  8.27s/it]Best trial: 20. Best value: 1.6179:  21%|██        | 21/100 [03:58<10:53,  8.27s/it]Best trial: 20. Best value: 1.6179:  22%|██▏       | 22/100 [03:58<10:01,  7.72s/it]2026-05-07 11:01:55,506 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:01:55,754 [train_svgp] INFO: Epoch   1/60  loss: 5.9335
+2026-05-07 11:01:56,046 [train_svgp] INFO: Epoch   5/60  loss: 2.9309
+2026-05-07 11:01:56,383 [train_svgp] INFO: Epoch  10/60  loss: 2.5298
+2026-05-07 11:01:56,755 [train_svgp] INFO: Epoch  15/60  loss: 2.4052
+2026-05-07 11:01:57,127 [train_svgp] INFO: Epoch  20/60  loss: 2.3064
+2026-05-07 11:01:57,459 [train_svgp] INFO: Epoch  25/60  loss: 2.1956
+2026-05-07 11:01:57,845 [train_svgp] INFO: Epoch  30/60  loss: 2.0760
+2026-05-07 11:01:58,181 [train_svgp] INFO: Epoch  35/60  loss: 1.9619
+2026-05-07 11:01:58,516 [train_svgp] INFO: Epoch  40/60  loss: 1.8577
+2026-05-07 11:01:58,853 [train_svgp] INFO: Epoch  45/60  loss: 1.7666
+2026-05-07 11:01:59,188 [train_svgp] INFO: Epoch  50/60  loss: 1.6931
+2026-05-07 11:01:59,521 [train_svgp] INFO: Epoch  55/60  loss: 1.6435
+2026-05-07 11:01:59,860 [train_svgp] INFO: Epoch  60/60  loss: 1.5934
+2026-05-07 11:01:59,870 [hp_search] INFO: Trial 22: neg_ELBO=1.6364  (M=384, ep=60, bs=1024, lr=0.04588, ls=3.564, os=2.316, noise=0.00272)
+                                                                                    Best trial: 20. Best value: 1.6179:  22%|██▏       | 22/100 [04:02<10:01,  7.72s/it]Best trial: 20. Best value: 1.6179:  22%|██▏       | 22/100 [04:02<10:01,  7.72s/it]Best trial: 20. Best value: 1.6179:  23%|██▎       | 23/100 [04:02<08:36,  6.71s/it]2026-05-07 11:01:59,874 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:00,196 [train_svgp] INFO: Epoch   1/60  loss: 6.2521
+2026-05-07 11:02:00,512 [train_svgp] INFO: Epoch   5/60  loss: 3.4814
+2026-05-07 11:02:00,920 [train_svgp] INFO: Epoch  10/60  loss: 2.6004
+2026-05-07 11:02:01,290 [train_svgp] INFO: Epoch  15/60  loss: 2.4697
+2026-05-07 11:02:01,650 [train_svgp] INFO: Epoch  20/60  loss: 2.3819
+2026-05-07 11:02:02,005 [train_svgp] INFO: Epoch  25/60  loss: 2.3073
+2026-05-07 11:02:02,358 [train_svgp] INFO: Epoch  30/60  loss: 2.2279
+2026-05-07 11:02:02,726 [train_svgp] INFO: Epoch  35/60  loss: 2.1491
+2026-05-07 11:02:03,089 [train_svgp] INFO: Epoch  40/60  loss: 2.0680
+2026-05-07 11:02:03,451 [train_svgp] INFO: Epoch  45/60  loss: 1.9807
+2026-05-07 11:02:03,813 [train_svgp] INFO: Epoch  50/60  loss: 1.8983
+2026-05-07 11:02:04,213 [train_svgp] INFO: Epoch  55/60  loss: 1.8220
+2026-05-07 11:02:04,569 [train_svgp] INFO: Epoch  60/60  loss: 1.7593
+2026-05-07 11:02:04,580 [hp_search] INFO: Trial 23: neg_ELBO=1.7993  (M=384, ep=60, bs=1024, lr=0.03339, ls=3.903, os=2.490, noise=0.00183)
+                                                                                    Best trial: 20. Best value: 1.6179:  23%|██▎       | 23/100 [04:07<08:36,  6.71s/it]Best trial: 20. Best value: 1.6179:  23%|██▎       | 23/100 [04:07<08:36,  6.71s/it]Best trial: 20. Best value: 1.6179:  24%|██▍       | 24/100 [04:07<07:44,  6.11s/it]2026-05-07 11:02:04,584 [train_svgp] INFO: Selecting 256 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:04,767 [train_svgp] INFO: Epoch   1/60  loss: 4.1896
+2026-05-07 11:02:04,976 [train_svgp] INFO: Epoch   5/60  loss: 3.8728
+2026-05-07 11:02:05,207 [train_svgp] INFO: Epoch  10/60  loss: 3.5451
+2026-05-07 11:02:05,447 [train_svgp] INFO: Epoch  15/60  loss: 3.2878
+2026-05-07 11:02:05,689 [train_svgp] INFO: Epoch  20/60  loss: 3.0823
+2026-05-07 11:02:05,930 [train_svgp] INFO: Epoch  25/60  loss: 2.9237
+2026-05-07 11:02:06,170 [train_svgp] INFO: Epoch  30/60  loss: 2.8063
+2026-05-07 11:02:06,465 [train_svgp] INFO: Epoch  35/60  loss: 2.7251
+2026-05-07 11:02:06,715 [train_svgp] INFO: Epoch  40/60  loss: 2.6619
+2026-05-07 11:02:06,963 [train_svgp] INFO: Epoch  45/60  loss: 2.5976
+2026-05-07 11:02:07,207 [train_svgp] INFO: Epoch  50/60  loss: 2.5282
+2026-05-07 11:02:07,450 [train_svgp] INFO: Epoch  55/60  loss: 2.4649
+2026-05-07 11:02:07,687 [train_svgp] INFO: Epoch  60/60  loss: 2.4084
+2026-05-07 11:02:07,695 [hp_search] INFO: Trial 24: neg_ELBO=2.4379  (M=256, ep=60, bs=1024, lr=0.00618, ls=5.601, os=0.901, noise=0.00116)
+                                                                                    [I 2026-05-07 10:58:16,235] Trial 0 finished with value: 2.9142568111419678 and parameters: {'num_inducing': 192, 'epochs': 150, 'batch_size': 128, 'lr': 0.00014936568554617635, 'init_lengthscale': 5.3994844097874335, 'init_outputscale': 1.5930522616241019, 'init_noise': 0.06796578090758151}. Best is trial 0 with value: 2.9142568111419678.
+[I 2026-05-07 10:58:23,503] Trial 1 finished with value: 1.9775310754776 and parameters: {'num_inducing': 32, 'epochs': 150, 'batch_size': 128, 'lr': 0.0008179499475211679, 'init_lengthscale': 1.1207606211860568, 'init_outputscale': 0.7309539835912913, 'init_noise': 0.0014618962793704966}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:58:25,380] Trial 2 finished with value: 4.685513019561768 and parameters: {'num_inducing': 320, 'epochs': 30, 'batch_size': 1024, 'lr': 0.0003972110727381913, 'init_lengthscale': 1.0677482709481354, 'init_outputscale': 1.5304852121831465, 'init_noise': 0.00015339162591163628}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:58:28,506] Trial 3 finished with value: 4.127809524536133 and parameters: {'num_inducing': 320, 'epochs': 40, 'batch_size': 512, 'lr': 0.0008200518402245837, 'init_lengthscale': 0.1567993391672301, 'init_outputscale': 2.3359635026261603, 'init_noise': 0.005762487216478602}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:58:31,570] Trial 4 finished with value: 2.430865526199341 and parameters: {'num_inducing': 64, 'epochs': 80, 'batch_size': 256, 'lr': 0.0008612579192594886, 'init_lengthscale': 1.0968217207529523, 'init_outputscale': 1.2399967836846095, 'init_noise': 0.0005488047000766049}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:59:17,003] Trial 5 finished with value: 2.648350954055786 and parameters: {'num_inducing': 512, 'epochs': 120, 'batch_size': 128, 'lr': 0.00018427970406864567, 'init_lengthscale': 0.24658447214487378, 'init_outputscale': 0.12315571723666023, 'init_noise': 0.0020013420622879987}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:59:23,413] Trial 6 finished with value: 2.884597063064575 and parameters: {'num_inducing': 224, 'epochs': 50, 'batch_size': 128, 'lr': 0.00026471141828218194, 'init_lengthscale': 4.02155452669029, 'init_outputscale': 0.14096175149815865, 'init_noise': 0.8862326508576243}. Best is trial 1 with value: 1.9775310754776.
+[I 2026-05-07 10:59:29,562] Trial 7 finished with value: 1.8896605968475342 and parameters: {'num_inducing': 416, 'epochs': 40, 'batch_size': 256, 'lr': 0.020597335357437203, 'init_lengthscale': 0.14063366777718173, 'init_outputscale': 0.5211124595788266, 'init_noise': 0.00029072088906598463}. Best is trial 7 with value: 1.8896605968475342.
+[I 2026-05-07 10:59:57,828] Trial 8 finished with value: 1.6770124435424805 and parameters: {'num_inducing': 448, 'epochs': 100, 'batch_size': 128, 'lr': 0.015446089075047083, 'init_lengthscale': 1.8841476921545086, 'init_outputscale': 5.948746813219773, 'init_noise': 0.007742116473996248}. Best is trial 8 with value: 1.6770124435424805.
+[I 2026-05-07 11:00:00,900] Trial 9 finished with value: 1.8964515924453735 and parameters: {'num_inducing': 64, 'epochs': 110, 'batch_size': 512, 'lr': 0.0036999724314638123, 'init_lengthscale': 0.7162786999897341, 'init_outputscale': 0.11241862095793062, 'init_noise': 0.00027012557725439106}. Best is trial 8 with value: 1.6770124435424805.
+[I 2026-05-07 11:00:09,959] Trial 10 finished with value: 1.664915919303894 and parameters: {'num_inducing': 512, 'epochs': 80, 'batch_size': 1024, 'lr': 0.06460678709723543, 'init_lengthscale': 2.6936379642822934, 'init_outputscale': 6.536264082965736, 'init_noise': 0.04144823972110039}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:00:19,080] Trial 11 finished with value: 1.7553879022598267 and parameters: {'num_inducing': 512, 'epochs': 80, 'batch_size': 1024, 'lr': 0.09665467687828536, 'init_lengthscale': 2.81849757961556, 'init_outputscale': 8.572496102386419, 'init_noise': 0.04790602255749975}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:00:27,164] Trial 12 finished with value: 2.0157198905944824 and parameters: {'num_inducing': 416, 'epochs': 100, 'batch_size': 1024, 'lr': 0.026287606807721176, 'init_lengthscale': 2.129862583089517, 'init_outputscale': 8.465640341971476, 'init_noise': 0.032209968973351384}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:00:32,825] Trial 13 finished with value: 2.438150405883789 and parameters: {'num_inducing': 416, 'epochs': 70, 'batch_size': 1024, 'lr': 0.012690764532532709, 'init_lengthscale': 9.284016859955914, 'init_outputscale': 3.8484355678745734, 'init_noise': 0.286964041211125}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:00:53,533] Trial 14 finished with value: 1.683976173400879 and parameters: {'num_inducing': 480, 'epochs': 60, 'batch_size': 128, 'lr': 0.08884396444241073, 'init_lengthscale': 0.4120885334117539, 'init_outputscale': 4.2937589094976225, 'init_noise': 0.009735125945191669}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:02,413] Trial 15 finished with value: 2.2870564460754395 and parameters: {'num_inducing': 352, 'epochs': 130, 'batch_size': 1024, 'lr': 0.006991382567486369, 'init_lengthscale': 2.1876587559288136, 'init_outputscale': 4.579040604809046, 'init_noise': 0.15115547353438805}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:14,436] Trial 16 finished with value: 1.6789692640304565 and parameters: {'num_inducing': 448, 'epochs': 100, 'batch_size': 512, 'lr': 0.04021304048248841, 'init_lengthscale': 9.666140839307255, 'init_outputscale': 0.3388741983582601, 'init_noise': 0.022913275045852936}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:26,976] Trial 17 finished with value: 1.7288172245025635 and parameters: {'num_inducing': 352, 'epochs': 90, 'batch_size': 256, 'lr': 0.008970613314072656, 'init_lengthscale': 1.7215124083883573, 'init_outputscale': 2.8142430406166223, 'init_noise': 0.004656492842026578}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:41,245] Trial 18 finished with value: 1.6912592649459839 and parameters: {'num_inducing': 160, 'epochs': 130, 'batch_size': 128, 'lr': 0.046059944731595935, 'init_lengthscale': 0.6357122176821921, 'init_outputscale': 6.658041780553236, 'init_noise': 0.01580064843325244}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:43,782] Trial 19 finished with value: 9.703222274780273 and parameters: {'num_inducing': 512, 'epochs': 20, 'batch_size': 1024, 'lr': 0.0032286437621112515, 'init_lengthscale': 5.115674986103789, 'init_outputscale': 9.944151338487625, 'init_noise': 0.13841644057194183}. Best is trial 10 with value: 1.664915919303894.
+[I 2026-05-07 11:01:49,067] Trial 20 finished with value: 1.6178960800170898 and parameters: {'num_inducing': 384, 'epochs': 70, 'batch_size': 1024, 'lr': 0.04795287910955203, 'init_lengthscale': 3.3801543599139054, 'init_outputscale': 2.396691968786211, 'init_noise': 0.002735046343895625}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:01:55,501] Trial 21 finished with value: 1.6570531129837036 and parameters: {'num_inducing': 448, 'epochs': 70, 'batch_size': 1024, 'lr': 0.04918699798029025, 'init_lengthscale': 3.4726487783784323, 'init_outputscale': 2.4607738705383175, 'init_noise': 0.002441487389432652}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:01:59,870] Trial 22 finished with value: 1.6363873481750488 and parameters: {'num_inducing': 384, 'epochs': 60, 'batch_size': 1024, 'lr': 0.04588126070987125, 'init_lengthscale': 3.5641065827295524, 'init_outputscale': 2.3162067387685847, 'init_noise': 0.0027171966706112114}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:04,580] Trial 23 finished with value: 1.7992503643035889 and parameters: {'num_inducing': 384, 'epochs': 60, 'batch_size': 1024, 'lr': 0.033394472603814784, 'init_lengthscale': 3.9031651340098734, 'init_outputscale': 2.4899652149944513, 'init_noise': 0.0018297731147216998}. Best is trial 20 with value: 1.6178960800170898.
+Best trial: 20. Best value: 1.6179:  24%|██▍       | 24/100 [04:10<07:44,  6.11s/it]Best trial: 20. Best value: 1.6179:  24%|██▍       | 24/100 [04:10<07:44,  6.11s/it]Best trial: 20. Best value: 1.6179:  25%|██▌       | 25/100 [04:10<06:30,  5.21s/it]2026-05-07 11:02:07,700 [train_svgp] INFO: Selecting 288 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:07,868 [train_svgp] INFO: Epoch   1/70  loss: 5.3205
+2026-05-07 11:02:08,092 [train_svgp] INFO: Epoch   5/70  loss: 2.9035
+2026-05-07 11:02:08,355 [train_svgp] INFO: Epoch  10/70  loss: 2.6458
+2026-05-07 11:02:08,670 [train_svgp] INFO: Epoch  15/70  loss: 2.4525
+2026-05-07 11:02:08,935 [train_svgp] INFO: Epoch  20/70  loss: 2.3226
+2026-05-07 11:02:09,197 [train_svgp] INFO: Epoch  25/70  loss: 2.1829
+2026-05-07 11:02:09,464 [train_svgp] INFO: Epoch  30/70  loss: 2.0423
+2026-05-07 11:02:09,726 [train_svgp] INFO: Epoch  35/70  loss: 1.9082
+2026-05-07 11:02:09,982 [train_svgp] INFO: Epoch  40/70  loss: 1.8301
+2026-05-07 11:02:10,242 [train_svgp] INFO: Epoch  45/70  loss: 1.7766
+2026-05-07 11:02:10,504 [train_svgp] INFO: Epoch  50/70  loss: 1.7668
+2026-05-07 11:02:10,818 [train_svgp] INFO: Epoch  55/70  loss: 1.7678
+2026-05-07 11:02:11,082 [train_svgp] INFO: Epoch  60/70  loss: 1.7484
+2026-05-07 11:02:11,346 [train_svgp] INFO: Epoch  65/70  loss: 1.7457
+2026-05-07 11:02:11,609 [train_svgp] INFO: Epoch  70/70  loss: 1.7368
+2026-05-07 11:02:11,617 [hp_search] INFO: Trial 25: neg_ELBO=1.8069  (M=288, ep=70, bs=1024, lr=0.05392, ls=6.733, os=1.854, noise=0.00350)
+                                                                                    Best trial: 20. Best value: 1.6179:  25%|██▌       | 25/100 [04:14<06:30,  5.21s/it]Best trial: 20. Best value: 1.6179:  25%|██▌       | 25/100 [04:14<06:30,  5.21s/it]Best trial: 20. Best value: 1.6179:  26%|██▌       | 26/100 [04:14<05:57,  4.83s/it]2026-05-07 11:02:11,622 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:11,888 [train_svgp] INFO: Epoch   1/50  loss: 7.4592
+2026-05-07 11:02:12,192 [train_svgp] INFO: Epoch   5/50  loss: 4.7855
+2026-05-07 11:02:12,555 [train_svgp] INFO: Epoch  10/50  loss: 3.0914
+2026-05-07 11:02:12,914 [train_svgp] INFO: Epoch  15/50  loss: 2.6181
+2026-05-07 11:02:13,269 [train_svgp] INFO: Epoch  20/50  loss: 2.4919
+2026-05-07 11:02:13,630 [train_svgp] INFO: Epoch  25/50  loss: 2.4181
+2026-05-07 11:02:14,045 [train_svgp] INFO: Epoch  30/50  loss: 2.3646
+2026-05-07 11:02:14,406 [train_svgp] INFO: Epoch  35/50  loss: 2.3209
+2026-05-07 11:02:14,765 [train_svgp] INFO: Epoch  40/50  loss: 2.2816
+2026-05-07 11:02:15,127 [train_svgp] INFO: Epoch  45/50  loss: 2.2341
+2026-05-07 11:02:15,487 [train_svgp] INFO: Epoch  50/50  loss: 2.1897
+2026-05-07 11:02:15,498 [hp_search] INFO: Trial 26: neg_ELBO=2.2350  (M=384, ep=50, bs=1024, lr=0.02061, ls=3.660, os=3.297, noise=0.00083)
+                                                                                    Best trial: 20. Best value: 1.6179:  26%|██▌       | 26/100 [04:18<05:57,  4.83s/it]Best trial: 20. Best value: 1.6179:  26%|██▌       | 26/100 [04:18<05:57,  4.83s/it]Best trial: 20. Best value: 1.6179:  27%|██▋       | 27/100 [04:18<05:31,  4.54s/it]2026-05-07 11:02:15,502 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:15,789 [train_svgp] INFO: Epoch   1/50  loss: 4.3143
+2026-05-07 11:02:16,157 [train_svgp] INFO: Epoch   5/50  loss: 3.5828
+2026-05-07 11:02:16,590 [train_svgp] INFO: Epoch  10/50  loss: 2.9882
+2026-05-07 11:02:17,019 [train_svgp] INFO: Epoch  15/50  loss: 2.6325
+2026-05-07 11:02:17,499 [train_svgp] INFO: Epoch  20/50  loss: 2.4687
+2026-05-07 11:02:17,931 [train_svgp] INFO: Epoch  25/50  loss: 2.3781
+2026-05-07 11:02:18,376 [train_svgp] INFO: Epoch  30/50  loss: 2.3026
+2026-05-07 11:02:18,817 [train_svgp] INFO: Epoch  35/50  loss: 2.2491
+2026-05-07 11:02:19,289 [train_svgp] INFO: Epoch  40/50  loss: 2.1958
+2026-05-07 11:02:19,700 [train_svgp] INFO: Epoch  45/50  loss: 2.1491
+2026-05-07 11:02:20,113 [train_svgp] INFO: Epoch  50/50  loss: 2.1010
+2026-05-07 11:02:20,124 [hp_search] INFO: Trial 27: neg_ELBO=2.1816  (M=448, ep=50, bs=1024, lr=0.01166, ls=1.524, os=1.014, noise=0.00305)
+                                                                                    Best trial: 20. Best value: 1.6179:  27%|██▋       | 27/100 [04:22<05:31,  4.54s/it]Best trial: 20. Best value: 1.6179:  27%|██▋       | 27/100 [04:22<05:31,  4.54s/it]Best trial: 20. Best value: 1.6179:  28%|██▊       | 28/100 [04:22<05:28,  4.57s/it]2026-05-07 11:02:20,128 [train_svgp] INFO: Selecting 352 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:20,356 [train_svgp] INFO: Epoch   1/70  loss: 5.9660
+2026-05-07 11:02:20,631 [train_svgp] INFO: Epoch   5/70  loss: 5.7886
+2026-05-07 11:02:20,989 [train_svgp] INFO: Epoch  10/70  loss: 5.5699
+2026-05-07 11:02:21,300 [train_svgp] INFO: Epoch  15/70  loss: 5.3639
+2026-05-07 11:02:21,613 [train_svgp] INFO: Epoch  20/70  loss: 5.1625
+2026-05-07 11:02:21,928 [train_svgp] INFO: Epoch  25/70  loss: 4.9594
+2026-05-07 11:02:22,236 [train_svgp] INFO: Epoch  30/70  loss: 4.7678
+2026-05-07 11:02:22,546 [train_svgp] INFO: Epoch  35/70  loss: 4.5753
+2026-05-07 11:02:22,858 [train_svgp] INFO: Epoch  40/70  loss: 4.3854
+2026-05-07 11:02:23,162 [train_svgp] INFO: Epoch  45/70  loss: 4.1969
+2026-05-07 11:02:23,480 [train_svgp] INFO: Epoch  50/70  loss: 4.0135
+2026-05-07 11:02:23,851 [train_svgp] INFO: Epoch  55/70  loss: 3.8319
+2026-05-07 11:02:24,164 [train_svgp] INFO: Epoch  60/70  loss: 3.6523
+2026-05-07 11:02:24,482 [train_svgp] INFO: Epoch  65/70  loss: 3.4891
+2026-05-07 11:02:24,799 [train_svgp] INFO: Epoch  70/70  loss: 3.3427
+2026-05-07 11:02:24,809 [hp_search] INFO: Trial 28: neg_ELBO=3.3323  (M=352, ep=70, bs=1024, lr=0.00153, ls=2.881, os=2.126, noise=0.00049)
+                                                                                    Best trial: 20. Best value: 1.6179:  28%|██▊       | 28/100 [04:27<05:28,  4.57s/it]Best trial: 20. Best value: 1.6179:  28%|██▊       | 28/100 [04:27<05:28,  4.57s/it]Best trial: 20. Best value: 1.6179:  29%|██▉       | 29/100 [04:27<05:26,  4.60s/it]2026-05-07 11:02:24,814 [train_svgp] INFO: Selecting 160 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:24,930 [train_svgp] INFO: Epoch   1/90  loss: 4.9387
+2026-05-07 11:02:25,084 [train_svgp] INFO: Epoch   5/90  loss: 4.9325
+2026-05-07 11:02:25,234 [train_svgp] INFO: Epoch  10/90  loss: 4.9252
+2026-05-07 11:02:25,382 [train_svgp] INFO: Epoch  15/90  loss: 4.9147
+2026-05-07 11:02:25,536 [train_svgp] INFO: Epoch  20/90  loss: 4.9035
+2026-05-07 11:02:25,728 [train_svgp] INFO: Epoch  25/90  loss: 4.8892
+2026-05-07 11:02:25,876 [train_svgp] INFO: Epoch  30/90  loss: 4.8823
+2026-05-07 11:02:26,026 [train_svgp] INFO: Epoch  35/90  loss: 4.8738
+2026-05-07 11:02:26,177 [train_svgp] INFO: Epoch  40/90  loss: 4.8667
+2026-05-07 11:02:26,326 [train_svgp] INFO: Epoch  45/90  loss: 4.8547
+2026-05-07 11:02:26,537 [train_svgp] INFO: Epoch  50/90  loss: 4.8503
+2026-05-07 11:02:26,720 [train_svgp] INFO: Epoch  55/90  loss: 4.8406
+2026-05-07 11:02:26,884 [train_svgp] INFO: Epoch  60/90  loss: 4.8278
+2026-05-07 11:02:27,085 [train_svgp] INFO: Epoch  65/90  loss: 4.8202
+2026-05-07 11:02:27,237 [train_svgp] INFO: Epoch  70/90  loss: 4.8144
+2026-05-07 11:02:27,391 [train_svgp] INFO: Epoch  75/90  loss: 4.7950
+2026-05-07 11:02:27,543 [train_svgp] INFO: Epoch  80/90  loss: 4.7875
+2026-05-07 11:02:27,691 [train_svgp] INFO: Epoch  85/90  loss: 4.7834
+2026-05-07 11:02:27,845 [train_svgp] INFO: Epoch  90/90  loss: 4.7762
+2026-05-07 11:02:27,851 [hp_search] INFO: Trial 29: neg_ELBO=4.7573  (M=160, ep=90, bs=1024, lr=0.00011, ls=6.665, os=1.440, noise=0.01428)
+                                                                                    Best trial: 20. Best value: 1.6179:  29%|██▉       | 29/100 [04:30<05:26,  4.60s/it]Best trial: 20. Best value: 1.6179:  29%|██▉       | 29/100 [04:30<05:26,  4.60s/it]Best trial: 20. Best value: 1.6179:  30%|███       | 30/100 [04:30<04:49,  4.13s/it]2026-05-07 11:02:27,856 [train_svgp] INFO: Selecting 288 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:28,114 [train_svgp] INFO: Epoch   1/40  loss: 3.1063
+2026-05-07 11:02:28,541 [train_svgp] INFO: Epoch   5/40  loss: 2.1488
+2026-05-07 11:02:29,070 [train_svgp] INFO: Epoch  10/40  loss: 1.8153
+2026-05-07 11:02:29,597 [train_svgp] INFO: Epoch  15/40  loss: 1.7658
+2026-05-07 11:02:30,104 [train_svgp] INFO: Epoch  20/40  loss: 1.7435
+2026-05-07 11:02:30,610 [train_svgp] INFO: Epoch  25/40  loss: 1.7482
+2026-05-07 11:02:31,127 [train_svgp] INFO: Epoch  30/40  loss: 1.7259
+2026-05-07 11:02:31,633 [train_svgp] INFO: Epoch  35/40  loss: 1.6681
+2026-05-07 11:02:32,157 [train_svgp] INFO: Epoch  40/40  loss: 1.6046
+2026-05-07 11:02:32,163 [hp_search] INFO: Trial 30: neg_ELBO=1.6671  (M=288, ep=40, bs=256, lr=0.06024, ls=4.925, os=0.446, noise=0.00276)
+                                                                                    Best trial: 20. Best value: 1.6179:  30%|███       | 30/100 [04:34<04:49,  4.13s/it]Best trial: 20. Best value: 1.6179:  30%|███       | 30/100 [04:34<04:49,  4.13s/it]Best trial: 20. Best value: 1.6179:  31%|███       | 31/100 [04:34<04:48,  4.19s/it]2026-05-07 11:02:32,168 [train_svgp] INFO: Selecting 480 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:32,489 [train_svgp] INFO: Epoch   1/80  loss: 9.4098
+2026-05-07 11:02:32,874 [train_svgp] INFO: Epoch   5/80  loss: 3.0428
+2026-05-07 11:02:33,375 [train_svgp] INFO: Epoch  10/80  loss: 2.6390
+2026-05-07 11:02:33,831 [train_svgp] INFO: Epoch  15/80  loss: 2.5373
+2026-05-07 11:02:34,290 [train_svgp] INFO: Epoch  20/80  loss: 2.4398
+2026-05-07 11:02:34,747 [train_svgp] INFO: Epoch  25/80  loss: 2.3301
+2026-05-07 11:02:35,202 [train_svgp] INFO: Epoch  30/80  loss: 2.2128
+2026-05-07 11:02:35,663 [train_svgp] INFO: Epoch  35/80  loss: 2.0897
+2026-05-07 11:02:36,123 [train_svgp] INFO: Epoch  40/80  loss: 1.9621
+2026-05-07 11:02:36,628 [train_svgp] INFO: Epoch  45/80  loss: 1.8526
+2026-05-07 11:02:37,149 [train_svgp] INFO: Epoch  50/80  loss: 1.7585
+2026-05-07 11:02:37,616 [train_svgp] INFO: Epoch  55/80  loss: 1.7035
+2026-05-07 11:02:38,083 [train_svgp] INFO: Epoch  60/80  loss: 1.6548
+2026-05-07 11:02:38,545 [train_svgp] INFO: Epoch  65/80  loss: 1.6442
+2026-05-07 11:02:39,005 [train_svgp] INFO: Epoch  70/80  loss: 1.6335
+2026-05-07 11:02:39,468 [train_svgp] INFO: Epoch  75/80  loss: 1.5958
+2026-05-07 11:02:39,926 [train_svgp] INFO: Epoch  80/80  loss: 1.5562
+2026-05-07 11:02:39,938 [hp_search] INFO: Trial 31: neg_ELBO=1.6431  (M=480, ep=80, bs=1024, lr=0.06773, ls=2.814, os=5.602, noise=0.05598)
+                                                                                    Best trial: 20. Best value: 1.6179:  31%|███       | 31/100 [04:42<04:48,  4.19s/it]Best trial: 20. Best value: 1.6179:  31%|███       | 31/100 [04:42<04:48,  4.19s/it]Best trial: 20. Best value: 1.6179:  32%|███▏      | 32/100 [04:42<05:57,  5.26s/it]2026-05-07 11:02:39,942 [train_svgp] INFO: Selecting 480 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:40,301 [train_svgp] INFO: Epoch   1/70  loss: 9.9317
+2026-05-07 11:02:40,686 [train_svgp] INFO: Epoch   5/70  loss: 4.4693
+2026-05-07 11:02:41,209 [train_svgp] INFO: Epoch  10/70  loss: 2.8119
+2026-05-07 11:02:41,680 [train_svgp] INFO: Epoch  15/70  loss: 2.5548
+2026-05-07 11:02:42,151 [train_svgp] INFO: Epoch  20/70  loss: 2.4616
+2026-05-07 11:02:42,615 [train_svgp] INFO: Epoch  25/70  loss: 2.4017
+2026-05-07 11:02:43,080 [train_svgp] INFO: Epoch  30/70  loss: 2.3520
+2026-05-07 11:02:43,563 [train_svgp] INFO: Epoch  35/70  loss: 2.3067
+2026-05-07 11:02:44,034 [train_svgp] INFO: Epoch  40/70  loss: 2.2559
+2026-05-07 11:02:44,494 [train_svgp] INFO: Epoch  45/70  loss: 2.2053
+2026-05-07 11:02:44,967 [train_svgp] INFO: Epoch  50/70  loss: 2.1472
+2026-05-07 11:02:45,482 [train_svgp] INFO: Epoch  55/70  loss: 2.0945
+2026-05-07 11:02:45,948 [train_svgp] INFO: Epoch  60/70  loss: 2.0381
+2026-05-07 11:02:46,414 [train_svgp] INFO: Epoch  65/70  loss: 1.9766
+2026-05-07 11:02:46,932 [train_svgp] INFO: Epoch  70/70  loss: 1.9201
+2026-05-07 11:02:46,943 [hp_search] INFO: Trial 32: neg_ELBO=1.9770  (M=480, ep=70, bs=1024, lr=0.03110, ls=3.098, os=5.202, noise=0.00087)
+                                                                                    Best trial: 20. Best value: 1.6179:  32%|███▏      | 32/100 [04:49<05:57,  5.26s/it]Best trial: 20. Best value: 1.6179:  32%|███▏      | 32/100 [04:49<05:57,  5.26s/it]Best trial: 20. Best value: 1.6179:  33%|███▎      | 33/100 [04:49<06:27,  5.79s/it]2026-05-07 11:02:46,948 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:47,217 [train_svgp] INFO: Epoch   1/60  loss: 6.7577
+2026-05-07 11:02:47,518 [train_svgp] INFO: Epoch   5/60  loss: 2.7038
+2026-05-07 11:02:47,881 [train_svgp] INFO: Epoch  10/60  loss: 2.5252
+2026-05-07 11:02:48,246 [train_svgp] INFO: Epoch  15/60  loss: 2.3375
+2026-05-07 11:02:48,606 [train_svgp] INFO: Epoch  20/60  loss: 2.1164
+2026-05-07 11:02:49,020 [train_svgp] INFO: Epoch  25/60  loss: 1.8956
+2026-05-07 11:02:49,380 [train_svgp] INFO: Epoch  30/60  loss: 1.7265
+2026-05-07 11:02:49,739 [train_svgp] INFO: Epoch  35/60  loss: 1.6562
+2026-05-07 11:02:50,097 [train_svgp] INFO: Epoch  40/60  loss: 1.6439
+2026-05-07 11:02:50,449 [train_svgp] INFO: Epoch  45/60  loss: 1.6048
+2026-05-07 11:02:50,798 [train_svgp] INFO: Epoch  50/60  loss: 1.5568
+2026-05-07 11:02:51,154 [train_svgp] INFO: Epoch  55/60  loss: 1.5316
+2026-05-07 11:02:51,505 [train_svgp] INFO: Epoch  60/60  loss: 1.5192
+2026-05-07 11:02:51,514 [hp_search] INFO: Trial 33: neg_ELBO=1.6258  (M=384, ep=60, bs=1024, lr=0.09672, ls=1.399, os=3.315, noise=0.00914)
+                                                                                    Best trial: 20. Best value: 1.6179:  33%|███▎      | 33/100 [04:54<06:27,  5.79s/it]Best trial: 20. Best value: 1.6179:  33%|███▎      | 33/100 [04:54<06:27,  5.79s/it]Best trial: 20. Best value: 1.6179:  34%|███▍      | 34/100 [04:54<05:57,  5.42s/it]2026-05-07 11:02:51,520 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:51,784 [train_svgp] INFO: Epoch   1/60  loss: 5.1977
+2026-05-07 11:02:52,200 [train_svgp] INFO: Epoch   5/60  loss: 2.5892
+2026-05-07 11:02:52,694 [train_svgp] INFO: Epoch  10/60  loss: 2.1533
+2026-05-07 11:02:53,186 [train_svgp] INFO: Epoch  15/60  loss: 1.7390
+2026-05-07 11:02:53,722 [train_svgp] INFO: Epoch  20/60  loss: 1.6487
+2026-05-07 11:02:54,224 [train_svgp] INFO: Epoch  25/60  loss: 1.5957
+2026-05-07 11:02:54,726 [train_svgp] INFO: Epoch  30/60  loss: 1.5565
+2026-05-07 11:02:55,195 [train_svgp] INFO: Epoch  35/60  loss: 1.5403
+2026-05-07 11:02:55,653 [train_svgp] INFO: Epoch  40/60  loss: 1.5618
+2026-05-07 11:02:56,128 [train_svgp] INFO: Epoch  45/60  loss: 1.5463
+2026-05-07 11:02:56,598 [train_svgp] INFO: Epoch  50/60  loss: 1.5324
+2026-05-07 11:02:57,074 [train_svgp] INFO: Epoch  55/60  loss: 1.5133
+2026-05-07 11:02:57,541 [train_svgp] INFO: Epoch  60/60  loss: 1.4953
+2026-05-07 11:02:57,550 [hp_search] INFO: Trial 34: neg_ELBO=1.6575  (M=384, ep=60, bs=512, lr=0.09462, ls=1.244, os=3.398, noise=0.07840)
+                                                                                    Best trial: 20. Best value: 1.6179:  34%|███▍      | 34/100 [05:00<05:57,  5.42s/it]Best trial: 20. Best value: 1.6179:  34%|███▍      | 34/100 [05:00<05:57,  5.42s/it]Best trial: 20. Best value: 1.6179:  35%|███▌      | 35/100 [05:00<06:04,  5.61s/it]2026-05-07 11:02:57,554 [train_svgp] INFO: Selecting 320 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:57,739 [train_svgp] INFO: Epoch   1/30  loss: 5.1713
+2026-05-07 11:02:57,989 [train_svgp] INFO: Epoch   5/30  loss: 2.6149
+2026-05-07 11:02:58,274 [train_svgp] INFO: Epoch  10/30  loss: 2.4279
+2026-05-07 11:02:58,545 [train_svgp] INFO: Epoch  15/30  loss: 2.2504
+2026-05-07 11:02:58,865 [train_svgp] INFO: Epoch  20/30  loss: 2.0403
+2026-05-07 11:02:59,144 [train_svgp] INFO: Epoch  25/30  loss: 1.8312
+2026-05-07 11:02:59,417 [train_svgp] INFO: Epoch  30/30  loss: 1.6453
+2026-05-07 11:02:59,425 [hp_search] INFO: Trial 35: neg_ELBO=1.7503  (M=320, ep=30, bs=1024, lr=0.06505, ls=0.669, os=1.777, noise=0.00602)
+                                                                                    Best trial: 20. Best value: 1.6179:  35%|███▌      | 35/100 [05:02<06:04,  5.61s/it]Best trial: 20. Best value: 1.6179:  35%|███▌      | 35/100 [05:02<06:04,  5.61s/it]Best trial: 20. Best value: 1.6179:  36%|███▌      | 36/100 [05:02<04:47,  4.49s/it]2026-05-07 11:02:59,430 [train_svgp] INFO: Selecting 384 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:02:59,687 [train_svgp] INFO: Epoch   1/90  loss: 7.1910
+2026-05-07 11:03:00,002 [train_svgp] INFO: Epoch   5/90  loss: 3.9545
+2026-05-07 11:03:00,345 [train_svgp] INFO: Epoch  10/90  loss: 2.6714
+2026-05-07 11:03:00,690 [train_svgp] INFO: Epoch  15/90  loss: 2.4823
+2026-05-07 11:03:01,034 [train_svgp] INFO: Epoch  20/90  loss: 2.3996
+2026-05-07 11:03:01,377 [train_svgp] INFO: Epoch  25/90  loss: 2.3384
+2026-05-07 11:03:01,769 [train_svgp] INFO: Epoch  30/90  loss: 2.2834
+2026-05-07 11:03:02,112 [train_svgp] INFO: Epoch  35/90  loss: 2.2306
+2026-05-07 11:03:02,450 [train_svgp] INFO: Epoch  40/90  loss: 2.1827
+2026-05-07 11:03:02,797 [train_svgp] INFO: Epoch  45/90  loss: 2.1227
+2026-05-07 11:03:03,137 [train_svgp] INFO: Epoch  50/90  loss: 2.0636
+2026-05-07 11:03:03,484 [train_svgp] INFO: Epoch  55/90  loss: 2.0027
+2026-05-07 11:03:03,826 [train_svgp] INFO: Epoch  60/90  loss: 1.9415
+2026-05-07 11:03:04,166 [train_svgp] INFO: Epoch  65/90  loss: 1.8815
+2026-05-07 11:03:04,508 [train_svgp] INFO: Epoch  70/90  loss: 1.8261
+2026-05-07 11:03:04,894 [train_svgp] INFO: Epoch  75/90  loss: 1.7584
+2026-05-07 11:03:05,235 [train_svgp] INFO: Epoch  80/90  loss: 1.7032
+2026-05-07 11:03:05,580 [train_svgp] INFO: Epoch  85/90  loss: 1.6544
+2026-05-07 11:03:05,921 [train_svgp] INFO: Epoch  90/90  loss: 1.6117
+2026-05-07 11:03:05,931 [hp_search] INFO: Trial 36: neg_ELBO=1.7365  (M=384, ep=90, bs=1024, lr=0.02181, ls=1.332, os=3.226, noise=0.01440)
+                                                                                    Best trial: 20. Best value: 1.6179:  36%|███▌      | 36/100 [05:08<04:47,  4.49s/it]Best trial: 20. Best value: 1.6179:  36%|███▌      | 36/100 [05:08<04:47,  4.49s/it]Best trial: 20. Best value: 1.6179:  37%|███▋      | 37/100 [05:08<05:20,  5.09s/it]2026-05-07 11:03:05,936 [train_svgp] INFO: Selecting 320 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:06,177 [train_svgp] INFO: Epoch   1/80  loss: 3.7849
+2026-05-07 11:03:06,425 [train_svgp] INFO: Epoch   5/80  loss: 2.8481
+2026-05-07 11:03:06,703 [train_svgp] INFO: Epoch  10/80  loss: 2.5737
+2026-05-07 11:03:06,984 [train_svgp] INFO: Epoch  15/80  loss: 2.4002
+2026-05-07 11:03:07,261 [train_svgp] INFO: Epoch  20/80  loss: 2.2484
+2026-05-07 11:03:07,589 [train_svgp] INFO: Epoch  25/80  loss: 2.1139
+2026-05-07 11:03:07,870 [train_svgp] INFO: Epoch  30/80  loss: 1.9713
+2026-05-07 11:03:08,149 [train_svgp] INFO: Epoch  35/80  loss: 1.8408
+2026-05-07 11:03:08,434 [train_svgp] INFO: Epoch  40/80  loss: 1.7288
+2026-05-07 11:03:08,780 [train_svgp] INFO: Epoch  45/80  loss: 1.6209
+2026-05-07 11:03:09,061 [train_svgp] INFO: Epoch  50/80  loss: 1.5430
+2026-05-07 11:03:09,337 [train_svgp] INFO: Epoch  55/80  loss: 1.4774
+2026-05-07 11:03:09,609 [train_svgp] INFO: Epoch  60/80  loss: 1.4286
+2026-05-07 11:03:09,934 [train_svgp] INFO: Epoch  65/80  loss: 1.3892
+2026-05-07 11:03:10,211 [train_svgp] INFO: Epoch  70/80  loss: 1.4115
+2026-05-07 11:03:10,487 [train_svgp] INFO: Epoch  75/80  loss: 1.3598
+2026-05-07 11:03:10,758 [train_svgp] INFO: Epoch  80/80  loss: 1.3397
+2026-05-07 11:03:10,766 [hp_search] INFO: Trial 37: neg_ELBO=1.7028  (M=320, ep=80, bs=1024, lr=0.03316, ls=0.861, os=1.261, noise=0.53188)
+                                                                                    Best trial: 20. Best value: 1.6179:  37%|███▋      | 37/100 [05:13<05:20,  5.09s/it]Best trial: 20. Best value: 1.6179:  37%|███▋      | 37/100 [05:13<05:20,  5.09s/it]Best trial: 20. Best value: 1.6179:  38%|███▊      | 38/100 [05:13<05:10,  5.02s/it]2026-05-07 11:03:10,771 [train_svgp] INFO: Selecting 480 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:11,211 [train_svgp] INFO: Epoch   1/150  loss: 8.9891
+2026-05-07 11:03:11,982 [train_svgp] INFO: Epoch   5/150  loss: 7.5301
+2026-05-07 11:03:12,954 [train_svgp] INFO: Epoch  10/150  loss: 5.9925
+2026-05-07 11:03:13,933 [train_svgp] INFO: Epoch  15/150  loss: 4.6149
+2026-05-07 11:03:14,901 [train_svgp] INFO: Epoch  20/150  loss: 3.5527
+2026-05-07 11:03:15,886 [train_svgp] INFO: Epoch  25/150  loss: 3.0229
+2026-05-07 11:03:16,841 [train_svgp] INFO: Epoch  30/150  loss: 2.8336
+2026-05-07 11:03:17,811 [train_svgp] INFO: Epoch  35/150  loss: 2.7191
+2026-05-07 11:03:18,781 [train_svgp] INFO: Epoch  40/150  loss: 2.6400
+2026-05-07 11:03:19,741 [train_svgp] INFO: Epoch  45/150  loss: 2.5778
+2026-05-07 11:03:20,722 [train_svgp] INFO: Epoch  50/150  loss: 2.5246
+2026-05-07 11:03:21,674 [train_svgp] INFO: Epoch  55/150  loss: 2.4783
+2026-05-07 11:03:22,657 [train_svgp] INFO: Epoch  60/150  loss: 2.4508
+2026-05-07 11:03:23,655 [train_svgp] INFO: Epoch  65/150  loss: 2.4204
+2026-05-07 11:03:24,634 [train_svgp] INFO: Epoch  70/150  loss: 2.4055
+2026-05-07 11:03:25,607 [train_svgp] INFO: Epoch  75/150  loss: 2.3839
+2026-05-07 11:03:26,546 [train_svgp] INFO: Epoch  80/150  loss: 2.3568
+2026-05-07 11:03:27,490 [train_svgp] INFO: Epoch  85/150  loss: 2.3402
+2026-05-07 11:03:28,438 [train_svgp] INFO: Epoch  90/150  loss: 2.3255
+2026-05-07 11:03:29,392 [train_svgp] INFO: Epoch  95/150  loss: 2.3185
+2026-05-07 11:03:30,392 [train_svgp] INFO: Epoch 100/150  loss: 2.2894
+2026-05-07 11:03:31,350 [train_svgp] INFO: Epoch 105/150  loss: 2.2820
+2026-05-07 11:03:32,304 [train_svgp] INFO: Epoch 110/150  loss: 2.2615
+2026-05-07 11:03:33,266 [train_svgp] INFO: Epoch 115/150  loss: 2.2388
+2026-05-07 11:03:34,235 [train_svgp] INFO: Epoch 120/150  loss: 2.2236
+2026-05-07 11:03:35,216 [train_svgp] INFO: Epoch 125/150  loss: 2.2107
+2026-05-07 11:03:36,196 [train_svgp] INFO: Epoch 130/150  loss: 2.1866
+2026-05-07 11:03:37,161 [train_svgp] INFO: Epoch 135/150  loss: 2.1875
+2026-05-07 11:03:38,129 [train_svgp] INFO: Epoch 140/150  loss: 2.1636
+2026-05-07 11:03:39,167 [train_svgp] INFO: Epoch 145/150  loss: 2.1340
+2026-05-07 11:03:40,119 [train_svgp] INFO: Epoch 150/150  loss: 2.1215
+2026-05-07 11:03:40,129 [hp_search] INFO: Trial 38: neg_ELBO=2.2149  (M=480, ep=150, bs=256, lr=0.00159, ls=2.128, os=4.885, noise=0.08199)
+                                                                                    Best trial: 20. Best value: 1.6179:  38%|███▊      | 38/100 [05:42<05:10,  5.02s/it]Best trial: 20. Best value: 1.6179:  38%|███▊      | 38/100 [05:42<05:10,  5.02s/it]Best trial: 20. Best value: 1.6179:  39%|███▉      | 39/100 [05:42<12:31, 12.32s/it]2026-05-07 11:03:40,134 [train_svgp] INFO: Selecting 256 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:40,313 [train_svgp] INFO: Epoch   1/50  loss: 3.4755
+2026-05-07 11:03:40,585 [train_svgp] INFO: Epoch   5/50  loss: 2.3031
+2026-05-07 11:03:40,878 [train_svgp] INFO: Epoch  10/50  loss: 1.7626
+2026-05-07 11:03:41,169 [train_svgp] INFO: Epoch  15/50  loss: 1.6027
+2026-05-07 11:03:41,455 [train_svgp] INFO: Epoch  20/50  loss: 1.5181
+2026-05-07 11:03:41,741 [train_svgp] INFO: Epoch  25/50  loss: 1.5335
+2026-05-07 11:03:42,026 [train_svgp] INFO: Epoch  30/50  loss: 1.4831
+2026-05-07 11:03:42,315 [train_svgp] INFO: Epoch  35/50  loss: 1.4680
+2026-05-07 11:03:42,601 [train_svgp] INFO: Epoch  40/50  loss: 1.4743
+2026-05-07 11:03:42,893 [train_svgp] INFO: Epoch  45/50  loss: 1.4256
+2026-05-07 11:03:43,232 [train_svgp] INFO: Epoch  50/50  loss: 1.5594
+2026-05-07 11:03:43,240 [hp_search] INFO: Trial 39: neg_ELBO=1.7749  (M=256, ep=50, bs=512, lr=0.08248, ls=0.957, os=0.791, noise=0.00513)
+                                                                                    Best trial: 20. Best value: 1.6179:  39%|███▉      | 39/100 [05:45<12:31, 12.32s/it]Best trial: 20. Best value: 1.6179:  39%|███▉      | 39/100 [05:45<12:31, 12.32s/it]Best trial: 20. Best value: 1.6179:  40%|████      | 40/100 [05:45<09:33,  9.56s/it]2026-05-07 11:03:43,245 [train_svgp] INFO: Selecting 416 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:43,543 [train_svgp] INFO: Epoch   1/30  loss: 5.6097
+2026-05-07 11:03:43,858 [train_svgp] INFO: Epoch   5/30  loss: 5.5624
+2026-05-07 11:03:44,233 [train_svgp] INFO: Epoch  10/30  loss: 5.4962
+2026-05-07 11:03:44,609 [train_svgp] INFO: Epoch  15/30  loss: 5.4379
+2026-05-07 11:03:44,981 [train_svgp] INFO: Epoch  20/30  loss: 5.3723
+2026-05-07 11:03:45,356 [train_svgp] INFO: Epoch  25/30  loss: 5.3148
+2026-05-07 11:03:45,724 [train_svgp] INFO: Epoch  30/30  loss: 5.2554
+2026-05-07 11:03:45,734 [hp_search] INFO: Trial 40: neg_ELBO=5.2387  (M=416, ep=30, bs=1024, lr=0.00038, ls=2.416, os=1.942, noise=0.02230)
+                                                                                    Best trial: 20. Best value: 1.6179:  40%|████      | 40/100 [05:48<09:33,  9.56s/it]Best trial: 20. Best value: 1.6179:  40%|████      | 40/100 [05:48<09:33,  9.56s/it]Best trial: 20. Best value: 1.6179:  41%|████      | 41/100 [05:48<07:18,  7.44s/it]2026-05-07 11:03:45,738 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:46,023 [train_svgp] INFO: Epoch   1/70  loss: 6.2970
+2026-05-07 11:03:46,371 [train_svgp] INFO: Epoch   5/70  loss: 2.9536
+2026-05-07 11:03:46,833 [train_svgp] INFO: Epoch  10/70  loss: 2.5282
+2026-05-07 11:03:47,267 [train_svgp] INFO: Epoch  15/70  loss: 2.4215
+2026-05-07 11:03:47,712 [train_svgp] INFO: Epoch  20/70  loss: 2.3236
+2026-05-07 11:03:48,142 [train_svgp] INFO: Epoch  25/70  loss: 2.2197
+2026-05-07 11:03:48,559 [train_svgp] INFO: Epoch  30/70  loss: 2.0978
+2026-05-07 11:03:48,976 [train_svgp] INFO: Epoch  35/70  loss: 1.9843
+2026-05-07 11:03:49,403 [train_svgp] INFO: Epoch  40/70  loss: 1.8735
+2026-05-07 11:03:49,830 [train_svgp] INFO: Epoch  45/70  loss: 1.7869
+2026-05-07 11:03:50,250 [train_svgp] INFO: Epoch  50/70  loss: 1.7198
+2026-05-07 11:03:50,719 [train_svgp] INFO: Epoch  55/70  loss: 1.6825
+2026-05-07 11:03:51,138 [train_svgp] INFO: Epoch  60/70  loss: 1.6367
+2026-05-07 11:03:51,553 [train_svgp] INFO: Epoch  65/70  loss: 1.6130
+2026-05-07 11:03:51,970 [train_svgp] INFO: Epoch  70/70  loss: 1.5980
+2026-05-07 11:03:51,983 [hp_search] INFO: Trial 41: neg_ELBO=1.6473  (M=448, ep=70, bs=1024, lr=0.04920, ls=3.724, os=2.588, noise=0.00215)
+                                                                                    Best trial: 20. Best value: 1.6179:  41%|████      | 41/100 [05:54<07:18,  7.44s/it]Best trial: 20. Best value: 1.6179:  41%|████      | 41/100 [05:54<07:18,  7.44s/it]Best trial: 20. Best value: 1.6179:  42%|████▏     | 42/100 [05:54<06:50,  7.08s/it]2026-05-07 11:03:51,988 [train_svgp] INFO: Selecting 480 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:52,391 [train_svgp] INFO: Epoch   1/60  loss: 6.4249
+2026-05-07 11:03:52,781 [train_svgp] INFO: Epoch   5/60  loss: 3.3045
+2026-05-07 11:03:53,271 [train_svgp] INFO: Epoch  10/60  loss: 2.6099
+2026-05-07 11:03:53,748 [train_svgp] INFO: Epoch  15/60  loss: 2.4668
+2026-05-07 11:03:54,203 [train_svgp] INFO: Epoch  20/60  loss: 2.3862
+2026-05-07 11:03:54,730 [train_svgp] INFO: Epoch  25/60  loss: 2.3031
+2026-05-07 11:03:55,206 [train_svgp] INFO: Epoch  30/60  loss: 2.2148
+2026-05-07 11:03:55,678 [train_svgp] INFO: Epoch  35/60  loss: 2.1233
+2026-05-07 11:03:56,152 [train_svgp] INFO: Epoch  40/60  loss: 2.0264
+2026-05-07 11:03:56,631 [train_svgp] INFO: Epoch  45/60  loss: 1.9370
+2026-05-07 11:03:57,103 [train_svgp] INFO: Epoch  50/60  loss: 1.8566
+2026-05-07 11:03:57,577 [train_svgp] INFO: Epoch  55/60  loss: 1.7884
+2026-05-07 11:03:58,058 [train_svgp] INFO: Epoch  60/60  loss: 1.7343
+2026-05-07 11:03:58,070 [hp_search] INFO: Trial 42: neg_ELBO=1.7780  (M=480, ep=60, bs=1024, lr=0.03982, ls=4.315, os=2.638, noise=0.00139)
+                                                                                    Best trial: 20. Best value: 1.6179:  42%|████▏     | 42/100 [06:00<06:50,  7.08s/it]Best trial: 20. Best value: 1.6179:  42%|████▏     | 42/100 [06:00<06:50,  7.08s/it]Best trial: 20. Best value: 1.6179:  43%|████▎     | 43/100 [06:00<06:26,  6.78s/it]2026-05-07 11:03:58,075 [train_svgp] INFO: Selecting 448 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:03:58,379 [train_svgp] INFO: Epoch   1/80  loss: 4.8337
+2026-05-07 11:03:58,738 [train_svgp] INFO: Epoch   5/80  loss: 2.8525
+2026-05-07 11:03:59,225 [train_svgp] INFO: Epoch  10/80  loss: 2.6299
+2026-05-07 11:03:59,671 [train_svgp] INFO: Epoch  15/80  loss: 2.4296
+2026-05-07 11:04:00,117 [train_svgp] INFO: Epoch  20/80  loss: 2.2590
+2026-05-07 11:04:00,551 [train_svgp] INFO: Epoch  25/80  loss: 2.0712
+2026-05-07 11:04:00,997 [train_svgp] INFO: Epoch  30/80  loss: 1.8960
+2026-05-07 11:04:01,439 [train_svgp] INFO: Epoch  35/80  loss: 1.8031
+2026-05-07 11:04:01,883 [train_svgp] INFO: Epoch  40/80  loss: 1.7812
+2026-05-07 11:04:02,327 [train_svgp] INFO: Epoch  45/80  loss: 1.7733
+2026-05-07 11:04:02,810 [train_svgp] INFO: Epoch  50/80  loss: 1.7481
+2026-05-07 11:04:03,253 [train_svgp] INFO: Epoch  55/80  loss: 1.7373
+2026-05-07 11:04:03,696 [train_svgp] INFO: Epoch  60/80  loss: 1.7299
+2026-05-07 11:04:04,130 [train_svgp] INFO: Epoch  65/80  loss: 1.7180
+2026-05-07 11:04:04,572 [train_svgp] INFO: Epoch  70/80  loss: 1.6977
+2026-05-07 11:04:05,013 [train_svgp] INFO: Epoch  75/80  loss: 1.6969
+2026-05-07 11:04:05,464 [train_svgp] INFO: Epoch  80/80  loss: 1.6722
+2026-05-07 11:04:05,475 [hp_search] INFO: Trial 43: neg_ELBO=1.7281  (M=448, ep=80, bs=1024, lr=0.06495, ls=7.253, os=1.500, noise=0.01009)
+                                                                                    Best trial: 20. Best value: 1.6179:  43%|████▎     | 43/100 [06:08<06:26,  6.78s/it]Best trial: 20. Best value: 1.6179:  43%|████▎     | 43/100 [06:08<06:26,  6.78s/it]Best trial: 20. Best value: 1.6179:  44%|████▍     | 44/100 [06:08<06:30,  6.97s/it]2026-05-07 11:04:05,480 [train_svgp] INFO: Selecting 416 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+2026-05-07 11:04:05,754 [train_svgp] INFO: Epoch   1/50  loss: 11.0660
+2026-05-07 11:04:06,075 [train_svgp] INFO: Epoch   5/50  loss: 6.7581
+2026-05-07 11:04:06,514 [train_svgp] INFO: Epoch  10/50  loss: 4.2610
+2026-05-07 11:04:06,905 [train_svgp] INFO: Epoch  15/50  loss: 3.1225
+2026-05-07 11:04:07,296 [train_svgp] INFO: Epoch  20/50  loss: 2.7034
+2026-05-07 11:04:07,696 [train_svgp] INFO: Epoch  25/50  loss: 2.5735
+2026-05-07 11:04:08,087 [train_svgp] INFO: Epoch  30/50  loss: 2.4994
+2026-05-07 11:04:08,478 [train_svgp] INFO: Epoch  35/50  loss: 2.4498
+2026-05-07 11:04:08,866 [train_svgp] INFO: Epoch  40/50  loss: 2.4235
+2026-05-07 11:04:09,251 [train_svgp] INFO: Epoch  45/50  loss: 2.3848
+2026-05-07 11:04:09,692 [train_svgp] INFO: Epoch  50/50  loss: 2.3517
+2026-05-07 11:04:09,705 [hp_search] INFO: Trial 44: neg_ELBO=2.4353  (M=416, ep=50, bs=1024, lr=0.01601, ls=1.618, os=5.890, noise=0.00049)
+                                                                                    Best trial: 20. Best value: 1.6179:  44%|████▍     | 44/100 [06:12<06:30,  6.97s/it]Best trial: 20. Best value: 1.6179:  44%|████▍     | 44/100 [06:12<06:30,  6.97s/it]Best trial: 20. Best value: 1.6179:  45%|████▌     | 45/100 [06:12<05:38,  6.15s/it]2026-05-07 11:04:09,710 [train_svgp] INFO: Selecting 352 inducing points via k-means...
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/sklearn/cluster/_kmeans.py:1934: FutureWarning: The default value of `n_init` will change from 3 to 'auto' in 1.4. Set the value of `n_init` explicitly to suppress the warning
+  super()._check_params_vs_input(X, default_n_init=3)
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py:41: NumericalWarning: A not p.d., added jitter of 1.0e-08 to the diagonal
+  warnings.warn(
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py:41: NumericalWarning: A not p.d., added jitter of 1.0e-07 to the diagonal
+  warnings.warn(
+/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py:41: NumericalWarning: A not p.d., added jitter of 1.0e-06 to the diagonal
+  warnings.warn(
+                                                                                    [I 2026-05-07 11:02:07,695] Trial 24 finished with value: 2.4378809928894043 and parameters: {'num_inducing': 256, 'epochs': 60, 'batch_size': 1024, 'lr': 0.006182071520515102, 'init_lengthscale': 5.601486345957139, 'init_outputscale': 0.901205553114378, 'init_noise': 0.0011639010490358316}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:11,617] Trial 25 finished with value: 1.8069030046463013 and parameters: {'num_inducing': 288, 'epochs': 70, 'batch_size': 1024, 'lr': 0.053915016346604186, 'init_lengthscale': 6.732584641361277, 'init_outputscale': 1.8537663065493508, 'init_noise': 0.0035010634169838194}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:15,498] Trial 26 finished with value: 2.2350375652313232 and parameters: {'num_inducing': 384, 'epochs': 50, 'batch_size': 1024, 'lr': 0.020612651522122275, 'init_lengthscale': 3.660013217317524, 'init_outputscale': 3.2968291322629195, 'init_noise': 0.0008341687633423383}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:20,124] Trial 27 finished with value: 2.181624412536621 and parameters: {'num_inducing': 448, 'epochs': 50, 'batch_size': 1024, 'lr': 0.011658844432555354, 'init_lengthscale': 1.523578232001221, 'init_outputscale': 1.0143369428320999, 'init_noise': 0.0030513882991100986}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:24,809] Trial 28 finished with value: 3.3322818279266357 and parameters: {'num_inducing': 352, 'epochs': 70, 'batch_size': 1024, 'lr': 0.001525279006216045, 'init_lengthscale': 2.880648080833269, 'init_outputscale': 2.126210405600204, 'init_noise': 0.0004873498422065475}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:27,852] Trial 29 finished with value: 4.757318496704102 and parameters: {'num_inducing': 160, 'epochs': 90, 'batch_size': 1024, 'lr': 0.00010657547501064679, 'init_lengthscale': 6.665340976353362, 'init_outputscale': 1.4397196849419127, 'init_noise': 0.014283961901712942}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:32,163] Trial 30 finished with value: 1.667060136795044 and parameters: {'num_inducing': 288, 'epochs': 40, 'batch_size': 256, 'lr': 0.06023800918018421, 'init_lengthscale': 4.924655578770091, 'init_outputscale': 0.44646998695187623, 'init_noise': 0.0027626053221659896}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:39,938] Trial 31 finished with value: 1.6431103944778442 and parameters: {'num_inducing': 480, 'epochs': 80, 'batch_size': 1024, 'lr': 0.06772937259077695, 'init_lengthscale': 2.8139165265763766, 'init_outputscale': 5.601592934385066, 'init_noise': 0.05597942145238927}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:46,944] Trial 32 finished with value: 1.977038025856018 and parameters: {'num_inducing': 480, 'epochs': 70, 'batch_size': 1024, 'lr': 0.03109529431375619, 'init_lengthscale': 3.097844335622867, 'init_outputscale': 5.2016914923432545, 'init_noise': 0.0008725006388150101}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:51,515] Trial 33 finished with value: 1.6258165836334229 and parameters: {'num_inducing': 384, 'epochs': 60, 'batch_size': 1024, 'lr': 0.0967219389383335, 'init_lengthscale': 1.3991726062193968, 'init_outputscale': 3.31485622401546, 'init_noise': 0.009138010503932172}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:57,550] Trial 34 finished with value: 1.6575425863265991 and parameters: {'num_inducing': 384, 'epochs': 60, 'batch_size': 512, 'lr': 0.09461852567752058, 'init_lengthscale': 1.2440138592477101, 'init_outputscale': 3.3977176222918413, 'init_noise': 0.07839905698021855}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:02:59,425] Trial 35 finished with value: 1.750287413597107 and parameters: {'num_inducing': 320, 'epochs': 30, 'batch_size': 1024, 'lr': 0.06504995015242498, 'init_lengthscale': 0.6692146345929245, 'init_outputscale': 1.7772684412397088, 'init_noise': 0.006017603019962217}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:05,931] Trial 36 finished with value: 1.7365281581878662 and parameters: {'num_inducing': 384, 'epochs': 90, 'batch_size': 1024, 'lr': 0.021807590237936016, 'init_lengthscale': 1.3320293410670982, 'init_outputscale': 3.226066951478636, 'init_noise': 0.014395481895945852}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:10,766] Trial 37 finished with value: 1.7028416395187378 and parameters: {'num_inducing': 320, 'epochs': 80, 'batch_size': 1024, 'lr': 0.03315763845771505, 'init_lengthscale': 0.8614234287522944, 'init_outputscale': 1.2608474157730032, 'init_noise': 0.5318840569547678}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:40,130] Trial 38 finished with value: 2.2148749828338623 and parameters: {'num_inducing': 480, 'epochs': 150, 'batch_size': 256, 'lr': 0.00159439980857581, 'init_lengthscale': 2.1276884585451192, 'init_outputscale': 4.885182986822382, 'init_noise': 0.0819852467646598}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:43,240] Trial 39 finished with value: 1.7748790979385376 and parameters: {'num_inducing': 256, 'epochs': 50, 'batch_size': 512, 'lr': 0.08248422871987761, 'init_lengthscale': 0.957496109275665, 'init_outputscale': 0.7914555700403675, 'init_noise': 0.005133875671845658}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:45,734] Trial 40 finished with value: 5.238737106323242 and parameters: {'num_inducing': 416, 'epochs': 30, 'batch_size': 1024, 'lr': 0.0003769071184815235, 'init_lengthscale': 2.415539259325303, 'init_outputscale': 1.9420425518709605, 'init_noise': 0.022297159364709572}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:51,983] Trial 41 finished with value: 1.6472917795181274 and parameters: {'num_inducing': 448, 'epochs': 70, 'batch_size': 1024, 'lr': 0.04920141441847319, 'init_lengthscale': 3.7236767760126788, 'init_outputscale': 2.588260419502263, 'init_noise': 0.002153779049035115}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:03:58,070] Trial 42 finished with value: 1.7780096530914307 and parameters: {'num_inducing': 480, 'epochs': 60, 'batch_size': 1024, 'lr': 0.03981507461006889, 'init_lengthscale': 4.315033372903435, 'init_outputscale': 2.6381283167759295, 'init_noise': 0.0013947805975824154}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:04:05,476] Trial 43 finished with value: 1.7280699014663696 and parameters: {'num_inducing': 448, 'epochs': 80, 'batch_size': 1024, 'lr': 0.06494668471563597, 'init_lengthscale': 7.253124041923323, 'init_outputscale': 1.5003346731845413, 'init_noise': 0.01009383103302244}. Best is trial 20 with value: 1.6178960800170898.
+[I 2026-05-07 11:04:09,705] Trial 44 finished with value: 2.435292959213257 and parameters: {'num_inducing': 416, 'epochs': 50, 'batch_size': 1024, 'lr': 0.01601118019311304, 'init_lengthscale': 1.6181823446018984, 'init_outputscale': 5.8895866403252315, 'init_noise': 0.0004890998476602316}. Best is trial 20 with value: 1.6178960800170898.
+Best trial: 20. Best value: 1.6179:  45%|████▌     | 45/100 [06:12<05:38,  6.15s/it]                                                                                    Best trial: 20. Best value: 1.6179:  45%|████▌     | 45/100 [06:12<05:38,  6.15s/it]Best trial: 20. Best value: 1.6179:  45%|████▌     | 45/100 [06:12<07:35,  8.28s/it]
+[W 2026-05-07 11:04:09,881] Trial 45 failed with parameters: {'num_inducing': 352, 'epochs': 40, 'batch_size': 1024, 'lr': 0.02524836422789129, 'init_lengthscale': 0.10189161943391754, 'init_outputscale': 3.7656193797690936, 'init_noise': 0.0001935947271935937} because of the following error: NotPSDError('Matrix not positive definite after repeatedly adding jitter up to 1.0e-06.').
+Traceback (most recent call last):
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 206, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 251, in <lambda>
+    lambda trial: objective(trial, data_splits, args),
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 129, in objective
+    train_svgp(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/train.py", line 207, in train_svgp
+    output = model(x_batch)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/models/approximate_gp.py", line 114, in __call__
+    return self.variational_strategy(inputs, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/independent_multitask_variational_strategy.py", line 56, in __call__
+    function_dist = self.base_variational_strategy(x, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 272, in __call__
+    return super().__call__(x, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/_variational_strategy.py", line 347, in __call__
+    return super().__call__(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/module.py", line 31, in __call__
+    outputs = self.forward(*inputs, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 203, in forward
+    L = self._cholesky_factor(induc_induc_covar)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/utils/memoize.py", line 76, in g
+    return _add_to_cache_ignore_args(self, cache_name, method(self, *args, **kwargs))
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 104, in _cholesky_factor
+    L = psd_safe_cholesky(to_dense(induc_induc_covar).type(_linalg_dtype_cholesky.value()))
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py", line 68, in psd_safe_cholesky
+    L = _psd_safe_cholesky(A, out=out, jitter=jitter, max_tries=max_tries)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py", line 48, in _psd_safe_cholesky
+    raise NotPSDError(
+linear_operator.utils.errors.NotPSDError: Matrix not positive definite after repeatedly adding jitter up to 1.0e-06.
+[W 2026-05-07 11:04:09,883] Trial 45 failed with value None.
+Traceback (most recent call last):
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 382, in <module>
+    main()
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 250, in main
+    study.optimize(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/study.py", line 490, in optimize
+    _optimize(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 68, in _optimize
+    _optimize_sequential(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 165, in _optimize_sequential
+    frozen_trial_id = _run_trial(study, func, catch)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 263, in _run_trial
+    raise func_err
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/optuna/study/_optimize.py", line 206, in _run_trial
+    value_or_values = func(trial)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 251, in <lambda>
+    lambda trial: objective(trial, data_splits, args),
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/hp_search.py", line 129, in objective
+    train_svgp(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_action_sampler/train.py", line 207, in train_svgp
+    output = model(x_batch)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/models/approximate_gp.py", line 114, in __call__
+    return self.variational_strategy(inputs, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/independent_multitask_variational_strategy.py", line 56, in __call__
+    function_dist = self.base_variational_strategy(x, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 272, in __call__
+    return super().__call__(x, prior=prior, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/_variational_strategy.py", line 347, in __call__
+    return super().__call__(
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/module.py", line 31, in __call__
+    outputs = self.forward(*inputs, **kwargs)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 203, in forward
+    L = self._cholesky_factor(induc_induc_covar)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/utils/memoize.py", line 76, in g
+    return _add_to_cache_ignore_args(self, cache_name, method(self, *args, **kwargs))
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/gpytorch/variational/variational_strategy.py", line 104, in _cholesky_factor
+    L = psd_safe_cholesky(to_dense(induc_induc_covar).type(_linalg_dtype_cholesky.value()))
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py", line 68, in psd_safe_cholesky
+    L = _psd_safe_cholesky(A, out=out, jitter=jitter, max_tries=max_tries)
+  File "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/venv/lib/python3.10/site-packages/linear_operator/utils/cholesky.py", line 48, in _psd_safe_cholesky
+    raise NotPSDError(
+linear_operator.utils.errors.NotPSDError: Matrix not positive definite after repeatedly adding jitter up to 1.0e-06.

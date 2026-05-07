@@ -1,0 +1,20 @@
+{
+  "map_name": "YasMarina",
+  "VARIDX": 5,
+  "Ts": 0.02,
+  "mu": 1.0489,
+  "tag": "stanley",
+  "split_mode": "fractional",
+  "split_fracs": {
+    "train": 0.75,
+    "val": 0.1
+  },
+  "sizes": {
+    "X": 2999,
+    "train": 2249,
+    "val": 300,
+    "test": 450
+  },
+  "source_csv": "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_dynaimcs_model/data/raw/stanley_dt0.02_dataset/dataset_YasMarina_mu10489.csv",
+  "saved_at": "2026-05-07T10:56:00.935320"
+}

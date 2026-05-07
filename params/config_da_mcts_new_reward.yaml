@@ -32,11 +32,13 @@ controller:
   speed_weight: 1.0
   v_ref: 1000.0
   alpha_threshold: 0.475
+  # alpha_threshold: 1.5
+
   normalize_reward: false
 
   # Track boundaries
   lane_width: 1.1
-  real_track_width: 1.7
+  real_track_width: 1.5
 
   # Lateral acceleration budget for v_ref window solver
   a_lat_budget: 30.0
@@ -46,7 +48,7 @@ controller:
   calpha_window_size: 10
 
   # Action prior (SVGP/SGPR)
-  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  action_prior_model_path: MCTS_SVGP_action_sampler/stanley_dt0.02_svgp_no_lateral/
   action_prior_model_type: svgp
   uniform_action_sampling: false  # if true, use uniform sampling instead of action prior
   no_c_alpha_input: false         # if true, SVGP dynamics uses 6D input (no C_alpha)

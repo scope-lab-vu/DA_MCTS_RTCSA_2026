@@ -54,6 +54,9 @@ INPUT_COLS_CURVATURE_ONLY = ["max_kappa", "avg_kappa"]
 INPUT_NAMES_CURVATURE_ONLY = ["max_curvature", "avg_curvature"]
 INPUT_COLS_VEL_KAPPA = ["S_vel", "max_kappa"]
 INPUT_NAMES_VEL_KAPPA = ["velocity", "max_curvature"]
+# 3D minimal feature set used by `minimal_feature_1st_train/`.
+INPUT_COLS_NO_LATERAL = ["S_vel", "max_kappa", "C_alpha"]
+INPUT_NAMES_NO_LATERAL = ["velocity", "max_curvature", "cornering_stiffness"]
 OUTPUT_COLS = ["A_a", "A_sv"]
 OUTPUT_NAMES = ["acceleration", "steering_velocity"]
 
@@ -63,6 +66,7 @@ INPUT_NAMES = ALL_INPUT_NAMES
 
 FEATURE_SETS = {
     "no_avg_kappa":   (INPUT_COLS_NO_AVG_KAPPA,   INPUT_NAMES_NO_AVG_KAPPA),
+    "no_lateral":     (INPUT_COLS_NO_LATERAL,      INPUT_NAMES_NO_LATERAL),
     "general":        (INPUT_COLS_GENERAL,         INPUT_NAMES_GENERAL),
     "curvature_only": (INPUT_COLS_CURVATURE_ONLY,  INPUT_NAMES_CURVATURE_ONLY),
     "vel_kappa":      (INPUT_COLS_VEL_KAPPA,       INPUT_NAMES_VEL_KAPPA),

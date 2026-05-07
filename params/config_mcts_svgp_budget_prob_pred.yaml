@@ -9,8 +9,8 @@ controller:
   n_simulations: 0             # 0 → use mcts_time_budget instead
 
   # Time budget
-  mcts_time_budget: 0.012      # seconds per decision step (12 ms)
-  dynamic_budget: true         # if true, sample budget from U(min, max) each step
+  mcts_time_budget: 0.030      # seconds per decision step (12 ms)
+  dynamic_budget: false         # if true, sample budget from U(min, max) each step
   dynamic_budget_min: 0.005     # 5 ms lower bound
   dynamic_budget_max: 0.030     # 30 ms upper bound
 
@@ -46,14 +46,24 @@ controller:
   calpha_window_size: 10
 
   # Action prior (SVGP/SGPR)
-  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  # MPPI-collected dataset (original):
+  # action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  # Stanley-collected dt=0.02 dataset (3000 rows, no_lateral feature set
+  # [S_vel, max_kappa, C_alpha], trained 2026-05-07. Best of 100 hp_search
+  # trials with M<=130 cap; trial #97 M=64. Test RMSE accel=0.667 steer=0.949):
+  action_prior_model_path: MCTS_SVGP_action_sampler/stanley_dt0.02_svgp_no_lateral/
   action_prior_model_type: svgp
   uniform_action_sampling: false  # if true, use uniform sampling instead of action prior
   no_c_alpha_input: false         # if true, SVGP dynamics uses 6D input (no C_alpha)
 
   # Krasser SVGP dynamics models
-  svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
-  svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  # MPPI-collected dt=0.02 dataset (original):
+  # svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  # svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  # Stanley-collected dt=0.02 dataset (3000 rows, trained 2026-05-07, M=15 ARD + c_alpha_smooth;
+  # test RMSE orig: omega 0.0071, beta 0.00077):
+  svgp_omega_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
+  svgp_beta_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
 
   use_occupancy_map: true
 
