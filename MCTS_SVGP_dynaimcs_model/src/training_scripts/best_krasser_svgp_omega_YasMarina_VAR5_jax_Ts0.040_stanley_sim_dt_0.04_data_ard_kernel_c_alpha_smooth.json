@@ -1,0 +1,30 @@
+{
+  "varidx": 5,
+  "y_name": "Y_omega",
+  "feature_mode": "c_alpha_smooth",
+  "task_dirs": [
+    "/Users/samirgupta/Desktop/WORK/Vanderbilt_work/Research/After_12th_December_2023/21_DA_MCTS/DA_MCTS_new_implementation/MCTS_SVGP_dynaimcs_model/data/splits/YasMarina_VAR5_Ts0.040_stanley_sim_dt_0.04_mu_1.0489"
+  ],
+  "n_trials": 100,
+  "best_val_rmse": 0.004901581551575532,
+  "best_trial": 31,
+  "params": {
+    "sigma_y": 0.00010306133860225978,
+    "num_inducing": 15,
+    "inducing_init": "kmeans"
+  },
+  "search_space": {
+    "sigma_y": [
+      0.0001,
+      1.0
+    ],
+    "num_inducing": [
+      1,
+      15
+    ],
+    "inducing_init": [
+      "kmeans",
+      "random_subset"
+    ]
+  }
+}
