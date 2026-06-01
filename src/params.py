@@ -129,6 +129,9 @@ class ControllerConfig:
     # MCTS action prior SVGP model path
     action_prior_model_path: Optional[str] = None
     action_prior_model_type: str = "svgp"  # "svgp" or "sgpr_krasserm"
+    # Action-probability MLP directory (deadline-aware sampling weights), loaded
+    # by the controller for C++ inference. Defaults to "MCTS_action_prob_MLP".
+    action_prob_mlp_path: Optional[str] = None
     uniform_action_sampling: bool = False  # if true, use uniform sampling instead of action prior
     # Force 100% GP-action prior sampling inside MCTS (disables the
     # budget-aware agg / slow / feas mixing). Useful for debugging the

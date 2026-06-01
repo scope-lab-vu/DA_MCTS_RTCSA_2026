@@ -46,24 +46,27 @@ controller:
   calpha_window_size: 10
 
   # Action prior (SVGP/SGPR)
-  # MPPI-collected dataset (original):
-  # action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
-  # Stanley-collected dt=0.02 dataset (3000 rows, no_lateral feature set
+  # Orignal-collected dt=0.02 dataset (3000 rows)
+  action_prior_model_path: MCTS_SVGP_action_sampler/minimal_feature_1st_train/
+  # Stanley-collected dt=0.02 dataset (3000 rows)
   # [S_vel, max_kappa, C_alpha], trained 2026-05-07. Best of 100 hp_search
   # trials with M<=130 cap; trial #97 M=64. Test RMSE accel=0.667 steer=0.949):
-  action_prior_model_path: MCTS_SVGP_action_sampler/stanley_dt0.02_svgp_no_lateral/
+  # action_prior_model_path: MCTS_SVGP_action_sampler/stanley_dt0.02_svgp_no_lateral/
   action_prior_model_type: svgp
+
+  # Action-probability MLP directory (deadline-aware sampling weights)
+  action_prob_mlp_path: MCTS_action_prob_MLP
+
   uniform_action_sampling: false  # if true, use uniform sampling instead of action prior
   no_c_alpha_input: false         # if true, SVGP dynamics uses 6D input (no C_alpha)
 
-  # Krasser SVGP dynamics models
-  # MPPI-collected dt=0.02 dataset (original):
-  # svgp_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
-  # svgp_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  # SVGP dynamics models
+  svgp_omega_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  svgp_beta_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
   # Stanley-collected dt=0.02 dataset (3000 rows, trained 2026-05-07, M=15 ARD + c_alpha_smooth;
   # test RMSE orig: omega 0.0071, beta 0.00077):
-  svgp_omega_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
-  svgp_beta_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
+  # svgp_omega_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
+  # svgp_beta_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_stanley_dt002_data_ard_kernel_c_alpha_smooth_M_15.npz
 
   use_occupancy_map: true
 
@@ -80,5 +83,5 @@ simulation:
   vehicle_interface: gym
   # SVGP state propagation: use extended kinematic model + GP corrections
   use_svgp_state: false
-  svgp_state_omega_model_path: models/svgp/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
-  svgp_state_beta_model_path: models/svgp/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz
+  svgp_state_omega_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_omega_YasMarina_VAR5_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_11.npz
+  svgp_state_beta_model_path: MCTS_SVGP_dynaimcs_model/data/models/krasser_svgp_beta_YasMarina_VAR6_jax_Ts0.020_MPPI_data_ard_kernel_c_alpha_smooth_M_12.npz

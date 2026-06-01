@@ -296,7 +296,8 @@ class MCTSDPWSvgpCppController:
             log.info("Loaded SVGP action prior from %s (%s inducing)", model_path, n_ind)
 
         # --- Load action-probability MLP weights for C++ inference ---
-        mlp_dir = project_root / "MCTS_action_prob_MLP"
+        mlp_rel = getattr(config, "action_prob_mlp_path", None) or "MCTS_action_prob_MLP"
+        mlp_dir = project_root / mlp_rel
         (self._mlp_W0, self._mlp_b0,
          self._mlp_W1, self._mlp_b1,
          self._mlp_W2, self._mlp_b2,
