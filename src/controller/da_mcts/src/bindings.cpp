@@ -262,7 +262,7 @@ class F1TenthMCTSSvgpBudgetProbPred {
     }
 };
 
-PYBIND11_MODULE(mcts_svgp_cpp_budget_aware_chance_prob_pred, m) {
+PYBIND11_MODULE(da_mcts, m) {
     m.doc() = "C++ MCTS DPW + Krasser SVGP + budget-aware action weighting with MLP probability prediction";
 
     py::class_<F1TenthMCTSSvgpBudgetProbPred>(m, "F1TenthMCTSSvgpBudgetProbPred")

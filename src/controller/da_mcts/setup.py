@@ -4,7 +4,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 
 ext_modules = [
     Pybind11Extension(
-        "mcts_svgp_cpp_budget_aware_chance_prob_pred",
+        "da_mcts",
         ["src/bindings.cpp"],
         include_dirs=["include"],
         depends=glob.glob("include/*.hpp"),
@@ -14,7 +14,7 @@ ext_modules = [
 ]
 
 setup(
-    name="mcts_svgp_cpp_budget_aware_chance_prob_pred",
+    name="da_mcts",
     version="0.1.0",
     description="C++ MCTS DPW + Krasser SVGP + budget-aware action weighting with MLP probability prediction",
     ext_modules=ext_modules,

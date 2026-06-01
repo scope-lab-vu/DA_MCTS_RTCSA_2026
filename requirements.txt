@@ -18,4 +18,4 @@ bayesian-optimization==1.4.3
 ray==2.10.0
 tqdm==4.67.3
 # pip install -e f1tenth_gym/gym  (f110-gym editable install)
-# pip install -e src/controller/mcts_svgp_cpp_budget_aware_chance_prob_pred/  (MCTS C++ extension)
+# pip install -e src/controller/da_mcts/  (MCTS C++ extension)

@@ -9,7 +9,7 @@ MCTS controller fills but Stanley doesn't have a notion of:
 PLUS a `dt_s` column.
 
 The dt=0.02 collection is intended for SVGP dynamics + action-prior
-training that pairs with the original `mcts_svgp_cpp_budget_aware_chance_prob_pred`
+training that pairs with the original `da_mcts`
 controller (which runs at dt_s=0.04 with svgp_base_timestep=0.02 → 2 SVGP
 substeps per MCTS tick).
 
@@ -64,7 +64,7 @@ from src.episode_logger import TRAJECTORY_COLUMNS
 from src.track import Track
 # Reuse the project's cornering-stiffness estimator + nominal constant so
 # C_alpha matches the value the MCTS controller logs.
-from src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred.controller import (
+from src.controller.da_mcts.controller import (
     _compute_cornering_stiffness,
     _C_ALPHA_NOMINAL,
 )

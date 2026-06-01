@@ -32,11 +32,11 @@ from src.params import ControllerConfig, MapConfig, SimulationConfig, VehiclePar
 from src.track import Track, TrackOccupancyMap, ReferenceTrajectory
 
 try:
-    from mcts_svgp_cpp_budget_aware_chance_prob_pred import F1TenthMCTSSvgpBudgetProbPred as F1TenthDPW
+    from da_mcts import F1TenthMCTSSvgpBudgetProbPred as F1TenthDPW
 except ImportError as e:
     raise ImportError(
-        "mcts_svgp_cpp_budget_aware_chance_prob_pred C++ extension not found. "
-        "Build with: pip install -e src/controller/mcts_svgp_cpp_budget_aware_chance_prob_pred/"
+        "da_mcts C++ extension not found. "
+        "Build with: pip install -e src/controller/da_mcts/"
     ) from e
 
 # Add SVGP/SGPR training code to path for load_model

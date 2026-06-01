@@ -9,12 +9,12 @@ Sweeps time budgets to characterise how the MLP-predicted action weights
 interact with the stochastic chance-node expansion on driving performance.
 
 Usage:
-    python run_budget_aware_prob_pred_experiments.py                        # all combos, no render
-    python run_budget_aware_prob_pred_experiments.py --render               # with visualisation
-    python run_budget_aware_prob_pred_experiments.py --time-budget 0.030    # single budget
-    python run_budget_aware_prob_pred_experiments.py --track YasMarina       # single track
-    python run_budget_aware_prob_pred_experiments.py --mu 1.0 0.3           # subset of mu values
-    python run_budget_aware_prob_pred_experiments.py --max-steps 5000       # limit episode length
+    python run_da_mcts_experiments_ablation_uniform.py                        # all combos, no render
+    python run_da_mcts_experiments_ablation_uniform.py --render               # with visualisation
+    python run_da_mcts_experiments_ablation_uniform.py --time-budget 0.030    # single budget
+    python run_da_mcts_experiments_ablation_uniform.py --track YasMarina       # single track
+    python run_da_mcts_experiments_ablation_uniform.py --mu 1.0 0.3           # subset of mu values
+    python run_da_mcts_experiments_ablation_uniform.py --max-steps 5000       # limit episode length
 """
 
 # ── Repo-root setup (run from any directory) ─────────────────────────────
@@ -91,7 +91,7 @@ TIME_BUDGETS = [
     0.030,
 ]
 
-BASE_CONFIG = Path("params/config_mcts_svgp_budget_prob_pred.yaml")
+BASE_CONFIG = Path("params/config_da_mcts.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 

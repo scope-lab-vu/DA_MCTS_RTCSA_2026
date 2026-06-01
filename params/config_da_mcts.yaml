@@ -1,5 +1,5 @@
 controller:
-  type: mcts_svgp_cpp_budget_aware_chance_prob_pred
+  type: da_mcts
 
   # MCTS tree hyperparameters
   alpha_dpw: 0.5

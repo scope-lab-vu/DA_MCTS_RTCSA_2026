@@ -59,7 +59,7 @@ from src.episode_logger import TRAJECTORY_COLUMNS
 from src.track import Track
 # Reuse the project's cornering-stiffness estimator + nominal constant so
 # C_alpha matches the value the MCTS controller logs.
-from src.controller.mcts_svgp_cpp_budget_aware_chance_prob_pred.controller import (
+from src.controller.da_mcts.controller import (
     _compute_cornering_stiffness,
     _C_ALPHA_NOMINAL,
 )
