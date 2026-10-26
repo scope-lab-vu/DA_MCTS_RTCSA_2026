@@ -1,93 +1,107 @@
-# DA-MCTS: Deadline-Aware Action Exploration for Safe Real-Time Planning
+# Deadline-aware planning under CPU contention (fork of DA-MCTS)
 
-Source code for the RTCSA 2026 paper *"DA-MCTS: Deadline-Aware Action Exploration
-for Safe Real-Time Planning"*. DA-MCTS is a continuous-action Monte Carlo Tree
-Search planner for F1TENTH autonomous racing that adapts its action sampling to
-the available compute budget (relative deadline), using an SVGP dynamics model,
-a learned Gaussian action prior, and an MLP that predicts sampling weights online.
+This fork extends the code of Gupta, Yuhas and Dubey, *"DA-MCTS: Deadline-Aware Action
+Exploration for Safe Real-Time Planning"* (RTCSA 2026). The method, models, maps and the
+original experiment code are the authors' work; the authors' README is kept as
+`README_UPSTREAM.md`. This README describes only what this fork adds.
 
-All model weights, maps, and trajectories needed to run the experiments are
-already included in this repository — no extra downloads are required.
+## Research question
 
----
+Can a deadline-aware anytime planner preserve higher trajectory quality and meet real-time
+planning deadlines more reliably than a fixed-computation-budget planner when CPU
+availability is unpredictable?
 
-## 1. Requirements
+The study treats deadline adherence as a first-class metric (not only task completion),
+compares a deadline-aware anytime planner against a fixed-work baseline under controlled CPU
+contention, and asks whether deadline-aware planning preserves safety and lap completion
+under constrained compute.
 
-- **Python 3.8+**
-- A **C++17 compiler**
-- Tested on macOS (Apple Silicon) and Linux x86-64.
+**Status:** tooling complete; experiments in progress. No results are claimed here yet.
+Results go in the table below once the full run is finished.
 
-On Ubuntu, install the OS-level build prerequisites first (needed to compile the
-C++ planner, otherwise step 5 fails with `Python.h: No such file or directory`):
+## What this fork adds
+
+| Path | Purpose |
+|---|---|
+| `run_exps/run_da_mcts_experiments.py` | Modified runner: planner arm selection, per-step timing log, late-command model, per-episode summary CSV |
+| `src/controller/da_mcts/controller.py` | Two attributes exposing the last iteration count and budget (applied by `setup/apply_patches.py`) |
+| `experiments/study_config.yaml` | All study parameters |
+| `experiments/baseline_fixed_budget.py` | One episode of the fixed-work baseline |
+| `experiments/adaptive_deadline_aware.py` | One episode of DA-MCTS (or the anytime ablation) |
+| `experiments/cpu_contention_experiments.py` | `calibrate`, `run` (resumable sweep), `status` |
+| `experiments/cpu_load.py` | Seeded CPU load generator (steady or bursty) |
+| `analysis/summarize_results.py` | Per-condition tables and seed-paired comparisons with 95% intervals |
+| `analysis/generate_plots.py` | Deadline hit rate, collision rate, lap completion, progress, runtime distribution, trade-off |
+| `docs/methodology.md` | The full research protocol (read this first) |
+| `docs/paper_notes.md` | Notes on the DA-MCTS paper and related work |
+| `docs/CODEBASE_GUIDE.md` | AI-drafted guide to the original code, spot-checked by me |
+
+## Planner arms
+
+- `fixed`: exactly N MCTS iterations per step, no time check (the baseline).
+- `anytime`: stops at the time budget, sampling weights stay uniform (ablation).
+- `da`: stops at the time budget with deadline-aware sampling weights (the method).
+
+## Setup (Fedora, Python 3.8 environment)
 
 ```bash
-sudo apt update
-sudo apt install -y build-essential python3.8-dev python3.8-venv
-```
-
-## 2. Install
-
-Run these commands from the repository root.
-
-```bash
-# 1. Create and activate a Python 3.8 virtual environment
-python3.8 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-
-# 2. Build gym 0.19.0 
-pip install gym==0.19.0
-
-# 3. Install the remaining Python dependencies
-pip install -r requirements.txt
-
-# 4. Install the F1TENTH simulator (editable)
-pip install -e f1tenth_gym
-
-# 5. Build and install the DA-MCTS C++ planner extension (editable)
-pip install -e src/controller/da_mcts/
-```
-
-### Verify the install
- 
-```bash
+git clone https://github.com/<your-user>/DA_MCTS_RTCSA_2026.git && cd DA_MCTS_RTCSA_2026
+uv venv --seed --python 3.8 venv && source venv/bin/activate
+python -m pip install "pip<24.1" "setuptools<66" "wheel<0.40"
+python -m pip install gym==0.19.0
+python -m pip install --default-timeout=1000 -r requirements.txt
+python -m pip install -e f1tenth_gym
+python -m pip install -e src/controller/da_mcts/
+python -m pip install pandas matplotlib pyyaml
+python setup/apply_patches.py
 python -c "import da_mcts, f110_gym, torch, gpytorch; print('install OK')"
+sudo dnf install -y util-linux kernel-tools
+sudo cpupower frequency-set -g performance
 ```
 
-## 3. Quick sanity run (~3–4 min)
+Always use `python -m pip` inside the environment (a bare `pip` may belong to a different
+Python).
 
-Run a single, easy configuration (high friction, one track, one trial) and check
-that the car completes laps without crashing:
+## Running the study
 
 ```bash
-python run_exps/run_da_mcts_experiments.py \
-    --track YasMarina --mu 1.0 --time-budget 0.030 \
-    --num-trials 1 --max-steps 4000
+python experiments/cpu_contention_experiments.py calibrate        # idle run, picks N
+python experiments/cpu_contention_experiments.py run --seeds 3    # pilot
+python experiments/cpu_contention_experiments.py run              # full sweep, resumable
+python experiments/cpu_contention_experiments.py status
+python analysis/summarize_results.py
+python analysis/generate_plots.py
 ```
 
-A summary table is printed at the end. A successful run shows `Collision = No`
-and `Laps >= 2` with per-lap times.
+Use `--dry-run` to see the commands without running anything. Run nothing else heavy on the
+machine during the sweep; trials run one at a time on purpose.
 
-## 4. Reproduce the paper experiments
+## Protocol in one paragraph
 
-Results are written to `results/` (one subfolder per track / friction / budget).
+Three planner arms are run on the same track and friction under four CPU conditions (none,
+light, heavy, bursty), 10 seeds each. The planner is pinned to one core and competing busy
+loops are pinned to the same core. Planning time is measured over the whole control step
+against the 40 ms control period. A plan that overruns makes the car keep its previous
+command (late-command model). Metrics: deadline hit rate, planning-time statistics and
+worst case, collision rate, lap completion rate, progress, lap time, steering and
+acceleration smoothness, steps before crash. Comparisons are paired by seed with bootstrap
+95% intervals. Full details: `docs/methodology.md`.
 
-```bash
-# Main DA-MCTS sweep: 2 tracks x 10 friction values x 7 time budgets x 10 trials
-python run_exps/run_da_mcts_experiments.py
+## Results
 
-# Uniform-sampling ablation
-python run_exps/run_da_mcts_experiments_ablation_uniform.py
-```
+*To be filled in from `results/analysis/condition_table.csv` and `paired_differences.csv`
+after the real run. Do not copy numbers from test data.*
 
-Both scripts accept the same filters, useful for running a subset:
+## Limitations
 
-| Flag | Meaning | Example |
-|------|---------|---------|
-| `--track`        | one or more tracks (`Sepang`, `YasMarina`) | `--track YasMarina` |
-| `--mu`           | one or more friction values                | `--mu 1.0 0.5 0.4` |
-| `--time-budget`  | one or more MCTS budgets, in **seconds**   | `--time-budget 0.030` |
-| `--num-trials`   | trials (seeds) per configuration           | `--num-trials 10` |
-| `--max-steps`    | max simulation steps per episode           | `--max-steps 10000` |
-| `--render`       | show the live simulation window            | `--render` |
+Simulation only; one machine; simplified lateness model; wall-clock-dependent planner
+(identical seeds do not reproduce identical trajectories); lap times only for completed
+episodes; primary study covers one track and one friction value. See `docs/methodology.md`
+section 10.
 
-Run with `--help` to see all options.
+## Attribution, licence and disclosure
+
+Original work: Gupta, Yuhas, Dubey, RTCSA 2026. Check the upstream repository for its licence
+before redistributing. The code reading guide (`docs/CODEBASE_GUIDE.md`) and parts of the
+tooling were drafted with AI assistance (Claude) and then checked by me; behaviour claims
+were verified by running the code where noted.

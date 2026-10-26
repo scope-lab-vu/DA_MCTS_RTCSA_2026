@@ -15,6 +15,18 @@ Usage:
     python run_da_mcts_experiments.py --track YasMarina       # single track
     python run_da_mcts_experiments.py --mu 1.0 0.3           # subset of mu values
     python run_da_mcts_experiments.py --max-steps 5000       # limit episode length
+
+EXTRA (contention study) -- controlled with environment variables, which the
+child processes inherit:
+    DAMCTS_MODE=da|anytime|fixed   planner arm (default da)
+        da       full DA-MCTS: timed search + MLP-adapted sampling weights
+        anytime  timed search, weights stay 1/3 each (warmup set huge)
+        fixed    fixed work: exactly DAMCTS_N_ITERS iterations, no time limit
+    DAMCTS_N_ITERS=1000            iterations for fixed mode
+    DAMCTS_LATE=1|0                late-command model on (default) / off
+    DAMCTS_TAG=name                label for the condition (e.g. heavy_s1)
+    DAMCTS_FAKE_DELAY_MS=0         test only: extra sleep on every 10th plan
+    DAMCTS_WARMUP_DECISIONS=40     first N decisions: no late model, excluded from stats
 """
 
 # ── Repo-root setup (run from any directory) ─────────────────────────────
@@ -24,8 +36,10 @@ _os.chdir(_REPO); _sys.path.insert(0, str(_REPO))  # noqa: E702
 # ─────────────────────────────────────────────────────────────────────────
 
 import argparse
+import csv
 import json
 import logging
+import math
 import os
 import random
 import signal
@@ -95,6 +109,19 @@ BASE_CONFIG = Path("params/config_da_mcts.yaml")
 VEHICLE_PARAMS = Path("params/vehicle_params.yaml")
 RESULTS_DIR = Path("results")
 
+# ── Contention-study settings (read from environment) ────────────────────
+MODE = os.environ.get("DAMCTS_MODE", "da").lower()
+N_ITERS = int(os.environ.get("DAMCTS_N_ITERS", "1000"))
+LATE_MODEL = os.environ.get("DAMCTS_LATE", "1") == "1"
+TAG = os.environ.get("DAMCTS_TAG", "")
+FAKE_DELAY_S = float(os.environ.get("DAMCTS_FAKE_DELAY_MS", "0")) / 1000.0
+# The first planning calls include one-time setup (tree build, cache warm-up; measured
+# at ~4 s for the very first real plan). They are not deadline misses: the late model is
+# not applied to them and they are excluded from the deadline statistics.
+WARMUP_DECISIONS = int(os.environ.get("DAMCTS_WARMUP_DECISIONS", "40"))
+if MODE not in ("da", "anytime", "fixed"):
+    raise SystemExit(f"DAMCTS_MODE must be da, anytime or fixed (got '{MODE}')")
+
 
 def mu_to_id(mu: float) -> str:
     return str(mu).replace(".", "")
@@ -129,10 +156,29 @@ def make_map_config_all_10489_files(map_config_path: Path, track: str) -> Path:
 
 
 def make_config_with_time_budget(time_budget: float) -> Path:
-    """Return a temp algo config YAML with the given mcts_time_budget."""
+    """Return a temp algo config YAML with the given mcts_time_budget.
+
+    The planner arm (MODE) also changes the config:
+      da       -> nothing else changes
+      anytime  -> budget_n_warmup is made huge, so the MLP never takes over and
+                  the sampling weights stay at 1/3 each
+      fixed    -> mcts_time_budget=0 and n_simulations=N_ITERS (fixed work)
+    """
     with open(BASE_CONFIG) as f:
         cfg = yaml.safe_load(f)
     cfg["controller"]["mcts_time_budget"] = time_budget
+
+    if MODE == "anytime":
+        if "budget_n_warmup" not in cfg["controller"]:
+            raise KeyError(
+                "budget_n_warmup not found under 'controller' in the config. "
+                "Find the real key name with: grep -n warmup params/config_da_mcts.yaml"
+            )
+        cfg["controller"]["budget_n_warmup"] = 1_000_000
+    elif MODE == "fixed":
+        cfg["controller"]["mcts_time_budget"] = 0.0
+        cfg["controller"]["n_simulations"] = N_ITERS
+
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".yaml", delete=False,
         prefix=f"config_prob_pred_tb{int(time_budget*1000)}ms_",
@@ -165,8 +211,8 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
 
     log.info("=" * 60)
     log.info(
-        "EXPERIMENT: %s  mu=%.4f  budget=%dms  trial=%d  seed=%d",
-        track, mu, int(time_budget * 1000), trial, seed,
+        "EXPERIMENT: %s  mu=%.4f  budget=%dms  trial=%d  seed=%d  mode=%s  late_model=%s  tag=%s",
+        track, mu, int(time_budget * 1000), trial, seed, MODE, LATE_MODEL, TAG or "-",
     )
     log.info("=" * 60)
 
@@ -196,6 +242,14 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
         lap_step_start = 0
         lap_times_list: list = []
 
+        # timing log: one row per planning decision
+        # (decision, sim_step, wall_time, plan_time_s, n_iters, budget_s, met_deadline, late_steps, in_warmup)
+        timing_rows = []
+        decision_idx = 0
+        prev_cmd = None  # last command that was applied; held while a plan is late
+        applied_sv = []   # every command actually applied (incl. held ones), for smoothness
+        applied_acc = []
+
         controller = api._controller
 
         try:
@@ -203,7 +257,36 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
                 t0 = time.monotonic()
 
                 state = api.get_state()
+
+                # ---- time the whole planning call (Python prep + C++ search + extraction)
+                controller._last_n_sims = -1   # stays -1 if the controller returns early (startup)
+                t_wall = time.time()
+                t_plan0 = time.perf_counter()
                 cmd = api.compute_action(state, waypoints)
+                if FAKE_DELAY_S > 0 and decision_idx % 10 == 5:
+                    time.sleep(FAKE_DELAY_S)   # test hook: pretend the plan was slow
+                plan_time = time.perf_counter() - t_plan0
+                decision_idx += 1
+
+                n_iters = getattr(controller, "_last_n_sims", -1)
+                budget_s = getattr(controller, "_last_budget_s", float("nan"))
+
+                # ---- late-command model: a plan that overruns dt_s means the car keeps
+                # driving on the PREVIOUS command for the extra periods.
+                in_warmup = decision_idx <= WARMUP_DECISIONS
+                late_steps = (
+                    max(0, math.ceil(plan_time / dt_s) - 1)
+                    if (LATE_MODEL and not in_warmup) else 0
+                )
+                timing_rows.append((
+                    decision_idx, step, t_wall, plan_time, n_iters, budget_s,
+                    int(plan_time <= dt_s), late_steps, int(in_warmup),
+                ))
+
+                if prev_cmd is None:
+                    prev_cmd = type(cmd)(acceleration=0.0, steering_vel=0.0)
+                cmds_to_apply = [prev_cmd] * late_steps + [cmd]
+                prev_cmd = cmd
 
                 cs_raw = (
                     controller.get_cornering_stiffness()
@@ -216,63 +299,74 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
                 weights = controller.get_last_weights() if hasattr(controller, "get_last_weights") else (1/3, 1/3, 1/3)
                 weight_values.append(weights)
 
-                episode_logger.log_step(
-                    state, cmd,
-                    float("nan"), float("nan"), float("nan"),
-                    c_alpha=cs_raw,
-                    max_kappa=max_kappa,
-                    avg_kappa=avg_kappa,
-                )
-                done = api.apply_action(cmd)
+                done = False
+                for k, c in enumerate(cmds_to_apply):
+                    if k > 0:
+                        state = api.get_state()   # state before each held step
 
-                if render:
-                    traj_steps = getattr(controller, 'get_best_trajectory', lambda: [])()
-                    if traj_steps:
-                        xy = np.array([[s['state'][0], s['state'][1]]
-                                       for s in traj_steps if len(s['state']) >= 2])
-                        if len(xy) > 0:
-                            api.set_planned_trajectory(xy)
-                    api.render()
+                    episode_logger.log_step(
+                        state, c,
+                        float("nan"), float("nan"), float("nan"),
+                        c_alpha=cs_raw,
+                        max_kappa=max_kappa,
+                        avg_kappa=avg_kappa,
+                    )
+                    done = api.apply_action(c)
+                    applied_sv.append(float(getattr(c, "steering_vel", float("nan"))))
+                    applied_acc.append(float(getattr(c, "acceleration", float("nan"))))
+
+                    if render:
+                        traj_steps = getattr(controller, 'get_best_trajectory', lambda: [])()
+                        if traj_steps:
+                            xy = np.array([[s['state'][0], s['state'][1]]
+                                           for s in traj_steps if len(s['state']) >= 2])
+                            if len(xy) > 0:
+                                api.set_planned_trajectory(xy)
+                        api.render()
+
+                    step += 1
+
+                    # Track progress
+                    pos = np.array([state.x, state.y])
+                    _, _, progress = track_obj.get_nearest_point(pos)
+                    if prev_progress is None:
+                        prev_progress = progress
+
+                    delta_p = progress - prev_progress
+                    if delta_p < -track_obj.total_length * 0.5:
+                        delta_p += track_obj.total_length
+                    elif delta_p > track_obj.total_length * 0.5:
+                        delta_p -= track_obj.total_length
+                    accumulated_progress += delta_p
+                    prev_progress = progress
+
+                    laps_completed = int(accumulated_progress / track_obj.total_length)
+
+                    if laps_completed > prev_laps:
+                        for _ in range(laps_completed - prev_laps):
+                            lap_time_s = (step - lap_step_start) * dt_s
+                            lap_times_list.append(round(lap_time_s, 3))
+                            lap_step_start = step
+                        prev_laps = laps_completed
+
+                    if step % 1000 == 0:
+                        pct = (accumulated_progress / track_obj.total_length) * 100
+                        recent = weight_values[-100:] if weight_values else [(1/3, 1/3, 1/3)]
+                        avg_p_agg = np.mean([w[0] for w in recent])
+                        avg_p_slow = np.mean([w[1] for w in recent])
+                        avg_p_feas = np.mean([w[2] for w in recent])
+                        log.info(
+                            "[%s mu=%.4f %dms] step=%d  v=%.2f  progress=%.1f%%  "
+                            "p_agg=%.3f p_slow=%.3f p_feas=%.3f  plan=%.4fs",
+                            track, mu, int(time_budget * 1000), step,
+                            state.v, pct, avg_p_agg, avg_p_slow, avg_p_feas, plan_time,
+                        )
+
+                    if done or step >= max_steps:
+                        break
 
                 elapsed = time.monotonic() - t0
                 step_times.append(elapsed)
-                step += 1
-
-                # Track progress
-                pos = np.array([state.x, state.y])
-                _, _, progress = track_obj.get_nearest_point(pos)
-                if prev_progress is None:
-                    prev_progress = progress
-
-                delta_p = progress - prev_progress
-                if delta_p < -track_obj.total_length * 0.5:
-                    delta_p += track_obj.total_length
-                elif delta_p > track_obj.total_length * 0.5:
-                    delta_p -= track_obj.total_length
-                accumulated_progress += delta_p
-                prev_progress = progress
-
-                laps_completed = int(accumulated_progress / track_obj.total_length)
-
-                if laps_completed > prev_laps:
-                    for _ in range(laps_completed - prev_laps):
-                        lap_time_s = (step - lap_step_start) * dt_s
-                        lap_times_list.append(round(lap_time_s, 3))
-                        lap_step_start = step
-                    prev_laps = laps_completed
-
-                if step % 1000 == 0:
-                    pct = (accumulated_progress / track_obj.total_length) * 100
-                    recent = weight_values[-100:] if weight_values else [(1/3, 1/3, 1/3)]
-                    avg_p_agg = np.mean([w[0] for w in recent])
-                    avg_p_slow = np.mean([w[1] for w in recent])
-                    avg_p_feas = np.mean([w[2] for w in recent])
-                    log.info(
-                        "[%s mu=%.4f %dms] step=%d  v=%.2f  progress=%.1f%%  "
-                        "p_agg=%.3f p_slow=%.3f p_feas=%.3f  dt=%.4fs",
-                        track, mu, int(time_budget * 1000), step,
-                        state.v, pct, avg_p_agg, avg_p_slow, avg_p_feas, elapsed,
-                    )
 
                 if done:
                     reason = "collision" if api.collision else "done"
@@ -291,6 +385,45 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
             log.info("[%s mu=%.4f %dms] Interrupted at step %d",
                      track, mu, int(time_budget * 1000), step)
 
+        # ---- save the per-decision timing log
+        timing_dir = RESULTS_DIR / "timing"
+        timing_dir.mkdir(parents=True, exist_ok=True)
+        timing_path = timing_dir / (
+            f"timing_{MODE}_{TAG or 'none'}_{track}_mu{mu}_tb{int(time_budget*1000)}ms"
+            f"_t{trial}_s{seed}.csv"
+        )
+        with open(timing_path, "w", newline="") as f:
+            w = csv.writer(f)
+            w.writerow(["decision", "sim_step", "wall_time", "plan_time_s",
+                        "n_iters", "budget_s", "met_deadline", "late_steps", "in_warmup"])
+            w.writerows(timing_rows)
+
+        # skip startup steps (n_iters == -1) and the warm-up window
+        valid = [r for r in timing_rows if r[4] >= 0 and not r[8]]
+        nan = float("nan")
+        if valid:
+            plan_ms = np.array([r[3] for r in valid]) * 1000.0
+            hit_rate = float(np.mean([r[6] for r in valid]))
+            plan_p95_ms = float(np.percentile(plan_ms, 95))
+            plan_p99_ms = float(np.percentile(plan_ms, 99))
+            plan_mean_ms = float(np.mean(plan_ms))
+            plan_median_ms = float(np.median(plan_ms))
+            plan_std_ms = float(np.std(plan_ms))
+            plan_max_ms = float(np.max(plan_ms))
+            severe_miss_rate = float(np.mean(plan_ms > 2.0 * dt_s * 1000.0))  # > 2 periods
+            mean_iters = float(np.mean([r[4] for r in valid]))
+        else:
+            hit_rate = plan_p95_ms = plan_p99_ms = mean_iters = nan
+            plan_mean_ms = plan_median_ms = plan_std_ms = plan_max_ms = severe_miss_rate = nan
+        late_steps_total = int(sum(r[7] for r in timing_rows))
+
+        # smoothness: mean absolute change of the applied command between consecutive steps
+        def _mean_abs_diff(v):
+            v = np.asarray(v, dtype=float)
+            return float(np.nanmean(np.abs(np.diff(v)))) if len(v) > 1 else nan
+        steer_rate_change = _mean_abs_diff(applied_sv)
+        accel_change = _mean_abs_diff(applied_acc)
+
         laps = int(accumulated_progress / track_obj.total_length)
 
         if reason == "done":
@@ -306,6 +439,10 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
             laps = max(laps, gym_laps)
 
         tb_tag = f"_tb{int(time_budget*1000)}ms"
+        if MODE != "da":
+            tb_tag += f"_{MODE}"
+        if TAG:
+            tb_tag += f"_{TAG}"
         output_dir = str(RESULTS_DIR / f"prob_pred_mcts_{track}_{mu_id}{tb_tag}")
         config_name = f"{BASE_CONFIG.stem}_t{trial}_s{seed}"
 
@@ -326,6 +463,9 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
             "avg_p_feas": avg_p_feas,
             "lap_times_s": lap_times_list,
             "collision": reason == "collision",
+            "mode": MODE,
+            "tag": TAG,
+            "late_model": LATE_MODEL,
         }
         csv_path = api.save_episode(
             episode_logger,
@@ -356,6 +496,22 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
             "lap_times": lap_times_list,
             "csv": csv_path,
             "status": "OK",
+            "mode": MODE,
+            "tag": TAG,
+            "deadline_hit_rate": hit_rate,
+            "plan_p95_ms": plan_p95_ms,
+            "plan_p99_ms": plan_p99_ms,
+            "mean_iters": mean_iters,
+            "late_steps_total": late_steps_total,
+            "plan_mean_ms": plan_mean_ms,
+            "plan_median_ms": plan_median_ms,
+            "plan_std_ms": plan_std_ms,
+            "plan_max_ms": plan_max_ms,
+            "severe_miss_rate": severe_miss_rate,
+            "steer_rate_change": steer_rate_change,
+            "accel_change": accel_change,
+            "completed": reason == "done",
+            "timing_csv": str(timing_path),
         }
     finally:
         os.unlink(fixed_map_config_path)
@@ -512,18 +668,58 @@ def main():
 
     # Final summary
     print_summary_table(results)
+    append_summary_csv(results)
+
+
+def append_summary_csv(results):
+    """Append one row per finished episode to results/contention_summary.csv."""
+    path = RESULTS_DIR / "contention_summary.csv"
+    cols = ["mode", "tag", "track", "mu", "time_budget_ms", "trial", "seed",
+            "status", "reason", "collision", "completed", "laps", "steps", "progress_pct",
+            "best_lap_s", "mean_lap_s", "deadline_hit_rate", "plan_mean_ms",
+            "plan_median_ms", "plan_std_ms", "plan_p95_ms", "plan_p99_ms", "plan_max_ms",
+            "severe_miss_rate", "mean_iters", "late_steps_total", "steer_rate_change",
+            "accel_change", "late_model"]
+    if path.exists():
+        with open(path, newline="") as f:
+            old_header = next(csv.reader(f), [])
+        if old_header != cols:   # never mix two layouts in one file
+            path.rename(path.with_name(f"contention_summary.{int(time.time())}.old.csv"))
+    new_file = not path.exists()
+    with open(path, "a", newline="") as f:
+        w = csv.writer(f)
+        if new_file:
+            w.writerow(cols)
+        for r in results:
+            laps_t = r.get("lap_times", [])
+            w.writerow([
+                r.get("mode", MODE), r.get("tag", TAG), r.get("track"), r.get("mu"),
+                r.get("time_budget_ms"), r.get("trial"), r.get("seed"),
+                r.get("status"), r.get("reason"), r.get("collision"),
+                r.get("completed", ""), r.get("laps"), r.get("steps"),
+                r.get("progress_pct"),
+                min(laps_t) if laps_t else "",
+                float(np.mean(laps_t)) if laps_t else "",
+                r.get("deadline_hit_rate", ""), r.get("plan_mean_ms", ""),
+                r.get("plan_median_ms", ""), r.get("plan_std_ms", ""),
+                r.get("plan_p95_ms", ""), r.get("plan_p99_ms", ""),
+                r.get("plan_max_ms", ""), r.get("severe_miss_rate", ""),
+                r.get("mean_iters", ""), r.get("late_steps_total", ""),
+                r.get("steer_rate_change", ""), r.get("accel_change", ""),
+                LATE_MODEL,
+            ])
 
 
 def print_summary_table(results):
     """Print summary table of all completed results so far."""
-    w = 145
+    w = 165
     print("\n" + "=" * w)
-    print("BUDGET-AWARE MLP-PROB-PRED MCTS EXPERIMENT RESULTS")
+    print(f"BUDGET-AWARE MLP-PROB-PRED MCTS EXPERIMENT RESULTS  (mode={MODE}, late_model={LATE_MODEL}, tag={TAG or '-'})")
     print("=" * w)
     print(
         f"{'Track':<14} {'mu':>7} {'Budget':>8} {'Trial':>6} {'Seed':>6} {'Steps':>7} "
         f"{'Collision':<10} {'Laps':>5} {'Progress':>9} {'Reason':<12} {'ms/step':>9} "
-        f"{'p_agg':>6} {'p_slow':>7} {'p_feas':>7}  {'Lap times (s)'}"
+        f"{'p_agg':>6} {'p_slow':>7} {'p_feas':>7} {'Hit%':>6} {'Iters':>7}  {'Lap times (s)'}"
     )
     print("-" * w)
 
@@ -559,12 +755,14 @@ def print_summary_table(results):
         p_agg = r.get("avg_p_agg", 1/3)
         p_slow = r.get("avg_p_slow", 1/3)
         p_feas = r.get("avg_p_feas", 1/3)
+        hit = r.get("deadline_hit_rate", float("nan")) * 100
+        iters = r.get("mean_iters", float("nan"))
         print(
             f"{r['track']:<14} {r['mu']:>7.4f} {tb_str:>8} "
             f"{r.get('trial', 1):>6d} {r.get('seed', 0):>6d} {r['steps']:>7d} "
             f"{col_str:<10} {r['laps']:>5d} {r['progress_pct']:>8.1f}% "
             f"{r['reason']:<12} {r['avg_step_ms']:>8.2f}ms "
-            f"{p_agg:>6.3f} {p_slow:>7.3f} {p_feas:>7.3f}  [{lap_str}]"
+            f"{p_agg:>6.3f} {p_slow:>7.3f} {p_feas:>7.3f} {hit:>5.1f}% {iters:>7.0f}  [{lap_str}]"
         )
 
     print("=" * w)

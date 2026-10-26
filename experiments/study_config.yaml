@@ -1,0 +1,25 @@
+# Study configuration. Edit here, not in the scripts.
+study:
+  track: YasMarina
+  mu: 1.0
+  # Nominal planning budget for the time-bounded arms (anytime, da).
+  # The paper default is 0.030, but the work outside the C++ timer adds ~8-10 ms,
+  # so the whole call overruns the 40 ms period. Decide after `calibrate`.
+  time_budget_s: 0.025
+  period_s: 0.040            # control period; must equal simulation.dt_s in params/config_da_mcts.yaml
+  max_steps: 4000
+  seeds: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51]
+  planner_core: 2            # the planner is pinned to ONE core (taskset)
+  arms: [fixed, anytime, da]
+  fixed_n_iters: null        # set after `calibrate` (or leave null to use results/calibration.json)
+  late_model: true           # a plan longer than the period => the car keeps its previous command
+  warmup_decisions: 40       # excluded from deadline stats and from the late model
+
+# Contention = busy-loop workers pinned to the SAME core as the planner (study.planner_core).
+# `workers` is the NUMBER of competing workers; with k workers the planner gets roughly
+# 1/(k+1) of that core.
+loads:
+  none:   {workers: 0, mode: steady}
+  light:  {workers: 1, mode: steady}   # ~50% of the core
+  heavy:  {workers: 3, mode: steady}   # ~25% of the core
+  bursty: {workers: 3, mode: bursty}   # 3 workers, seeded random on/off (0.5-3 s)

@@ -323,6 +323,8 @@ class MCTSDPWSvgpCppController:
         self._last_action_std = np.ones(2)
         self._last_best_trajectory = []
         self._timestep = 0
+        self._last_n_sims = -1
+        self._last_budget_s = float("nan")
         self._local_cx = np.zeros(106)
         self._local_cy = np.zeros(106)
         self._local_heading = np.zeros(106)
@@ -580,6 +582,8 @@ class MCTSDPWSvgpCppController:
             n_sims = self.n_simulations
 
         log.debug("MCTS ran %d sims (C++ MLP, budget=%.1fms)", n_sims, budget * 1000 if self.mcts_time_budget > 0 else 0)
+        self._last_n_sims = int(n_sims)
+        self._last_budget_s = budget if self.mcts_time_budget > 0 else float("nan")
 
         # 7. Extract best trajectory
         try:

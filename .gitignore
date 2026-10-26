@@ -37,3 +37,12 @@ MCTS_SVGP_dynaimcs_model/train_venv
 # IDE settings + unused root model weights (kept locally, excluded from the repo)
 .vscode/
 /models/
+venv/
+__pycache__/
+*.pyc
+*.old.csv
+*.bak
+params/config_prob_pred_*
+maps/map_prob_pred_*
+params/config_ablation_*
+maps/map_ablation_*
