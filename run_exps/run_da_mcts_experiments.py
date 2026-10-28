@@ -511,6 +511,7 @@ def run_experiment(track, mu, seed, trial, max_steps, render, time_budget) -> di
             "steer_rate_change": steer_rate_change,
             "accel_change": accel_change,
             "completed": reason == "done",
+            "n_decisions": len(valid),
             "timing_csv": str(timing_path),
         }
     finally:
@@ -678,7 +679,7 @@ def append_summary_csv(results):
             "status", "reason", "collision", "completed", "laps", "steps", "progress_pct",
             "best_lap_s", "mean_lap_s", "deadline_hit_rate", "plan_mean_ms",
             "plan_median_ms", "plan_std_ms", "plan_p95_ms", "plan_p99_ms", "plan_max_ms",
-            "severe_miss_rate", "mean_iters", "late_steps_total", "steer_rate_change",
+            "severe_miss_rate", "mean_iters", "n_decisions", "late_steps_total", "steer_rate_change",
             "accel_change", "late_model"]
     if path.exists():
         with open(path, newline="") as f:
@@ -704,7 +705,7 @@ def append_summary_csv(results):
                 r.get("plan_median_ms", ""), r.get("plan_std_ms", ""),
                 r.get("plan_p95_ms", ""), r.get("plan_p99_ms", ""),
                 r.get("plan_max_ms", ""), r.get("severe_miss_rate", ""),
-                r.get("mean_iters", ""), r.get("late_steps_total", ""),
+                r.get("mean_iters", ""), r.get("n_decisions", ""), r.get("late_steps_total", ""),
                 r.get("steer_rate_change", ""), r.get("accel_change", ""),
                 LATE_MODEL,
             ])

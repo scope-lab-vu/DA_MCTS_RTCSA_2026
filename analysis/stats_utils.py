@@ -47,7 +47,7 @@ def bootstrap_mean_ci(x, n_boot=10000, seed=0):
 NUMERIC = ["mu", "time_budget_ms", "trial", "seed", "laps", "steps", "progress_pct",
            "best_lap_s", "mean_lap_s", "deadline_hit_rate", "plan_mean_ms", "plan_median_ms",
            "plan_std_ms", "plan_p95_ms", "plan_p99_ms", "plan_max_ms", "severe_miss_rate",
-           "mean_iters", "late_steps_total", "steer_rate_change", "accel_change"]
+           "mean_iters", "n_decisions", "late_steps_total", "steer_rate_change", "accel_change"]
 
 
 def out_dir(timing_only=False):
@@ -109,6 +109,7 @@ def build_condition_table(df):
                 "plan_max_ms_worst": g["plan_max_ms"].max(),
                 "severe_miss_rate": g["severe_miss_rate"].mean(),
                 "mean_iters": g["mean_iters"].mean(),
+                "decisions_mean": g["n_decisions"].mean() if "n_decisions" in g else float("nan"),
                 "mean_lap_s": done["mean_lap_s"].mean() if len(done) else float("nan"),
                 "best_lap_s": done["best_lap_s"].mean() if len(done) else float("nan"),
                 "steps_before_crash": crashed["steps"].mean() if len(crashed) else float("nan"),

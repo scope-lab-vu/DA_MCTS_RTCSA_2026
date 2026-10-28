@@ -7,7 +7,7 @@ study:
   # so the whole call overruns the 40 ms period. Decide after `calibrate`.
   time_budget_s: 0.025
   period_s: 0.040            # control period; must equal simulation.dt_s in params/config_da_mcts.yaml
-  max_steps: 4000
+  max_steps: 6000            # uniform-weight arms need ~4300+ steps for 2 laps; 4000 mis-scored them as incomplete
   seeds: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51]
   planner_core: 2            # the planner is pinned to ONE core (taskset)
   arms: [fixed, anytime, da]

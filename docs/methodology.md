@@ -65,6 +65,13 @@ deadline when the machine is idle. This is produced by the `calibrate` command.
 - **Steps before crash.** Simulated steps until collision, for crashed episodes.
 - **Smoothness.** Mean absolute change of the applied steering velocity and acceleration
   between consecutive simulated steps (lower is smoother). Held commands count.
+- **Episode cap.** `max_steps = 6000` simulated steps (240 s). Uniform-weight planners
+  drive more slowly (about 85-90 s per lap at idle in the pilot) and need more than the
+  original 4000 steps for two laps, which would score slow-but-safe runs as incomplete.
+- **Change relative to own idle.** The arms use different sampling policies and so drive
+  at different speeds even without contention. The effect of contention is therefore
+  reported as each arm's change from its own idle cell (`relative_to_idle.csv`), in
+  addition to the cross-arm comparisons.
 - **Lap time.** Mean and best lap time of completed episodes only. Read it together with
   completion rate, because crashed episodes have no lap time (survivorship bias).
 
