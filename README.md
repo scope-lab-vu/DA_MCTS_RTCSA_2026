@@ -118,6 +118,4 @@ section 10.
 ## Attribution, licence and disclosure
 
 Original work: Gupta, Yuhas, Dubey, RTCSA 2026. Check the upstream repository for its licence
-before redistributing. The code reading guide (`docs/CODEBASE_GUIDE.md`) and parts of the
-tooling were drafted with AI assistance (Claude) and then checked by me; behaviour claims
-were verified by running the code where noted.
+before redistributing. 
