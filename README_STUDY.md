@@ -16,8 +16,8 @@ compares a deadline-aware anytime planner against a fixed-work baseline under co
 contention, and asks whether deadline-aware planning preserves safety and lap completion
 under constrained compute.
 
-**Status:** tooling complete; experiments in progress. No results are claimed here yet.
-Results go in the table below once the full run is finished.
+**Status:** experiments finished (5 seeds per cell, one machine). Full results, tables and
+limitations: `docs/RESULTS_AND_LIMITATIONS.md`.
 
 ## What this fork adds
 
@@ -94,8 +94,19 @@ acceleration smoothness, steps before crash. Comparisons are paired by seed with
 
 ## Results
 
-*To be filled in from `results/analysis/condition_table.csv` and `paired_differences.csv`
-after the real run. Do not copy numbers from test data.*
+With the released DA-MCTS and a 25 ms search budget on a pinned, contended CPU core:
+
+- Contention scaled planning as designed (fixed-work step time 31 ms idle, 65 ms light, 134 ms heavy).
+- A time-bounded search did not make the control step meet its 40 ms deadline: whole-step time was
+  33 / 43 / 67 ms (idle / light / heavy), because the budget bounds only the search; the work outside it
+  grew from about 7.5 ms to about 42 ms.
+- With late plans modelled (the car keeps its previous command), every planner crashed in every
+  contended closed-loop episode, so that variant cannot rank them under contention.
+- Deadline-aware sampling showed no measurable deadline or safety benefit over simply stopping
+  the search on time; it drove faster laps (about 49 s vs 75 s at idle).
+- Hypotheses H1 (more deadlines met) not supported in practice, H2 not assessable, H3 not testable.
+
+These are 5-seed, single-machine results; see the limitations section before citing them.
 
 ## Limitations
 

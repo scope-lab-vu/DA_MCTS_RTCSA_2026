@@ -24,7 +24,9 @@ OUTD = su.out_dir(args.timing_only)
 OUTD.mkdir(parents=True, exist_ok=True)
 if args.timing_only:
     print("*** TIMING-ONLY VARIANT: late-command model off. Use for deadline/runtime statistics; "
-          "collision and completion here do NOT include the effect of late commands. ***\n")
+          "collision and completion here do NOT include the effect of late commands. "
+          "Episodes may be truncated (timing_only_max_steps), so completion and lap time are not "
+          "meaningful in this variant. ***\n")
 df = su.load_summary(timing_only=args.timing_only)
 table = su.build_condition_table(df)
 table.to_csv(OUTD / "condition_table.csv", index=False)

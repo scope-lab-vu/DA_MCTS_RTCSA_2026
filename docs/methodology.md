@@ -101,7 +101,7 @@ Every (arm, load) cell is run in two variants, because one cannot answer both qu
 | Variant | Late-command model | Tag in results | What it answers |
 |---|---|---|---|
 | closed-loop | on | `<load>` | Does the car crash or complete when plans arrive late? |
-| timing-only | off | `<load>-timing` | How reliably does each planner meet the deadline? (the car never drives on stale commands, so episodes run long and give thousands of decisions) |
+| timing-only | off | `<load>-timing` (episodes truncated at `timing_only_max_steps`, default 1500) | How reliably does each planner meet the deadline? (the car never drives on stale commands, so episodes run long and give thousands of decisions) |
 
 Reason: under heavy load the fixed-work arm can crash within a few decisions in the
 closed-loop variant (observed in the pilot: a crash at step 58 after only 9 post-warm-up
@@ -184,7 +184,33 @@ trivial for `anytime` and `da` versus `fixed`. The informative comparisons are `
 - Work outside the C++ timer is not controlled by the time budget, so planning time can
   exceed the deadline even for a time-bounded planner.
 
-## 11. Reproducibility
+## 11. Run order, drift control and run history
+
+- **Order.** Within each seed, all (arm, load) cells are shuffled together
+  (reproducibly), so no arm or load condition systematically runs first or last. The first
+  sweep ran the load conditions in a fixed order (none, light, heavy, bursty) with only the
+  arms shuffled; that is a confound with machine state.
+- **Cooldown and machine log.** A pause (`cooldown_s`) follows every episode, and
+  `results/machine_log.csv` records CPU frequency of the planner core, hottest thermal zone
+  and load average before and after each episode.
+- **Machine state (checked automatically before `calibrate` and `run`).** CPU governor
+  `performance` (or `powersave` with energy preference `performance`, equivalent on Intel
+  HWP), AC power connected, browsers and other heavy programs closed (an 8 GB laptop with
+  a browser open can show memory stalls; per-episode memory stall is logged). Recommended: turbo boost off
+  (`echo 1 | sudo tee /sys/devices/system/cpu/intel_pstate/no_turbo`) so the clock does not
+  fall as the laptop heats up. Record governor, turbo setting and power state in the write-up
+  (they are also written to `results/machine_log.csv`). The first sweep was run with the
+  governor on `powersave`, found afterwards.
+- **Drift check.** `analysis/check_drift.py` compares reference cells over time: the idle
+  fixed-work arm (constant N, so plan time should be constant) and the idle time-bounded
+  arms (iterations within the budget).
+- **Run history.** Pilot 1 (3 seeds, `max_steps` 4000) was discarded. Sweep 1 (10 seeds)
+  showed unexplained machine-speed differences against the calibration; see the drift
+  check output before interpreting absolute hit rates from it. The reported results come from
+  a clean rerun (5 seeds) with performance governor, AC power, turbo off. Calibrated N = 900,
+  budget T = 25 ms. The first sweep is not reported. **TODO: add the commit hash and the CPU model.**
+
+## 12. Reproducibility
 
 Record for the final results: commit hash of the fork, `study_config.yaml`,
 `results/calibration.json`, CPU model, kernel, CPU governor, Python and package

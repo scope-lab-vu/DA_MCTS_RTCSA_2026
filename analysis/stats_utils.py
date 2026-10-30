@@ -1,14 +1,18 @@
 """Shared helpers for the analysis scripts (numpy + pandas only)."""
 import math
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
-SUMMARY = REPO / "results" / "contention_summary.csv"
-TIMING_DIR = REPO / "results" / "timing"
-OUT = REPO / "results" / "analysis"
+# Analyse another results folder (for example an archived sweep) with:
+#   STUDY_RESULTS=~/results_sweep1 python analysis/summarize_results.py
+RESULTS = Path(os.path.expanduser(os.environ.get("STUDY_RESULTS", str(REPO / "results"))))
+SUMMARY = RESULTS / "contention_summary.csv"
+TIMING_DIR = RESULTS / "timing"
+OUT = RESULTS / "analysis"
 
 TIMING_SUFFIX = "-timing"   # tag suffix of the timing-only variant (late model off)
 ARM_ORDER = ["fixed", "anytime", "da"]

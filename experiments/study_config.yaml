@@ -14,6 +14,8 @@ study:
   fixed_n_iters: null        # set after `calibrate` (or leave null to use results/calibration.json)
   late_model: true           # a plan longer than the period => the car keeps its previous command
   warmup_decisions: 40       # excluded from deadline stats and from the late model
+  cooldown_s: 5              # pause after every episode (clean run: 34-60 C with turbo off, no heat build-up seen)
+  timing_only_max_steps: 1500  # timing-only episodes need ~1500 decisions for a precise hit rate, not two laps
 
 # Contention = busy-loop workers pinned to the SAME core as the planner (study.planner_core).
 # `workers` is the NUMBER of competing workers; with k workers the planner gets roughly

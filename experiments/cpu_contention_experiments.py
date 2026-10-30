@@ -28,7 +28,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common  # noqa: E402
 
 
+def preflight(cfg, args):
+    """Refuse to start on a machine that is not in a benchmarking state (override: --force)."""
+    problems, notes = common.machine_preflight(cfg["study"]["planner_core"])
+    for n in notes:
+        print("   note:", n)
+    if problems and not args.dry_run:
+        if args.force:
+            print("   WARNING (ignored because of --force):", "; ".join(problems))
+            return True
+        print("MACHINE NOT READY:")
+        for p in problems:
+            print("  -", p)
+        print("Fix these (docs/methodology.md, section 11) or override with --force.")
+        return False
+    return True
+
+
 def cmd_calibrate(cfg, args):
+    if not preflight(cfg, args):
+        return 1
     st = cfg["study"]
     seed = st["seeds"][0]
     print(f"Calibration: 1 idle episode of the 'da' arm, planner pinned to core {st['planner_core']}")
@@ -85,14 +104,15 @@ def build_tasks(cfg, args):
     arms = args.arms or st["arms"]
     tasks = []
     for seed in seeds:
-        for li, load in enumerate(loads):
-            order = list(arms)
-            random.Random(seed * 1000 + li).shuffle(order)   # randomised, reproducible arm order
-            tasks += [(arm, load, seed) for arm in order]
+        block = [(arm, load, seed) for load in loads for arm in arms]
+        random.Random(seed * 1000).shuffle(block)   # whole seed block shuffled, reproducibly:
+        tasks += block                              # no load or arm always runs first/last
     return tasks
 
 
 def cmd_run(cfg, args):
+    if not preflight(cfg, args):
+        return 1
     st = cfg["study"]
     tb_ms = st["time_budget_s"] * 1000.0
     n_iters = common.resolve_n_iters(cfg)
@@ -114,7 +134,13 @@ def cmd_run(cfg, args):
     failed = []
     for i, (arm, load, seed) in enumerate(todo, 1):
         print(f">>> [{i}/{len(todo)}] arm={arm} load={load} seed={seed}  ({time.strftime('%H:%M:%S')})")
+        if not args.dry_run:
+            common.log_machine("before", st["planner_core"], arm, load, seed, args.timing_only)
         rc = common.run_episode(cfg, arm, load, seed, n_iters, args.dry_run, args.timing_only)
+        if not args.dry_run:
+            common.log_machine("after", st["planner_core"], arm, load, seed, args.timing_only)
+            if st.get("cooldown_s", 0) > 0:
+                time.sleep(st["cooldown_s"])   # let the CPU shed heat between episodes
         if rc != 0:
             failed.append((arm, load, seed))
             print(f"    RUN FAILED (return code {rc})")
@@ -144,6 +170,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("command", choices=["calibrate", "run", "status"])
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="start even if the machine preflight reports problems")
     ap.add_argument("--timing-only", action="store_true",
                     help="late-command model off; results tagged '<load>-timing'")
     ap.add_argument("--seeds", type=int, default=None)
